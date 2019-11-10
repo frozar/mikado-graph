@@ -85,8 +85,10 @@
 (defn svg-canvas []
     [:svg {:style {:border "1px solid"
                    :background "white"
-                   :width "600"
-                   :height "600"}}
+                   :width "800"
+                   :height "800"}
+           :on-context-menu (fn [evt] (.preventDefault evt)) 
+           }
      [root (reagent/current-component)]
      ])
 

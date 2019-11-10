@@ -18,6 +18,7 @@
                :rx 100
                :ry 50
                }]
+    :links []
     }))
 
 (defn get-bubble [id]
@@ -125,14 +126,26 @@
       ;; (dragging on-drag (g/x (:c bubble)) (g/y (:c bubble)) get-svg-coord))))
       (dragging on-drag (g/x (:c bubble)) (g/y (:c bubble)) svg-root))))
 
-(defn new-bubble [cx cy]
-  (swap! points update :bubbles conj {:id (gen-id) :c (g/point cx cy) :rx 100 :ry 50})
-  )
+(defn new-bubble [parent-bubble-id cx cy]
+  (let [bubble-id (gen-id)]
+    (swap! points update :bubbles conj {:id bubble-id :c (g/point cx cy) :rx 100 :ry 50})
+    ;; (clog parent-bubble-id)
+    ;; (clog bubble-id)
+    ;; (clog (get-bubble parent-bubble-id))
+    ;; (clog (get-bubble bubble-id))
+    (swap! points update :links conj {:src parent-bubble-id :dst bubble-id})
+    ;; (clog (:links @points))
+    ))
 
 (defn delete-bubble [id]
   (fn [evt]
     (.preventDefault evt)
     (swap! points update :bubbles (fn [l] (filterv #(not (= (:id %) id)) l)))
+    ;; (clog id)
+    ;; (clog (:links @points))
+    (swap! points update :links (fn [l] (filterv
+                                         (fn [link] not (= (some #{id} (vals link)) nil)) l)))
+    ;; (clog (:links @points))
     ))
 
 (defn draw-root-bubble [svg-root]
@@ -145,7 +158,7 @@
     ;; [:<>
     [:g {
          :on-mouse-down (dragging-fn on-drag root-bubble svg-root)
-         :on-double-click #(new-bubble (g/x c) (- (g/y c) (* 3 ry)))
+         :on-double-click #(new-bubble (:id root-bubble) (g/x c) (- (g/y c) (* 3 ry)))
          :on-context-menu (fn [evt] (.preventDefault evt))
          }
      [:ellipse
@@ -165,7 +178,7 @@
      (merge ellipse-defaults
             {:key id
              :on-mouse-down (dragging-fn on-drag bubble svg-root)
-             :on-double-click #(new-bubble (g/x c) (- (g/y c) (* 3 ry)))
+             :on-double-click #(new-bubble (:id bubble) (g/x c) (- (g/y c) (* 3 ry)))
              :on-context-menu (delete-bubble id)
              :cx (g/x c)
              :cy (g/y c)
@@ -173,12 +186,41 @@
              :ry ry
              })]))
 
+(defn get-link-path [link]
+  (let [{:keys [src dst]} link
+        src-b (get-bubble src)
+        dst-b (get-bubble dst)
+        src-pt (:c src-b)
+        dst-pt (:c dst-b)
+        path-str (str "M " (g/x src-pt) "," (g/y src-pt) " L " (g/x dst-pt) "," (g/y dst-pt))]
+    {:key (str (:id src-b) (:id dst-b))
+     :stroke-width 4
+     :stroke "black"
+     :fill "none"
+     :d path-str}
+    )
+  )
+
+(defn draw-links []
+  ;; (clog (:links @points))
+  ;; (clog (map (fn [link] (map #(get-bubble %) link)) (:links @points)))
+  ;; (clog (map (fn [link] (get-link-path link)) (:links @points)))
+  (let [links-path (doall (map (fn [link] (get-link-path link)) (:links @points)))]
+    ;; (clog links-path)
+    [:g
+     (for [path links-path]
+       [:path path])
+     ]
+    )
+  )
+
 (defn all-bubble [svg-root]
   ;; (js/console.log "on-drag" on-drag)
   ;; (js/console.log @points)
   ;; (clog svg-root)
   ;; (js/console.log svg-root)
   [:g
+   (draw-links)
    (draw-root-bubble svg-root)
    (for [bubble (filter #(not (= (:id %) root-id)) (:bubbles @points))]
      (draw-bubble svg-root bubble)
