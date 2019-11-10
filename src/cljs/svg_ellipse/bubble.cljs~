@@ -1,0 +1,137 @@
+(ns svg-ellipse.ellipse
+  (:require [reagent.core :as reagent]
+            [reagent.session :as session]
+            [reitit.frontend :as reitit]
+            [clerk.core :as clerk]
+            [accountant.core :as accountant]
+            [svg_ellipse.geometry :as g]
+            [goog.events :as events]
+            )
+  (
+   :import [goog.events EventType]
+   )
+  )
+
+(defonce points
+  (reagent/atom
+   {:root {:id "root"
+           :c (g/point 250 450)
+           :rx 100
+           :ry 50
+           }
+    :bubbles []
+    }))
+
+(defn gen-id []
+  "Generate a string of length 8, e.g.: 'b56d74c5'"
+  (apply str (repeatedly 8 #(rand-nth "0123456789abcdef"))))
+
+
+(defn get-bcr [svg-root]
+  (-> svg-root
+      reagent/dom-node
+      .getBoundingClientRect))
+
+(defn move-point [svg-root p]
+  ;; (js/console.log "move-point" p)
+  ;; (js/console.log "move-point" (get-in @points [:root p]))
+  (fn [x y]
+    ;; (js/console.log "move-point inner")
+    (let [bcr (get-bcr svg-root)]
+      (swap! points assoc-in p (g/point (- x (.-left bcr)) (- y (.-top bcr)))))))
+
+(defn move-bubble [svg-root id]
+  ;; (js/console.log "move-point" p)
+  ;; (js/console.log "move-point" (get-in @points [:root p]))
+  (fn [x y]
+    ;; (js/console.log "move-point inner")
+    (let [bcr (get-bcr svg-root)]
+      ;(swap! points #((:bubbles %) ) assoc-in p (g/point (- x (.-left bcr)) (- y (.-top bcr)))))))
+      (swap! points update :bubbles
+             (fn [l] (update
+                      l
+                      (.indexOf (map #(:id %) l) id)
+                      #(merge % {:c (g/point (- x (.-left bcr)) (- y (.-top bcr)))}))))
+      )))
+
+(def ellipse-defaults
+  {
+   :fill "#f06"
+   :stroke "black"
+   :stroke-width 5
+   })
+
+(defn drag-move-fn [on-drag]
+  (fn [evt]
+    ;; (js/console.log "drag-move" (.-clientX evt) (.-clientY evt))
+    (on-drag (.-clientX evt) (.-clientY evt))))
+
+(defn drag-end-fn [drag-move drag-end on-end]
+  (fn [evt]
+    (events/unlisten js/window EventType.MOUSEMOVE drag-move)
+    (events/unlisten js/window EventType.MOUSEUP @drag-end)
+    (on-end)))
+
+(defn dragging
+  ([on-drag] (dragging on-drag (fn []) (fn [])))
+  ([on-drag on-start on-end]
+   ;; (js/console.log "dragging")
+   (let [drag-move (drag-move-fn on-drag)
+         drag-end-atom (atom nil)
+         drag-end (drag-end-fn drag-move drag-end-atom on-end)]
+     (on-start)
+     (reset! drag-end-atom drag-end)
+     (events/listen js/window EventType.MOUSEMOVE drag-move)
+     (events/listen js/window EventType.MOUSEUP drag-end))))
+
+(defn new-bubble [cx cy]
+  (swap! points update :bubbles conj {:id (gen-id) :c (g/point cx cy) :rx 100 :ry 50})
+  )
+
+(defn delete-bubble [id]
+  (fn [evt]
+    (.preventDefault evt)
+    (swap! points update :bubbles (fn [l] (filterv #(not (= (:id %) id)) l)))
+  ))
+
+(defn draw-root-bubble [svg-root] ;{:keys [on-drag]}]
+  ;; (js/console.log (:bubbles @points))
+  (let [{:keys [c rx ry]} (:root @points)
+        basic-option {:cx (g/x c) :cy (g/y c)}
+        on-drag (move-point svg-root [:root :c])]
+    ;; (js/console.log "c" c)
+    ;; [:<>
+    [:g {:on-mouse-down #(dragging on-drag)
+         :on-double-click #(new-bubble (g/x c) (- (g/y c) 150))}
+     [:ellipse
+      (merge ellipse-defaults basic-option
+             {:rx (+ 10 rx) :ry (+ 10 ry)})]
+     [:ellipse
+      (merge ellipse-defaults basic-option
+             {:rx rx :ry ry})]
+     ]
+    )
+  )
+
+(defn draw-bubble [svg-root bubble]
+  (let [{:keys [id c rx ry]} bubble]
+  [:ellipse
+   (merge ellipse-defaults
+          {:key id
+           :on-mouse-down #(dragging (move-bubble svg-root id))
+           :on-double-click #(new-bubble (g/x c) (- (g/y c) 150))
+           :on-context-menu (delete-bubble id)
+           :cx (g/x c)
+           :cy (g/y c)
+           :rx rx
+           :ry ry
+           })]))
+
+(defn all-bubble [svg-root]
+  ;; (js/console.log "on-drag" on-drag)
+    [:g
+     (draw-root-bubble svg-root)
+     (for [bubble (:bubbles @points)]
+       (draw-bubble svg-root bubble)
+       )
+     ])
