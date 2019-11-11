@@ -13,12 +13,15 @@
 (defonce points
   (reagent/atom
    {
+    ;; :e [4]
     :bubbles [{:id root-id
                :c (g/point 250 450)
                :rx 100
                :ry 50
+               :text "Main goal"
                }]
     :links []
+    :editing-bubble {:id nil :cursor-pos -1}
     }))
 
 (defn get-bubble [id]
@@ -128,7 +131,7 @@
 
 (defn new-bubble [parent-bubble-id cx cy]
   (let [bubble-id (gen-id)]
-    (swap! points update :bubbles conj {:id bubble-id :c (g/point cx cy) :rx 100 :ry 50})
+    (swap! points update :bubbles conj {:id bubble-id :c (g/point cx cy) :rx 100 :ry 50 :text (str "bubble " bubble-id)})
     ;; (clog parent-bubble-id)
     ;; (clog bubble-id)
     ;; (clog (get-bubble parent-bubble-id))
@@ -167,24 +170,56 @@
      [:ellipse
       (merge ellipse-defaults basic-option
              {:rx rx :ry ry})]
+     [:text {:style {:-webkit-user-select "none"
+                     :-moz-user-select "none"
+                     :text-anchor "middle"
+                     :dominant-baseline "middle"}
+             :x (g/x c) :y (g/y c) :font-size 20}
+      (:text root-bubble)]
      ]
     )
   )
 
+(defn edit-bubble [id]
+  (fn [evt]
+    (clog (:editing-bubble @points))
+    (swap! points update :editing-bubble merge {:id id :cursor-pos (count (:text (get-bubble id)))})
+    ;; (let [cur-bubble-id (get-in @points [:editing-bubble :id])]
+    ;;   (if (= cur-bubble-id nil)
+    ;;     (do
+    ;;       (clog cur-bubble-id)
+    ;;       (swap! points update :editing-bubble merge {:id id :cursor-pos (count (:text (get-bubble id)))}))
+    ;;     )
+    ;;   (clog (:editing-bubble @points))
+      
+    ;;   )
+    ))
+
 (defn draw-bubble [svg-root bubble]
   (let [{:keys [id c rx ry]} bubble
         on-drag (move-bubble svg-root (:id bubble))]
-    [:ellipse
-     (merge ellipse-defaults
-            {:key id
-             :on-mouse-down (dragging-fn on-drag bubble svg-root)
-             :on-double-click #(new-bubble (:id bubble) (g/x c) (- (g/y c) (* 3 ry)))
-             :on-context-menu (delete-bubble id)
-             :cx (g/x c)
-             :cy (g/y c)
-             :rx rx
-             :ry ry
-             })]))
+    [:g {:key id
+         :on-mouse-down (dragging-fn on-drag bubble svg-root)
+         :on-context-menu (delete-bubble id)
+         }
+     [:ellipse
+      (merge ellipse-defaults
+             {:on-double-click #(new-bubble id (g/x c) (- (g/y c) (* 3 ry)))
+              :cx (g/x c)
+              :cy (g/y c)
+              :rx rx
+              :ry ry
+              })]
+     [:text {:style {:-webkit-user-select "none"
+                     :-moz-user-select "none"
+                     :text-anchor "middle"
+                     :dominant-baseline "middle"}
+             :x (g/x c) :y (g/y c) :font-size 20
+             :on-double-click (edit-bubble id)
+             }
+      (:text bubble)]
+     ]
+    ))
 
 (defn get-link-path [link]
   (let [{:keys [src dst]} link
@@ -219,6 +254,9 @@
   ;; (js/console.log @points)
   ;; (clog svg-root)
   ;; (js/console.log svg-root)
+  ;; (clog (.-activeElement js/document))
+  ;; (js/console.log (.-activeElement js/document))
+  ;; (clog (get-in @points [:editing-bubble :id]))
   [:g
    (draw-links)
    (draw-root-bubble svg-root)
