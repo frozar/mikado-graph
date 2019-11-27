@@ -5,6 +5,7 @@
             [clerk.core :as clerk]
             [accountant.core :as accountant]
             [svg-ellipse.bubble :as b]
+            [debux.cs.core :as d :refer-macros [clog clogn dbg dbgn break]]
             )
   )
 
@@ -79,7 +80,10 @@
 (defn root [svg-root]
   ;; (js/console.log "root")
   ;; (js/console.log svg-root)
-  [b/all-bubble svg-root]
+  ;; [:<>
+   [b/all-bubble svg-root]
+   ;; [b/all-bubble2 svg-root]
+   ;; ]
   )
 
 (defn svg-canvas []
@@ -89,15 +93,17 @@
                    :height "800"}
            :on-context-menu (fn [evt] (.preventDefault evt)) 
            }
+     ;; (clog "svg-canvas")
      [root (reagent/current-component)]
      ])
 
 (defn current-page []
   (fn []
     (let [page (:current-page (session/get :route))]
+      ;; (clog "current-page")
       [:div
        [:header
-        [:p [:a {:href (path-for :index)} "Home"] " | "
+        [:p [:a {:href (path-for :index)} "Maison"] " | "
          [:a {:href (path-for :about)} "About svg_ellipse"]]]
        [svg-canvas]
        [page]

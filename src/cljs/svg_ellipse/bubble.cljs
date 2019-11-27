@@ -13,7 +13,6 @@
 (defonce points
   (reagent/atom
    {
-    ;; :e [4]
     :bubbles [{:id root-id
                :c (g/point 250 450)
                :rx 100
@@ -180,45 +179,204 @@
     )
   )
 
-(defn edit-bubble [id]
-  (fn [evt]
-    (clog (:editing-bubble @points))
-    (swap! points update :editing-bubble merge {:id id :cursor-pos (count (:text (get-bubble id)))})
-    ;; (let [cur-bubble-id (get-in @points [:editing-bubble :id])]
-    ;;   (if (= cur-bubble-id nil)
-    ;;     (do
-    ;;       (clog cur-bubble-id)
-    ;;       (swap! points update :editing-bubble merge {:id id :cursor-pos (count (:text (get-bubble id)))}))
-    ;;     )
-    ;;   (clog (:editing-bubble @points))
+;; (defn edit-bubble [id]
+;;   (fn [evt]
+;;     (clog (:editing-bubble @points))
+;;     ;; (swap! points update :editing-bubble merge {:id id :cursor-pos (count (:text (get-bubble id)))})
+;;     [:foreignObject
+;;      {:width 200
+;;       :height 100
+;;       :x 1
+;;       :y 1
+;;       }
+;;      [:div "TOTO"]]
+;;     ;; (let [cur-bubble-id (get-in @points [:editing-bubble :id])]
+;;     ;;   (if (= cur-bubble-id nil)
+;;     ;;     (do
+;;     ;;       (clog cur-bubble-id)
+;;     ;;       (swap! points update :editing-bubble merge {:id id :cursor-pos (count (:text (get-bubble id)))}))
+;;     ;;     )
+;;     ;;   (clog (:editing-bubble @points))
       
-    ;;   )
-    ))
+;;     ;;   )
+;;     ))
 
+;; (defn draw-bubble [svg-root bubble]
+;;    (let [{:keys [id c rx ry]} bubble
+;;          on-drag (move-bubble svg-root id)
+;;          editing (reagent/atom false)
+;;          ]
+;;      [:g {:key id
+;;           :on-mouse-down (dragging-fn on-drag bubble svg-root)
+;;           :on-context-menu (delete-bubble id)
+;;           }
+;;       [:ellipse
+;;        (merge ellipse-defaults
+;;               {:on-double-click #(new-bubble id (g/x c) (- (g/y c) (* 3 ry)))
+;;                :cx (g/x c)
+;;                :cy (g/y c)
+;;                :rx rx
+;;                :ry ry
+;;                })]
+;;       [:text {:style {:-webkit-user-select "none"
+;;                       :-moz-user-select "none"
+;;                       :text-anchor "middle"
+;;                       :dominant-baseline "middle"}
+;;               :x (g/x c) :y (g/y c) :font-size 20
+;;               ;; :on-double-click (edit-bubble id)
+;;               :on-double-click #(reset! editing true)
+;;               }
+;;        (:text bubble)]
+
+;;       (clog @editing)
+;;       (when @editing
+;;         [:foreignObject
+;;          {:width 200
+;;           :height 100
+;;           :x 1
+;;           :y 1
+;;           }
+;;          [:div "TOTO"]]
+;;         )
+;;       ]
+;;      ))
+
+;; (defn handler-double-click []
+
+  ;; (let [val (r/atom title)
+  ;;       stop #(do (reset! val "")
+  ;;                 (if on-stop (on-stop)))
+  ;;       save #(let [v (-> @val str clojure.string/trim)]
+  ;;               (if-not (empty? v) (on-save v))
+  ;;               (stop))]
+  ;;   (fn [{:keys [id class placeholder]}]
+  ;;     (clog placeholder)
+  ;;     [:input {:type "text" :value @val
+  ;;              :id id :class class :placeholder placeholder
+  ;;              :on-blur save
+  ;;              :on-change #(reset! val (-> % .-target .-value))
+  ;;              ;; :on-key-down #(case (.-which %)
+  ;;              ;;                 13 (save)
+  ;;              ;;                 27 (stop)
+  ;;              ;;                 nil)}])))
+  ;;              :on-key-down (handle-key-down save stop)}])))
+
+(defn save [id text]
+  (swap!
+   points update :bubbles
+   (fn [list-bubble]
+     (let [list-idxs (map #(:id %) list-bubble)]
+       ;; (clog id)
+       ;; (clog list-idxs)
+       ;; (clog (.indexOf list-idxs id))
+       ;; (clog (.-left bcr))
+       ;; (clog (- x (.-left bcr)))
+       ;; Check if the id to delete is present in the model.
+       ;; When the user drag a bubble on a right click, the move action
+       ;; associated try to delete an id which was ready deleted.
+       (if (some #{id} list-idxs)
+         (update
+          list-bubble
+          (.indexOf list-idxs id)
+          ;; #(merge % {:c (g/point (- x (.-left bcr)) (- y (.-top bcr)))}))
+          ;; #(merge % {:c (g/point x (- y (.-top bcr)))}))
+          #(merge % {:text text}))
+         ;; #(merge % {:c (g/point x y)}))
+         ;; Else body
+         list-bubble)))))
+
+;; (swap! todos assoc-in [id :title] title)
+;; )
+
+;; (def initial-focus-wrapper 
+;;   (with-meta identity
+;;     {:component-did-mount #(.focus (reagent/dom-node %))}))
+
+(defn bubble-input [text c {:keys [on-stop on-save]}]
+  (let [val (reagent/atom text) ;"toto")
+        stop #(do (reset! val "")
+                  (if on-stop (on-stop)))
+        save #(let [v (-> @val str clojure.string/trim)]
+                (if-not (empty? v) (on-save v))
+                (stop))
+        ]
+    (fn []
+      [:foreignObject
+       {:width 300
+        :height 100
+        :x (- (g/x c) (/ (* 10 (count @val)) 2));50)
+        :y (g/y c)
+        }
+       ;; [initial-focus-wrapper
+        [:textarea
+         {
+          :rows 1
+          :cols (count @val)
+          :auto-focus true
+          ;; :value        @val
+          :font-size "20px"
+          :default-value @val
+          :on-blur save
+          :on-focus
+          (fn [e]
+            ;; (clog e)
+            ;; (js/console.log (.-target e))
+            ;; (set! (.-selectionStart (.-target e)) 4)
+            ;; (set! (.-selectionEnd (.-target e)) 4)
+            (.setSelectionRange (.-target e) (count @val) (count @val))
+            )
+          :on-change    #(reset! val (.. % -target -value))
+          :on-key-press (fn [e]
+                          (when (= (.-charCode e) 13)
+                             (.preventDefault e)
+                             (reset! val "")))
+          :on-key-down #(case (.-which %)
+                          13 (save)
+                          27 (stop)
+                          nil)
+          }
+         ;; ]
+        ]
+       ]
+      )
+    )
+  )
+
+;; (defn draw-bubble [svg-root bubble]
 (defn draw-bubble [svg-root bubble]
-  (let [{:keys [id c rx ry]} bubble
-        on-drag (move-bubble svg-root (:id bubble))]
-    [:g {:key id
-         :on-mouse-down (dragging-fn on-drag bubble svg-root)
-         :on-context-menu (delete-bubble id)
-         }
-     [:ellipse
-      (merge ellipse-defaults
-             {:on-double-click #(new-bubble id (g/x c) (- (g/y c) (* 3 ry)))
-              :cx (g/x c)
-              :cy (g/y c)
-              :rx rx
-              :ry ry
-              })]
-     [:text {:style {:-webkit-user-select "none"
-                     :-moz-user-select "none"
-                     :text-anchor "middle"
-                     :dominant-baseline "middle"}
-             :x (g/x c) :y (g/y c) :font-size 20
-             :on-double-click (edit-bubble id)
-             }
-      (:text bubble)]
-     ]
+  (let [edition? (reagent/atom false)]
+    (fn [svg-root bubble]
+      (let [{:keys [id c rx ry]} bubble
+            on-drag (move-bubble svg-root id)
+            common-behavior {:on-mouse-down (dragging-fn on-drag bubble svg-root)
+                             :on-context-menu (delete-bubble id)}
+            ]
+        [:g {:key id}
+         [:ellipse
+          (merge ellipse-defaults common-behavior
+                 {:on-double-click #(new-bubble id (g/x c) (- (g/y c) (* 3 ry)))
+                  :cx (g/x c)
+                  :cy (g/y c)
+                  :rx rx
+                  :ry ry
+                  })]
+         [:text (merge common-behavior {:style {:-webkit-user-select "none"
+                         :-moz-user-select "none"
+                         :text-anchor "middle"
+                         :dominant-baseline "middle"}
+                 :x (g/x c) :y (g/y c) :font-size 20
+                 :on-double-click #(reset! edition? true)
+                 })
+          (:text bubble)]
+
+         ;; (clog @edition?)
+         (when @edition?
+           [bubble-input (:text bubble) c {:on-save #(save id %)
+                            :on-stop #(reset! edition? false)}]
+           )
+         ]
+        )
+      )
     ))
 
 (defn get-link-path [link]
@@ -250,17 +408,22 @@
   )
 
 (defn all-bubble [svg-root]
+  ;; (clog "all-bubble")
+  ;; (clog @points)
   ;; (js/console.log "on-drag" on-drag)
   ;; (js/console.log @points)
   ;; (clog svg-root)
   ;; (js/console.log svg-root)
   ;; (clog (.-activeElement js/document))
   ;; (js/console.log (.-activeElement js/document))
-  ;; (clog (get-in @points [:editing-bubble :id]))
+  ;; (clog (get-in @points [:edition?-bubble :id]))
   [:g
    (draw-links)
    (draw-root-bubble svg-root)
-   (for [bubble (filter #(not (= (:id %) root-id)) (:bubbles @points))]
-     (draw-bubble svg-root bubble)
-     )
+   (doall
+    (for [bubble (filter #(not= (:id %) root-id) (:bubbles @points))]
+      ;; (draw-bubble svg-root bubble)
+      ^{:key (:id bubble)} [draw-bubble svg-root bubble]
+      )
+    )
    ])
