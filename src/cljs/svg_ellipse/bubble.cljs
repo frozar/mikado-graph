@@ -9,7 +9,7 @@
            )
   )
 
-  (def root-id "root")
+(def root-id "root")
 
 (defonce points
   (reagent/atom
@@ -21,7 +21,6 @@
                :text "Main goal"
                }]
     :links []
-    :editing-bubble {:id nil :cursor-pos -1}
     }))
 
 (defn get-bubble [id]
@@ -40,11 +39,20 @@
   (let [bcr (get-bcr svg-root)]
     {:x (- x (.-left bcr)) :y (- y (.-top bcr))}))
 
-;; (defn get-svg-coord-fn [svg-root]
-;;   (let [bcr (get-bcr svg-root)]
-;;     (clog bcr)
-;;     (fn [x y]
-;;       {:x (- x (.-left bcr)) :y (- y (.-top bcr))})))
+(defn resize-bubble
+  [bubble-id rx ry]
+  (swap! points update :bubbles
+         (fn [list-bubble]
+           (let [list-idxs (map #(:id %) list-bubble)]
+             ;; Check if the id to resize is present in the model.
+             (if (some #{bubble-id} list-idxs)
+               (update
+                list-bubble
+                (.indexOf list-idxs bubble-id)
+                (fn [b] (merge b {:rx rx :ry ry}))
+                ;; Else body
+                list-bubble))))))
+
 
 (defn move-bubble [svg-root id]
   ;; (clog id)
@@ -73,10 +81,10 @@
               (.indexOf list-idxs id)
               ;; #(merge % {:c (g/point (- x (.-left bcr)) (- y (.-top bcr)))}))
               ;; #(merge % {:c (g/point x (- y (.-top bcr)))}))
-              #(merge % {:c (g/point x y)}))
+              (fn [b] (merge b {:c (g/point x y)}))
               ;; #(merge % {:c (g/point x y)}))
              ;; Else body
-             list-bubble)))))))
+             list-bubble))))))))
 
 (def ellipse-defaults
   {
@@ -85,11 +93,9 @@
    :stroke-width 5
    })
 
-;; (defn drag-move-fn [on-drag cx cy get-svg-coord]
 (defn drag-move-fn [on-drag cx cy svg-root]
   (let [first-evt-coord (atom nil)]
     (fn [evt]
-      ;; (let [{:keys [x y]} (get-svg-coord (.-clientX evt) (.-clientY evt))
       (let [{:keys [x y]} (get-svg-coord svg-root (.-clientX evt) (.-clientY evt))
             current-x-evt x
             current-y-evt y]
@@ -105,12 +111,8 @@
     (on-end)))
 
 (defn dragging
-  ;; ([on-drag cx cy get-svg-coord] (dragging on-drag (fn []) (fn []) cx cy get-svg-coord))
   ([on-drag cx cy svg-root] (dragging on-drag (fn []) (fn []) cx cy svg-root))
-  ;; ([on-drag on-start on-end cx cy get-svg-coord]
   ([on-drag on-start on-end cx cy svg-root]
-   ;; (js/console.log "dragging")
-   ;; (let [drag-move (drag-move-fn on-drag cx cy get-svg-coord)
    (let [drag-move (drag-move-fn on-drag cx cy svg-root)
          drag-end-atom (atom nil)
          drag-end (drag-end-fn drag-move drag-end-atom on-end)]
@@ -122,11 +124,9 @@
 (defn if-left-click [evt]
   (= 0 (.-button evt)))
 
-;; (defn dragging-fn [on-drag bubble get-svg-coord]
 (defn dragging-fn [on-drag bubble svg-root]
   (fn [evt]
     (if (if-left-click evt)
-      ;; (dragging on-drag (g/x (:c bubble)) (g/y (:c bubble)) get-svg-coord))))
       (dragging on-drag (g/x (:c bubble)) (g/y (:c bubble)) svg-root))))
 
 (defn new-bubble [parent-bubble-id cx cy]
@@ -144,20 +144,15 @@
   (fn [evt]
     (.preventDefault evt)
     (swap! points update :bubbles (fn [l] (filterv #(not (= (:id %) id)) l)))
-    ;; (clog id)
-    ;; (clog (:links @points))
     (swap! points update :links (fn [l] (filterv
                                          (fn [link] not (= (some #{id} (vals link)) nil)) l)))
-    ;; (clog (:links @points))
     ))
 
 (defn draw-root-bubble [svg-root]
-  ;; (clog (:bubbles @points))
   (let [root-bubble (get-bubble root-id)
         {:keys [c rx ry]} root-bubble
         basic-option {:cx (g/x c) :cy (g/y c)}
         on-drag (move-bubble svg-root root-id)]
-    ;; (clog c)
     ;; [:<>
     [:g {
          :on-mouse-down (dragging-fn on-drag root-bubble svg-root)
@@ -197,83 +192,66 @@
          ;; Else body
          list-bubble)))))
 
-;; (swap! todos assoc-in [id :title] title)
-;; )
-
-;; (def initial-focus-wrapper 
-;;   (with-meta identity
-;;     {:component-did-mount #(.focus (reagent/dom-node %))}))
-
-(defn custom-textarea [text on-stop on-save]
+(defn bubble-input [{:keys [c text rx ry]} {:keys [on-stop on-save]}]
   (let [val (reagent/atom text)
         stop #(do (reset! val "")
                   (if on-stop (on-stop)))
         save #(let [v (-> @val str clojure.string/trim)]
                 (if-not (empty? v) (on-save v))
                 (stop))
-        nb-lines (->> @val string/split-lines count)
-        line-max-length (->> @val string/split-lines (map count) (apply max))
         ]
     (fn []
-       [:textarea
-        {:style
-         {
-          :overflow "hidden"
-          :position "absolute"
-          :font-size "20px"
-          }
-         :rows nb-lines
-         :cols line-max-length
-         :auto-focus true
-         :default-value @val
-         :on-blur save
-         :on-focus
-         (fn [evt]
-           ;; Center the textarea field against the surrounding bubble
-           (let [width (.-width (.getBoundingClientRect (.-target evt)))
-                 height (.-height (.getBoundingClientRect (.-target evt)))
-                 x-offset (-> 200 (- width) (/ 2))
-                 y-offset (-> 100 (- height) (/ 2))]
-             (set! (.-left (.-style (.-target evt))) (str x-offset "px"))
-             (set! (.-top (.-style (.-target evt))) (str y-offset "px"))
+      [:foreignObject
+       {:width (* 5 rx)
+        :height (* 5 ry)
+        :x (- (g/x c) rx)
+        :y (- (g/y c) ry)
+        }
+       (let [nb-lines (->> @val string/split-lines count)
+             line-max-length (->> @val string/split-lines (map count) (apply max))]
+         [:textarea
+          {:style
+           {
+            :overflow "hidden"
+            :position "absolute"
+            :font-size "20px"
+            :justify-content "center"
+            :border "none"
+            :-moz-text-align-last "center"
+            :text-align-last "center";
+            }
+           :rows nb-lines
+           :cols line-max-length
+           :auto-focus true
+           :default-value @val
+           :on-blur save
+           :on-focus
+           (fn [evt]
+             ;; Center the textarea field against the surrounding bubble
+             (let [width (.-width (.getBoundingClientRect (.-target evt)))
+                   height (.-height (.getBoundingClientRect (.-target evt)))
+                   x-offset (-> rx (- (/ width 2)) js/Math.abs )
+                   y-offset (-> ry (- (/ height 2)) js/Math.abs)]
+               (set! (.-left (.-style (.-target evt))) (str x-offset "px"))
+               (set! (.-top (.-style (.-target evt))) (str y-offset "px"))
+               )
+             ;; Set the cursor position at the end of the textarea
+             ;; (set! (.-selectionStart (.-target e)) 4)
+             ;; (set! (.-selectionEnd (.-target e)) 4)
+             (.setSelectionRange (.-target evt) (count @val) (count @val))
              )
-
-           ;; Set the cursor position at the end of the textarea
-           ;; (set! (.-selectionStart (.-target e)) 4)
-           ;; (set! (.-selectionEnd (.-target e)) 4)
-           (.setSelectionRange (.-target evt) (count @val) (count @val))
-           )
-         :on-change (fn [evt] (reset! val (.. evt -target -value)))
-         ;; :on-key-press (fn [e]
-         ;;                 (when (= (.-charCode e) 13)
-         ;;                   (.preventDefault e)
-         ;;                   (reset! val "")))
-         :on-key-down (fn [evt]
-                        (let [enter-keycode 13
-                              escape-keycode 27]
-                        (case (.-which evt)
-                          enter-keycode (do
-                               (when (not (.-shiftKey evt))
-                                 (save)
+           :on-change (fn [evt] (reset! val (.. evt -target -value)))
+           :on-key-down (fn [evt]
+                          ;; 13: enter-keycode
+                          ;; 27: escape-keycode
+                          (case (.-which evt)
+                            13 (do
+                                 (when (not (.-shiftKey evt))
+                                   (save)
+                                   )
                                  )
-                               )
-                          escape-keycode (stop)
-                          nil)))
-         }])))
-
-(defn bubble-input [{:keys [c text rx ry]} {:keys [on-stop on-save]}]
-  (fn []
-    [:foreignObject
-     {:width (* 5 rx)
-      :height (* 5 ry)
-      :x (- (g/x c) rx)
-      :y (- (g/y c) ry)
-      }
-     [custom-textarea
-      text on-stop on-save]
-     ]
-    )
-  )
+                            27 (stop)
+                            nil))}])])))
 
 (defn update-y-pos
   [y-pos-atom dom-node id-bubble]
@@ -282,16 +260,24 @@
         y-bubble (g/y (:c bubble))
         nb-lines (->> bubble :text string/split-lines count)
         height-line (/ height nb-lines)
-        y-offset (/ (* (dec nb-lines) height-line) 2)
+        y-offset (-> nb-lines dec (* height-line) (/ 2))
         ]
-    ;; (clog "update-y-pos")
-    ;; (clog y-bubble)
-    ;; (js/console.log (.-height (.getBoundingClientRect dom-node)))
-    ;; (reset! y-pos-atom (- y-bubble (/ height 4)))
-    ;; (reset! y-pos-atom (+ 7 y-bubble))
-    ;; (reset! y-pos-atom y-bubble)
     (reset! y-pos-atom (- y-bubble y-offset))
+    (clog "update y-pos")
+    (clog @points)
     ))
+
+(defn update-bubble-size
+  [dom-node id-bubble]
+  (let [width (.-width (.getBoundingClientRect dom-node))
+        height (.-height (.getBoundingClientRect dom-node))
+        new-rx (-> width (/ 2) (+ 50))
+        new-ry (-> height (/ 2) (+ 50))]
+    (resize-bubble id-bubble new-rx new-ry)
+    (clog "update size")
+    (clog @points)
+    )
+  )
 
 (defn bubble-text [edition? common-behavior id-bubble]
   (let [dom-node (reagent/atom nil)
@@ -299,13 +285,14 @@
     (reagent/create-class
      {
       :display-name "bubble-text"
-      
+
       :component-did-mount
       (fn [this]
         ;; (clog ":component-did-mount")
         (reset! dom-node (reagent/dom-node this))
+        (update-bubble-size @dom-node id-bubble)
         (update-y-pos y-pos @dom-node id-bubble))
-      
+
       :component-did-update
       (fn []
         ;; (clog ":component-did-update")
@@ -339,7 +326,10 @@
                                    tspan-text])))]))})))
 
 (defn draw-bubble [svg-root bubble]
-  (let [edition? (reagent/atom false)]
+  (let [edition? (reagent/atom false)
+        ;; rx-atom  (reagent/atom 0)
+        ;; ry-atom  (reagent/atom 0)
+        ]
     (fn [svg-root bubble]
       (let [{:keys [id c rx ry]} bubble
             on-drag (move-bubble svg-root id)
@@ -350,7 +340,9 @@
         [:g
          [:ellipse
           (merge ellipse-defaults common-behavior
-                 {:on-double-click #(new-bubble id (g/x c) (- (g/y c) (* 3 ry)))
+                 {;; TODO stop the event propagation to avoid the
+                  ;; text selection during drag
+                  :on-double-click #(new-bubble id (g/x c) (- (g/y c) (* 3 ry)))
                   :cx (g/x c)
                   :cy (g/y c)
                   :rx rx
@@ -358,12 +350,19 @@
                   })]
 
          [bubble-text edition? common-behavior id]
-         
+
          (when @edition?
            [bubble-input bubble
             {:on-save (fn[text] (save-text-bubble id text))
              :on-stop #(reset! edition? false)}]
            )
+
+         ;; (if @edition?
+         ;;   [bubble-input bubble
+         ;;    {:on-save (fn[text] (save-text-bubble id text))
+         ;;     :on-stop #(reset! edition? false)}]
+         ;;   [bubble-text edition? common-behavior id]
+         ;;   )
          ]))))
 
 (defn get-link-path [link]
@@ -383,10 +382,7 @@
 
 (defn draw-links []
   ;; (clog (:links @points))
-  ;; (clog (map (fn [link] (map #(get-bubble %) link)) (:links @points)))
-  ;; (clog (map (fn [link] (get-link-path link)) (:links @points)))
   (let [links-path (doall (map (fn [link] (get-link-path link)) (:links @points)))]
-    ;; (clog links-path)
     [:g
      (for [path links-path]
        [:path path])
@@ -409,7 +405,6 @@
    (draw-root-bubble svg-root)
    (doall
     (for [bubble (filter #(not= (:id %) root-id) (:bubbles @points))]
-      ;; (draw-bubble svg-root bubble)
       ^{:key (:id bubble)} [draw-bubble svg-root bubble]
       )
     )
