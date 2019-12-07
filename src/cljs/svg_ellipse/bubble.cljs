@@ -15,7 +15,7 @@
   (reagent/atom
    {
     :bubbles [{:id root-id
-               :c (g/point 250 450)
+               :center (g/point 250 450)
                :rx 100
                :ry 50
                :text "Main goal"
@@ -79,10 +79,10 @@
              (update
               list-bubble
               (.indexOf list-idxs id)
-              ;; #(merge % {:c (g/point (- x (.-left bcr)) (- y (.-top bcr)))}))
-              ;; #(merge % {:c (g/point x (- y (.-top bcr)))}))
-              (fn [b] (merge b {:c (g/point x y)}))
-              ;; #(merge % {:c (g/point x y)}))
+              ;; #(merge % {:center (g/point (- x (.-left bcr)) (- y (.-top bcr)))}))
+              ;; #(merge % {:center (g/point x (- y (.-top bcr)))}))
+              (fn [b] (merge b {:center (g/point x y)}))
+              ;; #(merge % {:center (g/point x y)}))
              ;; Else body
              list-bubble))))))))
 
@@ -127,11 +127,11 @@
 (defn dragging-fn [on-drag bubble svg-root]
   (fn [evt]
     (if (if-left-click evt)
-      (dragging on-drag (g/x (:c bubble)) (g/y (:c bubble)) svg-root))))
+      (dragging on-drag (g/x (:center bubble)) (g/y (:center bubble)) svg-root))))
 
 (defn new-bubble [parent-bubble-id cx cy]
   (let [bubble-id (gen-id)]
-    (swap! points update :bubbles conj {:id bubble-id :c (g/point cx cy) :rx 100 :ry 50 :text (str "bubble " bubble-id)})
+    (swap! points update :bubbles conj {:id bubble-id :center (g/point cx cy) :rx 100 :ry 50 :text (str "bubble " bubble-id)})
     ;; (clog parent-bubble-id)
     ;; (clog bubble-id)
     ;; (clog (get-bubble parent-bubble-id))
@@ -150,13 +150,13 @@
 
 (defn draw-root-bubble [svg-root]
   (let [root-bubble (get-bubble root-id)
-        {:keys [c rx ry]} root-bubble
-        basic-option {:cx (g/x c) :cy (g/y c)}
+        {:keys [center rx ry]} root-bubble
+        basic-option {:cx (g/x center) :cy (g/y center)}
         on-drag (move-bubble svg-root root-id)]
     ;; [:<>
     [:g {
          :on-mouse-down (dragging-fn on-drag root-bubble svg-root)
-         :on-double-click #(new-bubble (:id root-bubble) (g/x c) (- (g/y c) (* 3 ry)))
+         :on-double-click #(new-bubble (:id root-bubble) (g/x center) (- (g/y center) (* 3 ry)))
          :on-context-menu (fn [evt] (.preventDefault evt))
          }
      [:ellipse
@@ -169,7 +169,7 @@
                      :-moz-user-select "none"
                      :text-anchor "middle"
                      :dominant-baseline "middle"}
-             :x (g/x c) :y (g/y c) :font-size 20}
+             :x (g/x center) :y (g/y center) :font-size 20}
       (:text root-bubble)]
      ]
     )
@@ -309,7 +309,7 @@
   [y-pos-atom dom-node id-bubble]
   (let [height (.-height (.getBoundingClientRect dom-node))
         bubble (get-bubble id-bubble)
-        y-bubble (g/y (:c bubble))
+        y-bubble (g/y (:center bubble))
         nb-lines (->> bubble :text string/split-lines count)
         height-line (/ height nb-lines)
         y-offset (-> nb-lines dec (* height-line) (/ 2))
@@ -363,7 +363,8 @@
                          })
            (let [counter (atom 0)
                  bubble (get-bubble id-bubble)
-                 c (:c bubble)]
+                 c (:center bubble)]
+             ;; (clog bubble)
              (for [tspan-text (->> bubble :text string/split-lines)]
                (let [id-number @counter
                      tspan-id (str id-bubble @counter)]
@@ -379,7 +380,7 @@
         ;; ry-atom  (reagent/atom 0)
         ]
     (fn [svg-root bubble]
-      (let [{:keys [id c rx ry]} bubble
+      (let [{:keys [id center rx ry]} bubble
             on-drag (move-bubble svg-root id)
             common-behavior {:on-mouse-down (dragging-fn on-drag bubble svg-root)
                              :on-context-menu (delete-bubble id)}
@@ -392,9 +393,9 @@
           (merge ellipse-defaults common-behavior
                  {;; TODO stop the event propagation to avoid the
                   ;; text selection during drag
-                  :on-double-click #(new-bubble id (g/x c) (- (g/y c) (* 3 ry)))
-                  :cx (g/x c)
-                  :cy (g/y c)
+                  :on-double-click #(new-bubble id (g/x center) (- (g/y center) (* 3 ry)))
+                  :cx (g/x center)
+                  :cy (g/y center)
                   :rx rx
                   :ry ry
                   })]
@@ -403,16 +404,14 @@
            [bubble-input (merge bubble {:on-save on-save :on-stop on-stop})]
            [bubble-text edition? common-behavior id]
            )
-
-         ;; [bubble-input (merge bubble {:on-save on-save :on-stop on-stop})]
          ]))))
 
 (defn get-link-path [link]
   (let [{:keys [src dst]} link
         src-b (get-bubble src)
         dst-b (get-bubble dst)
-        src-pt (:c src-b)
-        dst-pt (:c dst-b)
+        src-pt (:center src-b)
+        dst-pt (:center dst-b)
         path-str (str "M " (g/x src-pt) "," (g/y src-pt) " L " (g/x dst-pt) "," (g/y dst-pt))]
     {:key (str (:id src-b) (:id dst-b))
      :stroke-width 4
