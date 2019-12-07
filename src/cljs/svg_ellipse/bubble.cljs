@@ -188,70 +188,122 @@
           list-bubble
           (.indexOf list-idxs id)
           #(merge % {:text text}))
-
          ;; Else body
          list-bubble)))))
 
-(defn bubble-input [{:keys [c text rx ry]} {:keys [on-stop on-save]}]
-  (let [val (reagent/atom text)
-        stop #(do (reset! val "")
-                  (if on-stop (on-stop)))
-        save #(let [v (-> @val str clojure.string/trim)]
-                (if-not (empty? v) (on-save v))
-                (stop))
+(defn center-textarea [dom-node center width-atom height-atom top-left-x-atom top-left-y-atom]
+  "Center the textarea field against the surrounding bubble"
+  (let [width (.-width (.getBoundingClientRect dom-node))
+        height (.-height (.getBoundingClientRect dom-node))
+        x-offset (/ width 2)
+        y-offset (/ height 2)
         ]
-    (fn []
-      [:foreignObject
-       {:width (* 5 rx)
-        :height (* 5 ry)
-        :x (- (g/x c) rx)
-        :y (- (g/y c) ry)
-        }
-       (let [nb-lines (->> @val string/split-lines count)
-             line-max-length (->> @val string/split-lines (map count) (apply max))]
-         [:textarea
-          {:style
-           {
-            :overflow "hidden"
-            :position "absolute"
-            :font-size "20px"
-            :justify-content "center"
-            :border "none"
-            :-moz-text-align-last "center"
-            :text-align-last "center";
-            }
-           :rows nb-lines
-           :cols line-max-length
-           :auto-focus true
-           :default-value @val
-           :on-blur save
-           :on-focus
-           (fn [evt]
-             ;; Center the textarea field against the surrounding bubble
-             (let [width (.-width (.getBoundingClientRect (.-target evt)))
-                   height (.-height (.getBoundingClientRect (.-target evt)))
-                   x-offset (-> rx (- (/ width 2)) js/Math.abs )
-                   y-offset (-> ry (- (/ height 2)) js/Math.abs)]
-               (set! (.-left (.-style (.-target evt))) (str x-offset "px"))
-               (set! (.-top (.-style (.-target evt))) (str y-offset "px"))
-               )
-             ;; Set the cursor position at the end of the textarea
-             ;; (set! (.-selectionStart (.-target e)) 4)
-             ;; (set! (.-selectionEnd (.-target e)) 4)
-             (.setSelectionRange (.-target evt) (count @val) (count @val))
-             )
-           :on-change (fn [evt] (reset! val (.. evt -target -value)))
-           :on-key-down (fn [evt]
-                          ;; 13: enter-keycode
-                          ;; 27: escape-keycode
-                          (case (.-which evt)
-                            13 (do
-                                 (when (not (.-shiftKey evt))
-                                   (save)
+    (reset! width-atom width)
+    (reset! height-atom height)
+    (reset! top-left-x-atom (- (g/x center) (/ width 2)))
+    (reset! top-left-y-atom (- (g/y center) (/ height 2)))
+    ))
+
+(defn cursor-to-end-textarea [dom-node current-text]
+  "Set the cursor position at the end of the textarea"
+  (let [text-length (count current-text)]
+    ;; (set! (.-selectionStart (.-target e)) text-length)
+    ;; (set! (.-selectionEnd (.-target e)) text-length)
+    (.setSelectionRange dom-node text-length text-length)))
+
+(defn get-nb-lines [s]
+  (->> s (filter #(= % \newline)) count inc))
+
+(defn custom-textarea [center text on-save on-stop
+                       width-atom height-atom top-left-x-atom top-left-y-atom]
+  (let [current-text (reagent/atom text)
+        dom-node (reagent/atom nil)
+        stop #(if on-stop (on-stop))
+        save (fn []
+               (let [v (-> @current-text str clojure.string/trim)]
+                 (if-not (empty? v)
+                   (on-save v))
+                 (stop)))
+        ]
+    (reagent/create-class
+     {
+      :display-name "custom-textarea"
+
+      :component-did-mount
+      (fn [this]
+        (reset! dom-node (reagent/dom-node this))
+        ;; Set the focus to the textarea
+        (.focus @dom-node)
+        (center-textarea @dom-node center width-atom height-atom top-left-x-atom top-left-y-atom)
+        (cursor-to-end-textarea @dom-node @current-text)
+        (reset! current-text text)
+        )
+
+      :component-did-update
+      (fn []
+        (clog ":component-did-update")
+        ;; Set the focus to the textarea
+        (.focus @dom-node)
+        (center-textarea @dom-node center width-atom height-atom top-left-x-atom top-left-y-atom))
+
+      :reagent-render
+      (fn [c text on-save on-stop
+           width-atom height-atom top-left-x-atom top-left-y-atom]
+        (let [nb-lines (get-nb-lines @current-text)
+              line-max-length (->> @current-text string/split-lines (map count) (apply max))]
+           [:textarea
+            {:style
+             {
+              :overflow "hidden"
+              ;; :position "absolute"
+              :font-size "20px"
+              :justify-content "center"
+              :border "none"
+              :-moz-text-align-last "center"
+              :text-align-last "center"
+              :resize "none"
+              }
+             :otline "none"
+             :wrap "off"
+             :placeholder "New task"
+             :rows nb-lines
+             :cols line-max-length
+             :value @current-text
+             :on-blur #(save)
+             :on-change (fn [evt]
+                          (reset! current-text (.. evt -target -value))
+                          (clog @current-text))
+             :on-key-down (fn [evt]
+                            ;; 13: enter-keycode
+                            ;; 27: escape-keycode
+                            (case (.-which evt)
+                              13 (do
+                                   (when (not (.-shiftKey evt))
+                                     (save)
+                                     )
                                    )
-                                 )
-                            27 (stop)
-                            nil))}])])))
+                              27 (stop)
+                              nil))
+             }]))})))
+
+
+(defn bubble-input [{:keys [c text rx ry on-save on-stop]}]
+  (let [width (reagent/atom (* 2 rx))
+        height (reagent/atom (* 2 ry))
+        top-left-x (reagent/atom (g/x c))
+        top-left-y (reagent/atom (g/y c))
+        ]
+      (fn [{:keys [c text rx ry on-save on-stop]}]
+        [:foreignObject
+         {:width @width;(* 2 rx)
+          :height @height;(* 2 ry)
+          :x @top-left-x;(- (g/x c) rx)
+          :y @top-left-y;(- (g/y c) ry)
+          }
+         [custom-textarea c text on-save on-stop
+          width height top-left-x top-left-y]
+         ])))
+
 
 (defn update-y-pos
   [y-pos-atom dom-node id-bubble]
@@ -263,8 +315,8 @@
         y-offset (-> nb-lines dec (* height-line) (/ 2))
         ]
     (reset! y-pos-atom (- y-bubble y-offset))
-    (clog "update y-pos")
-    (clog @points)
+    ;; (clog "update y-pos")
+    ;; (clog @points)
     ))
 
 (defn update-bubble-size
@@ -274,8 +326,6 @@
         new-rx (-> width (/ 2) (+ 50))
         new-ry (-> height (/ 2) (+ 50))]
     (resize-bubble id-bubble new-rx new-ry)
-    (clog "update size")
-    (clog @points)
     )
   )
 
@@ -288,14 +338,12 @@
 
       :component-did-mount
       (fn [this]
-        ;; (clog ":component-did-mount")
         (reset! dom-node (reagent/dom-node this))
         (update-bubble-size @dom-node id-bubble)
         (update-y-pos y-pos @dom-node id-bubble))
 
       :component-did-update
       (fn []
-        ;; (clog ":component-did-update")
         (update-y-pos y-pos @dom-node id-bubble))
 
       :reagent-render
@@ -335,6 +383,8 @@
             on-drag (move-bubble svg-root id)
             common-behavior {:on-mouse-down (dragging-fn on-drag bubble svg-root)
                              :on-context-menu (delete-bubble id)}
+            on-save (fn[text] (save-text-bubble id text))
+            on-stop #(reset! edition? false)
             ]
         ^{:key (str id "-g")}
         [:g
@@ -349,20 +399,12 @@
                   :ry ry
                   })]
 
-         [bubble-text edition? common-behavior id]
-
-         (when @edition?
-           [bubble-input bubble
-            {:on-save (fn[text] (save-text-bubble id text))
-             :on-stop #(reset! edition? false)}]
+         (if @edition?
+           [bubble-input (merge bubble {:on-save on-save :on-stop on-stop})]
+           [bubble-text edition? common-behavior id]
            )
 
-         ;; (if @edition?
-         ;;   [bubble-input bubble
-         ;;    {:on-save (fn[text] (save-text-bubble id text))
-         ;;     :on-stop #(reset! edition? false)}]
-         ;;   [bubble-text edition? common-behavior id]
-         ;;   )
+         ;; [bubble-input (merge bubble {:on-save on-save :on-stop on-stop})]
          ]))))
 
 (defn get-link-path [link]
