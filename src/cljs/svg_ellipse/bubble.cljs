@@ -11,18 +11,20 @@
 
 (def root-id "root")
 
+(def initial-application-state
+  {
+   :bubbles [{:id root-id
+              :center (g/point 250 450)
+              :rx 100
+              :ry 50
+              :text "Main goal"
+              :initial-state true
+              }]
+   :links []
+   })
+
 (defonce points
-  (reagent/atom
-   {
-    :bubbles [{:id root-id
-               :center (g/point 250 450)
-               :rx 100
-               :ry 50
-               :text "Main goal"
-               :initial-state true
-               }]
-    :links []
-    }))
+  (reagent/atom initial-application-state))
 
 (defn get-bubble [id]
   (first (filter #(= (:id %) id) (:bubbles @points))))
