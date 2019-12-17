@@ -94,6 +94,17 @@
 
 (def ellipse-defaults
   {
+   :style
+   {
+    ;; /* webkit (safari, chrome) browsers */
+    :-webkit-user-select "none"
+    ;; /* mozilla browsers */
+    :-moz-user-select "none"
+    ;; /* webkit (konqueror) browsers */
+    :-khtml-user-select "none"
+    ;; /* IE10+ */
+    :-ms-user-select "none"
+    }
    :fill "#f06"
    :stroke "black"
    :stroke-width 5
@@ -422,9 +433,7 @@
         [:g
          [:ellipse
           (merge ellipse-defaults common-behavior
-                 {;; TODO stop the event propagation to avoid the
-                  ;; text selection during drag
-                  :on-double-click #(new-bubble id (g/x center) (- (g/y center) (* 3 ry)))
+                 {:on-double-click #(new-bubble id (g/x center) (- (g/y center) (* 3 ry)))
                   :cx (g/x center)
                   :cy (g/y center)
                   :rx rx
