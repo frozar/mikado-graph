@@ -4,10 +4,14 @@
             [goog.events :as events]
             [debux.cs.core :as d :refer-macros [clog clogn dbg dbgn break]]
             [clojure.string :as string]
+            ;; [cljs.test :refer-macros [deftest is testing run-tests]]
             )
   (:import [goog.events EventType]
            )
   )
+
+;; (deftest test-numbers
+;;   (is (= 1 1)))
 
 (def root-id "root")
 

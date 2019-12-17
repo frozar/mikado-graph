@@ -19,6 +19,8 @@
                  [venantius/accountant "0.2.4"
                   :exclusions [org.clojure/tools.reader]]
                  [philoskim/debux "0.5.6"]
+                 [cider/piggieback "0.4.2"]
+                 [figwheel-sidecar "0.5.19"]
                  ]
 
   :plugins [[lein-environ "1.1.0"]
@@ -91,12 +93,11 @@
                                   [figwheel-sidecar "0.5.18"]
                                   [nrepl "0.6.0"]
                                   [pjstadig/humane-test-output "0.9.0"]
-                                  
- ]
+                                  ]
 
                    :source-paths ["env/dev/clj"]
                    :plugins [[lein-figwheel "0.5.18"]
-]
+                             ]
 
                    :injections [(require 'pjstadig.humane-test-output)
                                 (pjstadig.humane-test-output/activate!)]
