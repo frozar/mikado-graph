@@ -419,7 +419,7 @@
   (let [semi-length 15
         min-bound (- 0 semi-length)
         max-bound semi-length
-        x-offset  (g/x center)
+        x-offset  (-> center g/x (- 25))
         y-offset  (- (g/y center) (+ ry max-bound 5))]
     [:g
      {:stroke "darkred"
@@ -430,6 +430,35 @@
       }
      [:line {:x1 min-bound :y1 min-bound :x2 max-bound :y2 max-bound}]
      [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound}]])
+  )
+
+(defn draw-pencil-button [edition?-atom visible? bubble-id center rx ry]
+  (let [semi-length 15
+        min-bound (- 0 semi-length)
+        max-bound semi-length
+        x-offset  (-> center g/x (+ 25))
+        y-offset  (- (g/y center) (+ ry max-bound 10))]
+    [:g
+     {:stroke "darkgreen"
+      :stroke-width 2
+      :transform (str "translate(" x-offset "," y-offset ")")
+      :visibility (if visible? "visible" "hidden")
+      :on-click #(reset! edition?-atom true)
+      }
+     ;; Draw a pencil
+     ;; The body of the pencil
+     [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound}]
+     [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound
+             :transform (str "translate(" 5 "," 5 ")")}]
+     [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound
+             :transform (str "translate(" -5 "," -5 ")")}]
+     [:line {:x1 (+ max-bound -5) :y1 (+ min-bound -5) :x2 (+ max-bound 5) :y2 (+ min-bound 5)}]
+     ;; Pointer of the pencil
+     [:line {:x1 (+ min-bound -5) :y1 (+ max-bound -5) :x2 (+ min-bound 5) :y2 (+ max-bound 5)}]
+     [:line {:x1 (+ min-bound -5) :y1 (+ max-bound -5) :x2 (+ min-bound -5) :y2 (+ max-bound 5)}]
+     [:line {:x1 (+ min-bound 5) :y1 (+ max-bound 5) :x2 (+ min-bound -5) :y2 (+ max-bound 5)}]
+     ]
+    )
   )
 
 (defn draw-bubble [svg-root bubble]
@@ -462,6 +491,7 @@
                   })]
 
          [draw-delete-button @show-button? id center rx ry]
+         [draw-pencil-button edition? @show-button? id center rx ry]
 
          (if @edition?
            [bubble-input (merge bubble {:on-save on-save :on-stop on-stop})]
