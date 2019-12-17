@@ -415,10 +415,26 @@
                                            }
                                    tspan-text])))]))})))
 
+(defn draw-delete-button [visible? bubble-id center rx ry]
+  (let [semi-length 15
+        min-bound (- 0 semi-length)
+        max-bound semi-length
+        x-offset  (g/x center)
+        y-offset  (- (g/y center) (+ ry max-bound 5))]
+    [:g
+     {:stroke "darkred"
+      :stroke-width 5
+      :transform (str "translate(" x-offset "," y-offset ")")
+      :visibility (if visible? "visible" "hidden")
+      :on-click (delete-bubble bubble-id)
+      }
+     [:line {:x1 min-bound :y1 min-bound :x2 max-bound :y2 max-bound}]
+     [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound}]])
+  )
+
 (defn draw-bubble [svg-root bubble]
   (let [edition? (reagent/atom false)
-        ;; rx-atom  (reagent/atom (:rx bubble))
-        ;; ry-atom  (reagent/atom (:ry bubble))
+        show-button? (reagent/atom false)
         ]
     (fn [svg-root bubble]
       (let [{:keys [id center rx ry]} bubble
@@ -431,6 +447,11 @@
             ]
         ^{:key (str id "-g")}
         [:g
+         {
+          :on-mouse-over #(reset! show-button? true)
+          :on-mouse-leave #(reset! show-button? false)
+          :pointer-events "bounding-box"
+          }
          [:ellipse
           (merge ellipse-defaults common-behavior
                  {:on-double-click #(new-bubble id (g/x center) (- (g/y center) (* 3 ry)))
@@ -439,6 +460,8 @@
                   :rx rx
                   :ry ry
                   })]
+
+         [draw-delete-button @show-button? id center rx ry]
 
          (if @edition?
            [bubble-input (merge bubble {:on-save on-save :on-stop on-stop})]
