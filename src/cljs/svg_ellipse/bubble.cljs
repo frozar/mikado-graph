@@ -25,14 +25,37 @@
               :initial-state true
               }]
    :links []
+   :link-src nil
    })
 
 (defonce points
   (reagent/atom initial-application-state))
 
+(def svg-bounding-box (reagent/atom nil))
+
+;; Read/Write application state
+(defn set-link-src [id]
+  (swap! points update :link-src (fn [] id))
+  ;;(clog (:link-src @points))
+  )
+
+(defn get-link-src []
+  (:link-src @points)
+  )
+
+(defn reset-link-src []
+  (swap! points update :link-src (fn [] nil)))
+
 (defn get-bubble [id]
   (first (filter #(= (:id %) id) (:bubbles @points))))
 
+(defn add-bubble [bubble]
+  (swap! points update :bubbles conj bubble))
+
+(defn add-link [id-src id-dst]
+  (swap! points update :links conj {:src id-src :dst id-dst}))
+
+;;
 (defn gen-id []
   "Generate a string of length 8, e.g.: 'b56d74c5'"
   (apply str (repeatedly 8 #(rand-nth "0123456789abcdef"))))
@@ -42,9 +65,10 @@
       reagent/dom-node
       .getBoundingClientRect))
 
-(defn get-svg-coord [svg-root x y]
-  (let [bcr (get-bcr svg-root)]
-    {:x (- x (.-left bcr)) :y (- y (.-top bcr))}))
+(defn get-svg-coord
+  [bounding-client-rect x y]
+  {:x (- x (.-left bounding-client-rect)) :y (- y (.-top bounding-client-rect))}
+  )
 
 (defn resize-bubble [bubble-id rx ry]
   (swap! points update :bubbles
@@ -60,60 +84,42 @@
                 list-bubble))))))
 
 
-(defn move-bubble [svg-root id]
-  ;; (clog id)
-  ;; (clog (:bubbles @points))
-  ;; (clog (map #(:id %) (:bubbles @points)))
+(defn move-bubble [id]
   (fn [x y]
-    (let [bcr (get-bcr svg-root)]
-      ;; (js/console.log bcr)
-      ;; (clog (.-left bcr))
-      ;; (clog (.-right bcr))
-      (swap!
-       points update :bubbles
-       (fn [list-bubble]
-         (let [list-idxs (map #(:id %) list-bubble)]
-           ;; (clog id)
-           ;; (clog list-idxs)
-           ;; (clog (.indexOf list-idxs id))
-           ;; (clog (.-left bcr))
-           ;; (clog (- x (.-left bcr)))
-           ;; Check if the id to delete is present in the model.
-           ;; When the user drag a bubble on a right click, the move action
-           ;; associated try to delete an id which was ready deleted.
-           (if (some #{id} list-idxs)
-             (update
-              list-bubble
-              (.indexOf list-idxs id)
-              ;; #(merge % {:center (g/point (- x (.-left bcr)) (- y (.-top bcr)))}))
-              ;; #(merge % {:center (g/point x (- y (.-top bcr)))}))
-              (fn [b] (merge b {:center (g/point x y)}))
-              ;; #(merge % {:center (g/point x y)}))
-             ;; Else body
-             list-bubble))))))))
+    (swap!
+     points update :bubbles
+     (fn [list-bubble]
+       (let [list-idxs (map #(:id %) list-bubble)]
+         ;; Check if the id to delete is present in the model.
+         ;; When the user drag a bubble on a right click, the move action
+         ;; associated try to delete an id which was ready deleted.
+         (if (some #{id} list-idxs)
+           (update
+            list-bubble
+            (.indexOf list-idxs id)
+            (fn [b] (merge b {:center (g/point x y)})))
+           ;; Else body
+           list-bubble))))))
 
 (def ellipse-defaults
-  {
-   :style
-   {
-    ;; /* webkit (safari, chrome) browsers */
-    :-webkit-user-select "none"
-    ;; /* mozilla browsers */
-    :-moz-user-select "none"
-    ;; /* webkit (konqueror) browsers */
-    :-khtml-user-select "none"
-    ;; /* IE10+ */
-    :-ms-user-select "none"
-    }
+  {:style {;; /* webkit (safari, chrome) browsers */
+           :-webkit-user-select "none"
+           ;; /* mozilla browsers */
+           :-moz-user-select "none"
+           ;; /* webkit (konqueror) browsers */
+           :-khtml-user-select "none"
+           ;; /* IE10+ */
+           :-ms-user-select "none"
+           }
    :fill "#f06"
    :stroke "black"
    :stroke-width 5
    })
 
-(defn drag-move-fn [on-drag cx cy svg-root]
+(defn drag-move-fn [on-drag cx cy]
   (let [first-evt-coord (atom nil)]
     (fn [evt]
-      (let [{:keys [x y]} (get-svg-coord svg-root (.-clientX evt) (.-clientY evt))
+      (let [{:keys [x y]} (get-svg-coord @svg-bounding-box (.-clientX evt) (.-clientY evt))
             current-x-evt x
             current-y-evt y]
         (if (nil? @first-evt-coord)
@@ -121,16 +127,16 @@
         (on-drag (+ cx (- current-x-evt (:x @first-evt-coord)))
                  (+ cy (- current-y-evt (:y @first-evt-coord))))))))
 
-(defn drag-end-fn [drag-move drag-end on-end]
+(defn drag-end-fn [drag-move drag-end-atom on-end]
   (fn [evt]
     (events/unlisten js/window EventType.MOUSEMOVE drag-move)
-    (events/unlisten js/window EventType.MOUSEUP @drag-end)
+    (events/unlisten js/window EventType.MOUSEUP @drag-end-atom)
     (on-end)))
 
 (defn dragging
-  ([on-drag cx cy svg-root] (dragging on-drag (fn []) (fn []) cx cy svg-root))
-  ([on-drag on-start on-end cx cy svg-root]
-   (let [drag-move (drag-move-fn on-drag cx cy svg-root)
+  ([on-drag cx cy] (dragging on-drag (fn []) (fn []) cx cy))
+  ([on-drag on-start on-end cx cy]
+   (let [drag-move (drag-move-fn on-drag cx cy)
          drag-end-atom (atom nil)
          drag-end (drag-end-fn drag-move drag-end-atom on-end)]
      (on-start)
@@ -141,29 +147,26 @@
 (defn if-left-click [evt]
   (= 0 (.-button evt)))
 
-(defn dragging-fn [on-drag bubble svg-root]
+(defn dragging-fn [on-drag bubble]
   (fn [evt]
     (if (if-left-click evt)
-      (dragging on-drag (g/x (:center bubble)) (g/y (:center bubble)) svg-root))))
+      (dragging on-drag (g/x (:center bubble)) (g/y (:center bubble))))))
 
 (def NEW-TASK "New task")
 
 (defn bubble-init [bubble-id cx cy]
   {:id bubble-id :center (g/point cx cy)
    :rx 100 :ry 50
-   ;; :text (str "bubble " bubble-id)
    :text NEW-TASK
    :initial-state true})
 
 (defn new-bubble [parent-bubble-id cx cy]
-  (let [bubble-id (gen-id)]
-    (swap! points update :bubbles conj (bubble-init bubble-id cx cy))
-    ;; (clog parent-bubble-id)
-    ;; (clog bubble-id)
-    ;; (clog (get-bubble parent-bubble-id))
-    ;; (clog (get-bubble bubble-id))
-    (swap! points update :links conj {:src parent-bubble-id :dst bubble-id})
-    ;; (clog (:links @points))
+  (let [bubble-id (gen-id)
+        new-bubble (bubble-init bubble-id cx cy)]
+    ;; (swap! points update :bubbles conj (bubble-init bubble-id cx cy))
+    (add-bubble new-bubble)
+    ;; (swap! points update :links conj {:src parent-bubble-id :dst bubble-id})
+    (add-link parent-bubble-id bubble-id)
     ))
 
 (defn delete-bubble [id]
@@ -172,16 +175,16 @@
     (swap! points update :bubbles (fn [l] (filterv #(not (= (:id %) id)) l)))
     (swap! points update :links (fn [l] (filterv
                                          (fn [link] not (= (some #{id} (vals link)) nil)) l)))
+    (reset-link-src)
     ))
 
-(defn draw-root-bubble [svg-root]
+(defn draw-root-bubble []
   (let [root-bubble (get-bubble root-id)
         {:keys [center rx ry]} root-bubble
         basic-option {:cx (g/x center) :cy (g/y center)}
-        on-drag (move-bubble svg-root root-id)]
-    ;; [:<>
+        on-drag (move-bubble root-id)]
     [:g {
-         :on-mouse-down (dragging-fn on-drag root-bubble svg-root)
+         :on-mouse-down (dragging-fn on-drag root-bubble)
          :on-double-click #(new-bubble (:id root-bubble) (g/x center) (- (g/y center) (* 3 ry)))
          :on-context-menu (fn [evt] (.preventDefault evt))
          }
@@ -213,7 +216,6 @@
          (do
            (let [current-bubble (get-bubble id)
                  initial-state-value (and (= text NEW-TASK) (:initial-state current-bubble))]
-             (clog initial-state-value)
              (update
               list-bubble
               (.indexOf list-idxs id)
@@ -354,8 +356,6 @@
         y-offset (-> nb-lines dec (* height-line) (/ 2))
         ]
     (reset! y-pos-atom (- y-bubble y-offset))
-    ;; (clog "update y-pos")
-    ;; (clog @points)
     ))
 
 (defn update-bubble-size [dom-node bubble-id]
@@ -405,7 +405,6 @@
            (let [counter (atom 0)
                  bubble (get-bubble bubble-id)
                  c (:center bubble)]
-             ;; (clog bubble)
              (for [tspan-text (->> bubble :text string/split-lines)]
                (let [id-number @counter
                      tspan-id (str bubble-id @counter)]
@@ -461,14 +460,34 @@
     )
   )
 
-(defn draw-bubble [svg-root bubble]
+(defn draw-link-button [visible? bubble-id center rx ry]
+  (let [semi-length 15
+        min-bound (- 0 semi-length)
+        max-bound semi-length
+        x-offset  (-> center g/x (+ 60))
+        y-offset  (- (g/y center) (+ ry 5))
+        ]
+    [:g
+     {:stroke "darkblue"
+      :stroke-width 0.5
+      :transform (str "translate(" x-offset "," y-offset ") scale(7) rotate(-90)")
+      :visibility (if visible? "visible" "hidden")
+      :pointer-events "bounding-box"
+      :on-click #(set-link-src bubble-id)
+      }
+     ;; Draw dash line
+     (for [i (map #(* 2 %) (range 3))]
+       ^{:key (str i)} [:line {:x1 i :y1 i :x2 (inc i) :y2 (inc i)}])
+     ]))
+
+(defn draw-bubble [bubble]
   (let [edition? (reagent/atom false)
         show-button? (reagent/atom false)
         ]
-    (fn [svg-root bubble]
+    (fn [bubble]
       (let [{:keys [id center rx ry]} bubble
-            on-drag (move-bubble svg-root id)
-            common-behavior {:on-mouse-down (dragging-fn on-drag bubble svg-root)
+            on-drag (move-bubble id)
+            common-behavior {:on-mouse-down (dragging-fn on-drag bubble)
                              :on-context-menu (delete-bubble id)}
             on-save (fn[text] (save-text-bubble id text))
             on-stop #(reset! edition? false)
@@ -477,13 +496,23 @@
         ^{:key (str id "-g")}
         [:g
          {
-          :on-mouse-over #(reset! show-button? true)
+          :on-mouse-over
+          (fn [] (if (get-link-src)
+                   (reset! show-button? false)
+                   (reset! show-button? true)))
           :on-mouse-leave #(reset! show-button? false)
           :pointer-events "bounding-box"
           }
          [:ellipse
           (merge ellipse-defaults common-behavior
                  {:on-double-click #(new-bubble id (g/x center) (- (g/y center) (* 3 ry)))
+                  :on-click
+                  (fn []
+                    (when (get-link-src)
+                      (let [id-src (get-link-src)
+                            id-dst id]
+                        (add-link id-src id-dst)
+                        (reset-link-src))))
                   :cx (g/x center)
                   :cy (g/y center)
                   :rx rx
@@ -492,6 +521,7 @@
 
          [draw-delete-button @show-button? id center rx ry]
          [draw-pencil-button edition? @show-button? id center rx ry]
+         [draw-link-button @show-button? id center rx ry]
 
          (if @edition?
            [bubble-input (merge bubble {:on-save on-save :on-stop on-stop})]
@@ -515,31 +545,81 @@
   )
 
 (defn draw-links []
-  ;; (clog (:links @points))
   (let [links-path (doall (map (fn [link] (get-link-path link)) (:links @points)))]
-    [:g
-     (for [path links-path]
-       [:path path])
-     ]
+    (when links-path
+      [:g
+       (for [path links-path]
+         [:path path])
+       ])
     )
   )
 
-(defn all-bubble [svg-root]
-  ;; (clog "all-bubble")
-  ;; (clog @points)
-  ;; (js/console.log "on-drag" on-drag)
-  ;; (js/console.log @points)
-  ;; (clog svg-root)
-  ;; (js/console.log svg-root)
-  ;; (clog (.-activeElement js/document))
-  ;; (js/console.log (.-activeElement js/document))
-  ;; (clog (get-in @points [:edition?-bubble :id]))
+(defn draw-building-link [mouse-svg-pos]
+  (let [bubble-src-id (get-link-src)
+        bubble-src (get-bubble bubble-src-id)
+        {:keys [center]} bubble-src]
+    [:line {:stroke "black"
+            :stroke-width 5
+            :x1 (g/x center) :y1 (g/y center)
+            :x2 (:x mouse-svg-pos) :y2 (:y mouse-svg-pos)}]))
+
+;; (defn all-bubble [svg-bounding-box-arg mouse-svg-pos]
+(defn all-bubble [mouse-svg-pos]
+  ;; (reset! svg-bounding-box svg-bounding-box-arg)
   [:g
    (draw-links)
-   (draw-root-bubble svg-root)
+   (when (get-link-src)
+     [draw-building-link mouse-svg-pos])
+   (draw-root-bubble)
    (doall
     (for [bubble (filter #(not= (:id %) root-id) (:bubbles @points))]
-      ^{:key (:id bubble)} [draw-bubble svg-root bubble]
+      ^{:key (:id bubble)} [draw-bubble bubble]
       )
     )
    ])
+
+(defn svg-canvas []
+  (let [dom-node (reagent/atom nil)
+        mouse-svg-pos (reagent/atom nil)
+        ]
+    (reagent/create-class
+     {
+      :display-name "svg-canvas"
+
+      :component-did-mount
+      (fn [this]
+        (reset! dom-node (reagent/dom-node this))
+        (reset! svg-bounding-box (.getBoundingClientRect @dom-node)))
+
+      :reagent-render
+      (fn []
+        [:svg {:style {:border "1px solid"
+                       :background "white"
+                       :width "800"
+                       :height "800"}
+               :on-context-menu (fn [evt] (.preventDefault evt))
+
+               ;; :pointer-events "none"
+               ;; :on-click (fn []
+               ;;             (clog (:link-src @points))
+               ;;             (reset-link-src)
+               ;;             (clog (:link-src @points))
+               ;;             )
+
+               ;; :on-key-down (fn [evt]
+               ;;                (clog (.-which evt))
+               ;;                ;; 27: escape-keycode
+               ;;                (case (.-which evt)
+               ;;                  27 (reset-link-src)
+               ;;                  nil))
+
+               :on-mouse-move
+               (fn [evt]
+                 (reset! mouse-svg-pos (get-svg-coord
+                                        @svg-bounding-box
+                                        (.-clientX evt)
+                                        (.-clientY evt)))
+                 )
+               }
+         [all-bubble @mouse-svg-pos]
+         ])})))
