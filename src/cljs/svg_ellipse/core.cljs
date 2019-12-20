@@ -79,42 +79,6 @@
 ;; -------------------------
 ;; Page mounting component
 
-;; (def svg-component (reagent/atom nil))
-
-;; (defn svg-canvas []
-;;   (let [dom-node (reagent/atom nil)
-;;         mouse-svg-pos (reagent/atom nil)
-;;         svg-bounding-box (reagent/atom nil)
-;;         ]
-;;     (reagent/create-class
-;;      {
-;;       :display-name "svg-canvas"
-
-;;       :component-did-mount
-;;       (fn [this]
-;;         (reset! dom-node (reagent/dom-node this))
-;;         (reset! svg-bounding-box (.getBoundingClientRect @dom-node)))
-
-;;       :reagent-render
-;;       (fn []
-;;         [:svg {:style {:border "1px solid"
-;;                        :background "white"
-;;                        :width "800"
-;;                        :height "800"}
-;;                :on-context-menu (fn [evt] (.preventDefault evt))
-;;                ;; :on-click (fn [] (js/alert "click-svg"))
-;;                :on-mouse-move
-;;                (fn [evt]
-;;                  (reset! mouse-svg-pos (b/get-svg-coord
-;;                                         @svg-bounding-box
-;;                                         (.-clientX evt)
-;;                                         (.-clientY evt)))
-;;                  )
-;;                }
-;;          ;; [root @svg-bounding-box @mouse-svg-pos]
-;;          [b/all-bubble @svg-bounding-box @mouse-svg-pos]
-;;          ])})))
-
 ;; (defn mouse-pos []
 ;;   (reagent/with-let [pointer (reagent/atom nil)
 ;;                      handler #(swap! pointer assoc

@@ -61,6 +61,15 @@
   (swap! points update :links (fn [l] (filterv
                                        (fn [link] not (= (some #{bubble-id} (vals link)) nil)) l))))
 
+(defn delete-link [src-id dst-id]
+  (clog (:links @points))
+  (clog {:src src-id :dst dst-id})
+  (clog (filterv (fn [link] (not= {:src src-id :dst dst-id} link)) (:links @points)))
+  (swap! points update :links (fn [links]
+                                (filterv
+                                 (fn [link] (not= {:src src-id :dst dst-id} link))
+                                 links))))
+
 (defn update-link [bubble-id]
   (let [ids-dst (->> (:links @points)
                      (filterv (fn [link] (= bubble-id (:src link))))
@@ -575,10 +584,13 @@
   (let [{:keys [src dst]} link
         src-b (get-bubble src)
         dst-b (get-bubble dst)
+        src-id (:id src-b)
+        dst-id (:id dst-b)
         src-pt (:center src-b)
         dst-pt (:center dst-b)
         path-str (str "M " (g/x src-pt) "," (g/y src-pt) " L " (g/x dst-pt) "," (g/y dst-pt))]
-    {:key (str (:id src-b) (:id dst-b))
+    {:key (str src-id "-" dst-id)
+     :on-context-menu #(delete-link src-id dst-id)
      :stroke-width 4
      :stroke "black"
      :fill "none"
