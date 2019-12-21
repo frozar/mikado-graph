@@ -13,11 +13,13 @@
 ;; (deftest test-numbers
 ;;   (is (= 1 1)))
 
-(def root-id "root")
+(def ROOT-ID "root")
+(def BUBBLE-DEFAULT-TEXT "New task")
+(def ROOT-BUBBLE-DEFAULT-TEXT "Main goal")
 
 (def initial-application-state
   {
-   :bubbles [{:id root-id
+   :bubbles [{:id ROOT-ID
               :center (g/point 250 450)
               :rx 100
               :ry 50
@@ -184,12 +186,10 @@
     (if (if-left-click evt)
       (dragging on-drag (g/x (:center bubble)) (g/y (:center bubble))))))
 
-(def NEW-TASK "New task")
-
 (defn bubble-init [bubble-id cx cy]
   {:id bubble-id :center (g/point cx cy)
    :rx 100 :ry 50
-   :text NEW-TASK
+   :text BUBBLE-DEFAULT-TEXT
    :initial-state true})
 
 (defn new-bubble [parent-bubble-id cx cy]
@@ -229,33 +229,56 @@
     (reset-link-src)
     ))
 
-(defn draw-root-bubble []
-  (let [root-bubble (get-bubble root-id)
-        {:keys [center rx ry]} root-bubble
-        basic-option {:cx (g/x center) :cy (g/y center)}
-        on-drag (move-bubble root-id)]
-    [:g {
-         :on-mouse-down (dragging-fn on-drag root-bubble)
-         :on-double-click #(new-bubble (:id root-bubble) (g/x center) (- (g/y center) (* 3 ry)))
-         :on-context-menu (fn [evt] (.preventDefault evt))
-         }
-     [:ellipse
-      (merge ellipse-defaults basic-option
-             {:rx (+ 10 rx) :ry (+ 10 ry)})]
-     [:ellipse
-      (merge ellipse-defaults basic-option
-             {:rx rx :ry ry})]
-     [:text {:style {:-webkit-user-select "none"
-                     :-moz-user-select "none"
-                     :text-anchor "middle"
-                     :dominant-baseline "middle"}
-             :x (g/x center) :y (g/y center) :font-size 20}
-      (:text root-bubble)]
+(defn draw-pencil-button [edition?-atom visible? bubble-id center rx ry]
+  (let [semi-length 15
+        min-bound (- 0 semi-length)
+        max-bound semi-length
+        x-offset  (-> center g/x (+ 25))
+        y-offset  (- (g/y center) (+ ry max-bound 10))]
+    [:g
+     {:stroke "darkgreen"
+      :stroke-width 2
+      :transform (str "translate(" x-offset "," y-offset ")")
+      :visibility (if visible? "visible" "hidden")
+      :on-click #(reset! edition?-atom true)
+      }
+     ;; Draw a pencil
+     ;; The body of the pencil
+     [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound}]
+     [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound
+             :transform (str "translate(" 5 "," 5 ")")}]
+     [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound
+             :transform (str "translate(" -5 "," -5 ")")}]
+     [:line {:x1 (+ max-bound -5) :y1 (+ min-bound -5) :x2 (+ max-bound 5) :y2 (+ min-bound 5)}]
+     ;; Pointer of the pencil
+     [:line {:x1 (+ min-bound -5) :y1 (+ max-bound -5) :x2 (+ min-bound 5) :y2 (+ max-bound 5)}]
+     [:line {:x1 (+ min-bound -5) :y1 (+ max-bound -5) :x2 (+ min-bound -5) :y2 (+ max-bound 5)}]
+     [:line {:x1 (+ min-bound 5) :y1 (+ max-bound 5) :x2 (+ min-bound -5) :y2 (+ max-bound 5)}]
      ]
     )
   )
 
-(defn save-text-bubble [id text]
+(defn draw-link-button [visible? bubble-id center rx ry]
+  (let [semi-length 15
+        min-bound (- 0 semi-length)
+        max-bound semi-length
+        x-offset  (-> center g/x (+ 60))
+        y-offset  (- (g/y center) (+ ry 5))
+        ]
+    [:g
+     {:stroke "darkblue"
+      :stroke-width 0.5
+      :transform (str "translate(" x-offset "," y-offset ") scale(7) rotate(-90)")
+      :visibility (if visible? "visible" "hidden")
+      :pointer-events "bounding-box"
+      :on-click #(set-link-src bubble-id)
+      }
+     ;; Draw dash line
+     (for [i (map #(* 2 %) (range 3))]
+       ^{:key (str i)} [:line {:x1 i :y1 i :x2 (inc i) :y2 (inc i)}])
+     ]))
+
+(defn save-text-bubble [id text default-text]
   (swap!
    points update :bubbles
    (fn [list-bubble]
@@ -266,13 +289,14 @@
        (if (some #{id} list-idxs)
          (do
            (let [current-bubble (get-bubble id)
-                 initial-state-value (and (= text NEW-TASK) (:initial-state current-bubble))]
+                 initial-state-value (and (= text default-text)
+                                          (:initial-state current-bubble))]
              (update
               list-bubble
               (.indexOf list-idxs id)
               #(merge % {:text text :initial-state initial-state-value}))))
-             ;; Else body
-             list-bubble)))))
+         ;; Else body
+         list-bubble)))))
 
 (defn center-textarea [dom-node id center
                        width-atom height-atom top-left-x-atom top-left-y-atom]
@@ -370,7 +394,7 @@
                             ;; 27: escape-keycode
                             (case (.-which evt)
                               13 (do
-                                   (when (not (.-shiftKey evt))
+                                   (when (.-ctrlKey evt)
                                      (save)
                                      )
                                    )
@@ -378,25 +402,32 @@
                               nil))
              }]))})))
 
-
 (defn bubble-input [{:keys [id center text rx ry initial-state on-save on-stop]}]
   (let [width (reagent/atom (* 2 rx))
         height (reagent/atom (* 2 ry))
         top-left-x (reagent/atom (g/x center))
         top-left-y (reagent/atom (g/y center))
         ]
-      (fn [{:keys [c text rx ry on-save on-stop]}]
-        [:foreignObject
-         {:width @width
-          :height @height
-          :x @top-left-x
-          :y @top-left-y
-          }
-         [custom-textarea id center text on-save on-stop
-          width height top-left-x top-left-y
-          initial-state]
-         ])))
+    (fn [{:keys [c text rx ry on-save on-stop]}]
+      [:foreignObject
+       {:width @width
+        :height @height
+        :x @top-left-x
+        :y @top-left-y
+        }
+       [custom-textarea id center text on-save on-stop
+        width height top-left-x top-left-y
+        initial-state]
+       ])))
 
+(defn update-bubble-size [dom-node bubble-id]
+  (let [width (.-width (.getBoundingClientRect dom-node))
+        height (.-height (.getBoundingClientRect dom-node))
+        new-rx (-> width (/ 2) (+ 50))
+        new-ry (-> height (/ 2) (+ 50))]
+    (resize-bubble bubble-id new-rx new-ry)
+    )
+  )
 
 (defn update-y-pos [y-pos-atom dom-node bubble-id]
   (let [height (.-height (.getBoundingClientRect dom-node))
@@ -408,15 +439,6 @@
         ]
     (reset! y-pos-atom (- y-bubble y-offset))
     ))
-
-(defn update-bubble-size [dom-node bubble-id]
-  (let [width (.-width (.getBoundingClientRect dom-node))
-        height (.-height (.getBoundingClientRect dom-node))
-        new-rx (-> width (/ 2) (+ 50))
-        new-ry (-> height (/ 2) (+ 50))]
-    (resize-bubble bubble-id new-rx new-ry)
-    )
-  )
 
 (defn bubble-text [edition?-atom initial-state? common-behavior bubble-id]
   (let [dom-node (reagent/atom nil)
@@ -465,6 +487,71 @@
                                            }
                                    tspan-text])))]))})))
 
+(defn draw-root-bubble [bubble]
+  (let [edition? (reagent/atom false)
+        show-button? (reagent/atom false)
+        ]
+    (fn [bubble]
+      (let [{:keys [id center rx ry]} bubble
+            on-drag (move-bubble id)
+            common-behavior {:on-mouse-down (dragging-fn on-drag bubble)
+                             :on-context-menu (delete-bubble id)}
+            on-save (fn[text] (save-text-bubble id text ROOT-BUBBLE-DEFAULT-TEXT))
+            on-stop #(reset! edition? false)
+            initial-state? (:initial-state bubble)
+            ]
+        ^{:key (str id "-g")}
+        [:g
+         {
+          :on-mouse-over
+          (fn [] (if (get-link-src)
+                   (reset! show-button? false)
+                   (reset! show-button? true)))
+          :on-mouse-leave #(reset! show-button? false)
+          :pointer-events "bounding-box"
+          }
+
+         [:ellipse
+          (merge ellipse-defaults common-behavior
+                 {:on-double-click #(new-bubble id (g/x center) (- (g/y center) (* 3 ry)))
+                  :on-click
+                  (fn []
+                    (when (get-link-src)
+                      (let [id-src (get-link-src)
+                            id-dst id]
+                        (add-link id-src id-dst)
+                        (reset-link-src))))
+                  :cx (g/x center)
+                  :cy (g/y center)
+                  :rx (+ 10 rx)
+                  :ry (+ 10 ry)
+                  })]
+
+         [:ellipse
+          (merge ellipse-defaults common-behavior
+                 {:on-double-click #(new-bubble id (g/x center) (- (g/y center) (* 3 ry)))
+                  :on-click
+                  (fn []
+                    (when (get-link-src)
+                      (let [id-src (get-link-src)
+                            id-dst id]
+                        (add-link id-src id-dst)
+                        (reset-link-src))))
+                  :cx (g/x center)
+                  :cy (g/y center)
+                  :rx rx
+                  :ry ry
+                  })]
+
+         (if @edition?
+           [bubble-input (merge bubble {:on-save on-save :on-stop on-stop})]
+           [:<>
+            [draw-pencil-button edition? @show-button? id center (+ 10 rx) (+ 10 ry)]
+            [draw-link-button @show-button? id center (+ 10 rx) (+ 10 ry)]
+            [bubble-text edition? initial-state? common-behavior id]]
+           )
+         ]))))
+
 (defn draw-delete-button [visible? bubble-id center rx ry]
   (let [semi-length 15
         min-bound (- 0 semi-length)
@@ -482,55 +569,6 @@
      [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound}]])
   )
 
-(defn draw-pencil-button [edition?-atom visible? bubble-id center rx ry]
-  (let [semi-length 15
-        min-bound (- 0 semi-length)
-        max-bound semi-length
-        x-offset  (-> center g/x (+ 25))
-        y-offset  (- (g/y center) (+ ry max-bound 10))]
-    [:g
-     {:stroke "darkgreen"
-      :stroke-width 2
-      :transform (str "translate(" x-offset "," y-offset ")")
-      :visibility (if visible? "visible" "hidden")
-      :on-click #(reset! edition?-atom true)
-      }
-     ;; Draw a pencil
-     ;; The body of the pencil
-     [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound}]
-     [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound
-             :transform (str "translate(" 5 "," 5 ")")}]
-     [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound
-             :transform (str "translate(" -5 "," -5 ")")}]
-     [:line {:x1 (+ max-bound -5) :y1 (+ min-bound -5) :x2 (+ max-bound 5) :y2 (+ min-bound 5)}]
-     ;; Pointer of the pencil
-     [:line {:x1 (+ min-bound -5) :y1 (+ max-bound -5) :x2 (+ min-bound 5) :y2 (+ max-bound 5)}]
-     [:line {:x1 (+ min-bound -5) :y1 (+ max-bound -5) :x2 (+ min-bound -5) :y2 (+ max-bound 5)}]
-     [:line {:x1 (+ min-bound 5) :y1 (+ max-bound 5) :x2 (+ min-bound -5) :y2 (+ max-bound 5)}]
-     ]
-    )
-  )
-
-(defn draw-link-button [visible? bubble-id center rx ry]
-  (let [semi-length 15
-        min-bound (- 0 semi-length)
-        max-bound semi-length
-        x-offset  (-> center g/x (+ 60))
-        y-offset  (- (g/y center) (+ ry 5))
-        ]
-    [:g
-     {:stroke "darkblue"
-      :stroke-width 0.5
-      :transform (str "translate(" x-offset "," y-offset ") scale(7) rotate(-90)")
-      :visibility (if visible? "visible" "hidden")
-      :pointer-events "bounding-box"
-      :on-click #(set-link-src bubble-id)
-      }
-     ;; Draw dash line
-     (for [i (map #(* 2 %) (range 3))]
-       ^{:key (str i)} [:line {:x1 i :y1 i :x2 (inc i) :y2 (inc i)}])
-     ]))
-
 (defn draw-bubble [bubble]
   (let [edition? (reagent/atom false)
         show-button? (reagent/atom false)
@@ -540,7 +578,7 @@
             on-drag (move-bubble id)
             common-behavior {:on-mouse-down (dragging-fn on-drag bubble)
                              :on-context-menu (delete-bubble id)}
-            on-save (fn[text] (save-text-bubble id text))
+            on-save (fn[text] (save-text-bubble id text BUBBLE-DEFAULT-TEXT))
             on-stop #(reset! edition? false)
             initial-state? (:initial-state bubble)
             ]
@@ -570,13 +608,13 @@
                   :ry ry
                   })]
 
-         [draw-delete-button @show-button? id center rx ry]
-         [draw-pencil-button edition? @show-button? id center rx ry]
-         [draw-link-button @show-button? id center rx ry]
-
          (if @edition?
            [bubble-input (merge bubble {:on-save on-save :on-stop on-stop})]
-           [bubble-text edition? initial-state? common-behavior id]
+           [:<>
+            [draw-delete-button @show-button? id center rx ry]
+            [draw-pencil-button edition? @show-button? id center rx ry]
+            [draw-link-button @show-button? id center rx ry]
+            [bubble-text edition? initial-state? common-behavior id]]
            )
          ]))))
 
@@ -624,9 +662,9 @@
    (draw-links)
    (when (get-link-src)
      [draw-building-link mouse-svg-pos])
-   (draw-root-bubble)
+   [draw-root-bubble (get-bubble ROOT-ID)]
    (doall
-    (for [bubble (filter #(not= (:id %) root-id) (:bubbles @points))]
+    (for [bubble (filter #(not= (:id %) ROOT-ID) (:bubbles @points))]
       ^{:key (:id bubble)} [draw-bubble bubble]
       )
     )
