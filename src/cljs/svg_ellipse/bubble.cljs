@@ -440,6 +440,11 @@
     (reset! y-pos-atom (- y-bubble y-offset))
     ))
 
+(defn building-link-end [id-dst]
+  (let [id-src (get-link-src)]
+    (add-link id-src id-dst)
+    (reset-link-src)))
+
 (defn bubble-text [edition?-atom initial-state? common-behavior bubble-id]
   (let [dom-node (reagent/atom nil)
         y-pos    (reagent/atom 0)]
@@ -474,6 +479,11 @@
                          :y @y-pos
                          :font-size font-size
                          :on-double-click #(reset! edition?-atom true)
+                         :on-click
+                         (fn [evt]
+                           (when (get-link-src)
+                             (building-link-end bubble-id)
+                             ))
                          })
            (let [counter (atom 0)
                  bubble (get-bubble bubble-id)
@@ -517,10 +527,8 @@
                   :on-click
                   (fn []
                     (when (get-link-src)
-                      (let [id-src (get-link-src)
-                            id-dst id]
-                        (add-link id-src id-dst)
-                        (reset-link-src))))
+                      (building-link-end id)
+                      ))
                   :cx (g/x center)
                   :cy (g/y center)
                   :rx (+ 10 rx)
@@ -533,10 +541,8 @@
                   :on-click
                   (fn []
                     (when (get-link-src)
-                      (let [id-src (get-link-src)
-                            id-dst id]
-                        (add-link id-src id-dst)
-                        (reset-link-src))))
+                      (building-link-end id)
+                      ))
                   :cx (g/x center)
                   :cy (g/y center)
                   :rx rx
@@ -596,12 +602,10 @@
           (merge ellipse-defaults common-behavior
                  {:on-double-click #(new-bubble id (g/x center) (- (g/y center) (* 3 ry)))
                   :on-click
-                  (fn []
+                  (fn [evt]
                     (when (get-link-src)
-                      (let [id-src (get-link-src)
-                            id-dst id]
-                        (add-link id-src id-dst)
-                        (reset-link-src))))
+                      (building-link-end id)
+                      ))
                   :cx (g/x center)
                   :cy (g/y center)
                   :rx rx
