@@ -20,6 +20,7 @@
 (def initial-application-state
   {
    :bubbles [{:id ROOT-ID
+              :type :root-bubble
               :center (g/point 250 450)
               :rx 100
               :ry 50
@@ -188,6 +189,7 @@
 
 (defn bubble-init [bubble-id cx cy]
   {:id bubble-id :center (g/point cx cy)
+   :type :bubble
    :rx 100 :ry 50
    :text BUBBLE-DEFAULT-TEXT
    :initial-state true})
@@ -497,66 +499,48 @@
                                            }
                                    tspan-text])))]))})))
 
-(defn draw-root-bubble [bubble]
-  (let [edition? (reagent/atom false)
-        show-button? (reagent/atom false)
+(defn draw-ellipse-shape [ellipse-defaults common-behavior
+                          bubble-id center-x center-y rx ry
+                          new-center-x new-center-y
+                          ]
+  [:ellipse
+   (merge ellipse-defaults common-behavior
+          {:on-double-click #(new-bubble bubble-id new-center-x new-center-y)
+           :on-click
+           (fn []
+             (when (get-link-src)
+               (building-link-end bubble-id)
+               ))
+           :cx center-x
+           :cy center-y
+           :rx rx
+           :ry ry
+           })])
+
+(defn draw-bubble-shape [bubble]
+  (let [{:keys [id type center rx ry]} bubble
+        on-drag (move-bubble id)
+        common-behavior {:on-mouse-down (dragging-fn on-drag bubble)
+                         :on-context-menu (delete-bubble id)}
         ]
-    (fn [bubble]
-      (let [{:keys [id center rx ry]} bubble
-            on-drag (move-bubble id)
-            common-behavior {:on-mouse-down (dragging-fn on-drag bubble)
-                             :on-context-menu (delete-bubble id)}
-            on-save (fn[text] (save-text-bubble id text ROOT-BUBBLE-DEFAULT-TEXT))
-            on-stop #(reset! edition? false)
-            initial-state? (:initial-state bubble)
-            ]
-        ^{:key (str id "-g")}
-        [:g
-         {
-          :on-mouse-over
-          (fn [] (if (get-link-src)
-                   (reset! show-button? false)
-                   (reset! show-button? true)))
-          :on-mouse-leave #(reset! show-button? false)
-          :pointer-events "bounding-box"
-          }
+    (case type
+      :root-bubble
+      [:<>
+       [draw-ellipse-shape ellipse-defaults common-behavior
+        id (g/x center) (g/y center) (+ 10 rx) (+ 10 ry)
+        (g/x center) (- (g/y center) (* 3 ry))]
+       [draw-ellipse-shape ellipse-defaults common-behavior
+        id (g/x center) (g/y center) rx ry
+        (g/x center) (- (g/y center) (* 3 ry))]]
 
-         [:ellipse
-          (merge ellipse-defaults common-behavior
-                 {:on-double-click #(new-bubble id (g/x center) (- (g/y center) (* 3 ry)))
-                  :on-click
-                  (fn []
-                    (when (get-link-src)
-                      (building-link-end id)
-                      ))
-                  :cx (g/x center)
-                  :cy (g/y center)
-                  :rx (+ 10 rx)
-                  :ry (+ 10 ry)
-                  })]
+      :bubble
+      [draw-ellipse-shape ellipse-defaults common-behavior
+       id (g/x center) (g/y center) rx ry
+       (g/x center) (- (g/y center) (* 3 ry))]
 
-         [:ellipse
-          (merge ellipse-defaults common-behavior
-                 {:on-double-click #(new-bubble id (g/x center) (- (g/y center) (* 3 ry)))
-                  :on-click
-                  (fn []
-                    (when (get-link-src)
-                      (building-link-end id)
-                      ))
-                  :cx (g/x center)
-                  :cy (g/y center)
-                  :rx rx
-                  :ry ry
-                  })]
 
-         (if @edition?
-           [bubble-input (merge bubble {:on-save on-save :on-stop on-stop})]
-           [:<>
-            [draw-pencil-button edition? @show-button? id center (+ 10 rx) (+ 10 ry)]
-            [draw-link-button @show-button? id center (+ 10 rx) (+ 10 ry)]
-            [bubble-text edition? initial-state? common-behavior id]]
-           )
-         ]))))
+      nil
+      )))
 
 (defn draw-delete-button [visible? bubble-id center rx ry]
   (let [semi-length 15
@@ -575,12 +559,31 @@
      [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound}]])
   )
 
+(defn add-button [bubble-type
+                  edition?-atom show-button? initial-state? common-behavior
+                  bubble-id center rx ry]
+  (case bubble-type
+    :root-bubble
+    [:<>
+     [draw-pencil-button edition?-atom show-button? bubble-id center (+ 10 rx) (+ 10 ry)]
+     [draw-link-button show-button? bubble-id center (+ 10 rx) (+ 10 ry)]
+     [bubble-text edition?-atom initial-state? common-behavior bubble-id]]
+
+    :bubble
+    [:<>
+     [draw-delete-button show-button? bubble-id center rx ry]
+     [draw-pencil-button edition?-atom show-button? bubble-id center rx ry]
+     [draw-link-button show-button? bubble-id center rx ry]
+     [bubble-text edition?-atom initial-state? common-behavior bubble-id]]
+
+    nil))
+
 (defn draw-bubble [bubble]
   (let [edition? (reagent/atom false)
         show-button? (reagent/atom false)
         ]
     (fn [bubble]
-      (let [{:keys [id center rx ry]} bubble
+      (let [{:keys [id type center rx ry]} bubble
             on-drag (move-bubble id)
             common-behavior {:on-mouse-down (dragging-fn on-drag bubble)
                              :on-context-menu (delete-bubble id)}
@@ -598,27 +601,14 @@
           :on-mouse-leave #(reset! show-button? false)
           :pointer-events "bounding-box"
           }
-         [:ellipse
-          (merge ellipse-defaults common-behavior
-                 {:on-double-click #(new-bubble id (g/x center) (- (g/y center) (* 3 ry)))
-                  :on-click
-                  (fn [evt]
-                    (when (get-link-src)
-                      (building-link-end id)
-                      ))
-                  :cx (g/x center)
-                  :cy (g/y center)
-                  :rx rx
-                  :ry ry
-                  })]
+
+         [draw-bubble-shape bubble]
 
          (if @edition?
            [bubble-input (merge bubble {:on-save on-save :on-stop on-stop})]
-           [:<>
-            [draw-delete-button @show-button? id center rx ry]
-            [draw-pencil-button edition? @show-button? id center rx ry]
-            [draw-link-button @show-button? id center rx ry]
-            [bubble-text edition? initial-state? common-behavior id]]
+           [add-button type
+            edition? @show-button? initial-state? common-behavior
+            id center rx ry]
            )
          ]))))
 
@@ -659,14 +649,12 @@
             :x1 (g/x center) :y1 (g/y center)
             :x2 (:x mouse-svg-pos) :y2 (:y mouse-svg-pos)}]))
 
-;; (defn all-bubble [svg-bounding-box-arg mouse-svg-pos]
 (defn all-bubble [mouse-svg-pos]
-  ;; (reset! svg-bounding-box svg-bounding-box-arg)
   [:g
    (draw-links)
    (when (get-link-src)
      [draw-building-link mouse-svg-pos])
-   [draw-root-bubble (get-bubble ROOT-ID)]
+   [draw-bubble (get-bubble ROOT-ID)]
    (doall
     (for [bubble (filter #(not= (:id %) ROOT-ID) (:bubbles @points))]
       ^{:key (:id bubble)} [draw-bubble bubble]
