@@ -1,3 +1,7 @@
+/* SVG Fullscreen */
+html, body { margin:0; padding:0; overflow:hidden }
+svg { position:fixed; top:0; left:0; height:100%; width:100% }
+
 .body-container {
   font-family: 'Helvetica Neue', Verdana, Helvetica, Arial, sans-serif;
   max-width: 800px;

@@ -679,8 +679,9 @@
       (fn []
         [:svg {:style {:border "1px solid"
                        :background "white"
-                       :width "800"
-                       :height "800"}
+                       ;; :width "800"
+                       ;; :height "800"
+                       }
                :on-context-menu (fn [evt] (.preventDefault evt))
 
                ;; :pointer-events "none"
