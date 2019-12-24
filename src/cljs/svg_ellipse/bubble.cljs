@@ -13,20 +13,34 @@
 ;; (deftest test-numbers
 ;;   (is (= 1 1)))
 
+(def NIL-ID "not-initialized")
 (def ROOT-ID "root")
 (def BUBBLE-DEFAULT-TEXT "New task")
 (def ROOT-BUBBLE-DEFAULT-TEXT "Main goal")
 
+(def bubble-nil
+  {:id NIL-ID :center (g/point 0 0)
+   :type :bubble
+   :rx 100 :ry 50
+   :text BUBBLE-DEFAULT-TEXT
+   :initial-state true
+   :done? false})
+
+(def root-bubble
+  (merge bubble-nil
+         {:id ROOT-ID
+          :type :root-bubble
+          :center (g/point 450 450)
+          :rx 100
+          :ry 50
+          :text "Main goal"
+          :initial-state true
+          :done? false
+          }))
+
 (def initial-application-state
   {
-   :bubbles [{:id ROOT-ID
-              :type :root-bubble
-              :center (g/point 250 450)
-              :rx 100
-              :ry 50
-              :text "Main goal"
-              :initial-state true
-              }]
+   :bubbles [root-bubble]
    :links []
    :link-src nil
    })
@@ -202,38 +216,17 @@
 
 (defn new-bubble [parent-bubble-id cx cy]
   (let [bubble-id (gen-id)
-        new-bubble (bubble-init bubble-id cx cy)]
-    ;; (swap! points update :bubbles conj (bubble-init bubble-id cx cy))
+        new-bubble
+        (merge bubble-nil {:id bubble-id :center (g/point cx cy)}) ]
     (add-bubble new-bubble)
-    ;; (swap! points update :links conj {:src parent-bubble-id :dst bubble-id})
     (add-link parent-bubble-id bubble-id)
     ))
 
 (defn delete-bubble [bubble-id]
   (fn [evt]
     (.preventDefault evt)
-    ;; (swap! points update :bubbles (fn [l] (filterv #(not (= (:id %) id)) l)))
     (delete-bubble-shape bubble-id)
-    ;; (swap! points update :links (fn [l] (filterv
-    ;;                                      (fn [link] not (= (some #{bubble-id} (vals link)) nil)) l)))
-    ;; (clog (:links @points))
-
-    ;; (let [ids-dst (clog (->> (:links @points)
-    ;;                          (filterv (fn [link] (= bubble-id (:src link))))
-    ;;                          (map :dst)))
-    ;;       ids-src (clog (->> (:links @points)
-    ;;                          (filterv (fn [link] (= bubble-id (:dst link))))
-    ;;                          (map :src)))
-    ;;       ]
-    ;;   (clog ids-src)
-    ;;   (clog ids-dst)
-    ;;   (clog (vec (for [id-src ids-src
-    ;;                    id-dst ids-dst]
-    ;;                {:src id-src :dst id-dst})))
-    ;;   )
-
     (update-link bubble-id)
-
     (reset-link-src)
     ))
 
