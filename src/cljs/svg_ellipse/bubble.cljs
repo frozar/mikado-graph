@@ -182,10 +182,16 @@
 (defn if-left-click [evt]
   (= 0 (.-button evt)))
 
-(defn dragging-fn [on-drag bubble]
-  (fn [evt]
-    (if (if-left-click evt)
-      (dragging on-drag (g/x (:center bubble)) (g/y (:center bubble))))))
+(defn dragging-fn
+  ([on-drag center]
+   (fn [evt]
+     (if (if-left-click evt)
+       (dragging on-drag (g/x center) (g/y center)))))
+  ([on-drag center-x center-y]
+   (fn [evt]
+     (if (if-left-click evt)
+       (dragging on-drag center-x center-y))))
+  )
 
 (defn bubble-init [bubble-id cx cy]
   {:id bubble-id :center (g/point cx cy)
@@ -447,7 +453,18 @@
     (add-link id-src id-dst)
     (reset-link-src)))
 
-(defn bubble-text [edition?-atom initial-state? common-behavior bubble-id]
+(defn get-bubble-event-handling
+  ([bubble-id center]
+   (let [on-drag (move-bubble bubble-id)]
+     {:on-mouse-down (dragging-fn on-drag center)
+      :on-context-menu (delete-bubble bubble-id)}))
+  ([bubble-id center-x center-y]
+   (let [on-drag (move-bubble bubble-id)]
+     {:on-mouse-down (dragging-fn on-drag center-x center-y)
+      :on-context-menu (delete-bubble bubble-id)}))
+  )
+
+(defn bubble-text [edition?-atom initial-state? bubble-id]
   (let [dom-node (reagent/atom nil)
         y-pos    (reagent/atom 0)]
     (reagent/create-class
@@ -465,13 +482,14 @@
         (update-y-pos y-pos @dom-node bubble-id))
 
       :reagent-render
-      (fn [edition?-atom initial-state common-behavior bubble-id]
+      (fn [edition?-atom initial-state bubble-id]
         (let [font-size 20
               text-style (if initial-state?
                            {:font-style "italic" :fill "#555"}
                            {:font-style "normal" :fill "#000"})
+              {:keys [id center]} (get-bubble bubble-id)
               ]
-          [:text (merge common-behavior
+          [:text (merge (get-bubble-event-handling bubble-id center)
                         {:style
                          (merge text-style
                           {
@@ -499,12 +517,12 @@
                                            }
                                    tspan-text])))]))})))
 
-(defn draw-ellipse-shape [ellipse-defaults common-behavior
-                          bubble-id center-x center-y rx ry
+(defn draw-ellipse-shape [bubble-id center-x center-y rx ry
                           new-center-x new-center-y
                           ]
   [:ellipse
-   (merge ellipse-defaults common-behavior
+   (merge ellipse-defaults
+          (get-bubble-event-handling bubble-id center-x center-y)
           {:on-double-click #(new-bubble bubble-id new-center-x new-center-y)
            :on-click
            (fn []
@@ -515,32 +533,27 @@
            :cy center-y
            :rx rx
            :ry ry
+           :cursor "grab"
            })])
 
 (defn draw-bubble-shape [bubble]
-  (let [{:keys [id type center rx ry]} bubble
-        on-drag (move-bubble id)
-        common-behavior {:on-mouse-down (dragging-fn on-drag bubble)
-                         :on-context-menu (delete-bubble id)}
-        ]
+  (let [{:keys [id type center rx ry]} bubble]
     (case type
       :root-bubble
       [:<>
-       [draw-ellipse-shape ellipse-defaults common-behavior
+       [draw-ellipse-shape
         id (g/x center) (g/y center) (+ 10 rx) (+ 10 ry)
         (g/x center) (- (g/y center) (* 3 ry))]
-       [draw-ellipse-shape ellipse-defaults common-behavior
+       [draw-ellipse-shape
         id (g/x center) (g/y center) rx ry
         (g/x center) (- (g/y center) (* 3 ry))]]
 
       :bubble
-      [draw-ellipse-shape ellipse-defaults common-behavior
+      [draw-ellipse-shape
        id (g/x center) (g/y center) rx ry
        (g/x center) (- (g/y center) (* 3 ry))]
 
-
-      nil
-      )))
+      nil)))
 
 (defn draw-delete-button [visible? bubble-id center rx ry]
   (let [semi-length 15
@@ -560,21 +573,21 @@
   )
 
 (defn add-button [bubble-type
-                  edition?-atom show-button? initial-state? common-behavior
+                  edition?-atom show-button? initial-state?
                   bubble-id center rx ry]
   (case bubble-type
     :root-bubble
     [:<>
      [draw-pencil-button edition?-atom show-button? bubble-id center (+ 10 rx) (+ 10 ry)]
      [draw-link-button show-button? bubble-id center (+ 10 rx) (+ 10 ry)]
-     [bubble-text edition?-atom initial-state? common-behavior bubble-id]]
+     [bubble-text edition?-atom initial-state? bubble-id]]
 
     :bubble
     [:<>
      [draw-delete-button show-button? bubble-id center rx ry]
      [draw-pencil-button edition?-atom show-button? bubble-id center rx ry]
      [draw-link-button show-button? bubble-id center rx ry]
-     [bubble-text edition?-atom initial-state? common-behavior bubble-id]]
+     [bubble-text edition?-atom initial-state? bubble-id]]
 
     nil))
 
@@ -584,9 +597,6 @@
         ]
     (fn [bubble]
       (let [{:keys [id type center rx ry]} bubble
-            on-drag (move-bubble id)
-            common-behavior {:on-mouse-down (dragging-fn on-drag bubble)
-                             :on-context-menu (delete-bubble id)}
             on-save (fn[text] (save-text-bubble id text BUBBLE-DEFAULT-TEXT))
             on-stop #(reset! edition? false)
             initial-state? (:initial-state bubble)
@@ -607,7 +617,7 @@
          (if @edition?
            [bubble-input (merge bubble {:on-save on-save :on-stop on-stop})]
            [add-button type
-            edition? @show-button? initial-state? common-behavior
+            edition? @show-button? initial-state?
             id center rx ry]
            )
          ]))))
