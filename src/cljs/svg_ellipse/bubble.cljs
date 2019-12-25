@@ -13,32 +13,39 @@
 ;; (deftest test-numbers
 ;;   (is (= 1 1)))
 
-(def NIL-ID "not-initialized")
-(def ROOT-ID "root")
-(def BUBBLE-DEFAULT-TEXT "New task")
-(def ROOT-BUBBLE-DEFAULT-TEXT "Main goal")
+(def ^:const NIL-BUBBLE-ID "not-initialized")
+(def ^:const ROOT-BUBBLE-ID "root")
 
-(def bubble-nil
-  {:id NIL-ID :center (g/point 0 0)
-   :type :bubble
+(def ^:const NIL-BUBBLE-TYPE  "nil-bubble")
+(def ^:const ROOT-BUBBLE-TYPE "root-bubble")
+(def ^:const BUBBLE-TYPE      "bubble")
+
+(def ^:const BUBBLE-DEFAULT-TEXT      "New task")
+(def ^:const ROOT-BUBBLE-DEFAULT-TEXT "Main goal")
+
+(def nil-bubble
+  {:id NIL-BUBBLE-ID
+   :type NIL-BUBBLE-TYPE
+   :initial-state true
+   :done? false
+   :center (g/point 0 0)
    :rx 100 :ry 50
    :text BUBBLE-DEFAULT-TEXT
-   :initial-state true
-   :done? false})
+   })
 
 (def root-bubble
-  (merge bubble-nil
-         {:id ROOT-ID
-          :type :root-bubble
+  (merge nil-bubble
+         {:id ROOT-BUBBLE-ID
+          :type ROOT-BUBBLE-TYPE
+          :initial-state true
+          :done? false
           :center (g/point 450 450)
           :rx 100
           :ry 50
-          :text "Main goal"
-          :initial-state true
-          :done? false
+          :text ROOT-BUBBLE-DEFAULT-TEXT
           }))
 
-(def initial-application-state
+(defn initial-application-state []
   {
    :bubbles [root-bubble]
    :links []
@@ -46,7 +53,7 @@
    })
 
 (defonce points
-  (reagent/atom initial-application-state))
+  (reagent/atom (initial-application-state)))
 
 (defonce svg-bounding-box (reagent/atom nil))
 
@@ -65,6 +72,12 @@
 (defn get-bubble [id]
   (first (filter #(= (:id %) id) (:bubbles @points))))
 
+(defn get-root-bubble []
+  (get-bubble ROOT-BUBBLE-ID))
+
+(defn get-bubble-but-root []
+  (filter #(not= (:id %) ROOT-BUBBLE-ID) (:bubbles @points)))
+
 (defn add-bubble [bubble]
   (swap! points update :bubbles conj bubble))
 
@@ -79,9 +92,6 @@
                                        (fn [link] not (= (some #{bubble-id} (vals link)) nil)) l))))
 
 (defn delete-link [src-id dst-id]
-  (clog (:links @points))
-  (clog {:src src-id :dst dst-id})
-  (clog (filterv (fn [link] (not= {:src src-id :dst dst-id} link)) (:links @points)))
   (swap! points update :links (fn [links]
                                 (filterv
                                  (fn [link] (not= {:src src-id :dst dst-id} link))
@@ -209,7 +219,7 @@
 
 (defn bubble-init [bubble-id cx cy]
   {:id bubble-id :center (g/point cx cy)
-   :type :bubble
+   :type BUBBLE-TYPE
    :rx 100 :ry 50
    :text BUBBLE-DEFAULT-TEXT
    :initial-state true})
@@ -217,7 +227,7 @@
 (defn new-bubble [parent-bubble-id cx cy]
   (let [bubble-id (gen-id)
         new-bubble
-        (merge bubble-nil {:id bubble-id :center (g/point cx cy)}) ]
+        (merge nil-bubble {:id bubble-id :type BUBBLE-TYPE :center (g/point cx cy)})]
     (add-bubble new-bubble)
     (add-link parent-bubble-id bubble-id)
     ))
@@ -356,7 +366,6 @@
 
       :component-did-update
       (fn []
-        (clog ":component-did-update")
         ;; Set the focus to the textarea
         (.focus @dom-node)
         (center-textarea @dom-node id center
@@ -389,7 +398,7 @@
              :on-blur #(save)
              :on-change (fn [evt]
                           (reset! current-text (.. evt -target -value))
-                          (clog @current-text))
+                          )
              :on-key-down (fn [evt]
                             ;; 13: enter-keycode
                             ;; 27: escape-keycode
@@ -532,7 +541,7 @@
 (defn draw-bubble-shape [bubble]
   (let [{:keys [id type center rx ry]} bubble]
     (case type
-      :root-bubble
+      ROOT-BUBBLE-TYPE
       [:<>
        [draw-ellipse-shape
         id (g/x center) (g/y center) (+ 10 rx) (+ 10 ry)
@@ -541,7 +550,7 @@
         id (g/x center) (g/y center) rx ry
         (g/x center) (- (g/y center) (* 3 ry))]]
 
-      :bubble
+      BUBBLE-TYPE
       [draw-ellipse-shape
        id (g/x center) (g/y center) rx ry
        (g/x center) (- (g/y center) (* 3 ry))]
@@ -569,13 +578,13 @@
                   edition?-atom show-button? initial-state?
                   bubble-id center rx ry]
   (case bubble-type
-    :root-bubble
+    ROOT-BUBBLE-TYPE
     [:<>
      [draw-pencil-button edition?-atom show-button? bubble-id center (+ 10 rx) (+ 10 ry)]
      [draw-link-button show-button? bubble-id center (+ 10 rx) (+ 10 ry)]
      [bubble-text edition?-atom initial-state? bubble-id]]
 
-    :bubble
+    BUBBLE-TYPE
     [:<>
      [draw-delete-button show-button? bubble-id center rx ry]
      [draw-pencil-button edition?-atom show-button? bubble-id center rx ry]
@@ -594,6 +603,11 @@
             on-stop #(reset! edition? false)
             initial-state? (:initial-state bubble)
             ]
+        ;; Throw an exception if a nil-bubble is in the application state
+        (if (= (:type bubble) NIL-BUBBLE-TYPE)
+          (throw (js/Error. "Try to draw nil-bubble!"))
+          )
+
         ^{:key (str id "-g")}
         [:g
          {
@@ -614,6 +628,17 @@
             id center rx ry]
            )
          ]))))
+
+;; (defn draw-bubble [bubble]
+;;   (if (= (:id bubble) NIL-BUBBLE-ID)
+;;     (do
+;;       ;; (js/console.error "Try to draw nil-bubble!")
+;;       ;; (js/console.trace)
+;;       (js/throw "Try to draw nil-bubble!")
+;;       ;; (break "Try to draw nil-bubble!")
+;;       ;; (dbgn "Try to draw nil-bubble!")
+;;       nil)
+;;     (do-draw-bubble bubble)))
 
 (defn get-link-path [link]
   (let [{:keys [src dst]} link
@@ -657,9 +682,9 @@
    (draw-links)
    (when (get-link-src)
      [draw-building-link mouse-svg-pos])
-   [draw-bubble (get-bubble ROOT-ID)]
+   [draw-bubble (get-root-bubble)]
    (doall
-    (for [bubble (filter #(not= (:id %) ROOT-ID) (:bubbles @points))]
+    (for [bubble (get-bubble-but-root)]
       ^{:key (:id bubble)} [draw-bubble bubble]
       )
     )
