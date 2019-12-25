@@ -340,7 +340,7 @@
 
 (defn custom-textarea [id center text on-save on-stop
                        width-atom height-atom top-left-x-atom top-left-y-atom
-                       initial-state?]
+                       initial-state? type]
   (let [current-text (reagent/atom text)
         dom-node (reagent/atom nil)
         stop #(if on-stop (on-stop))
@@ -374,14 +374,16 @@
       :reagent-render
       (fn [id center text on-save on-stop
            width-atom height-atom top-left-x-atom top-left-y-atom
-           initial-state?]
+           initial-state? type]
         (let [nb-lines (get-nb-lines @current-text)
-              line-max-length (->> @current-text string/split-lines (map count) (apply max))]
+              default-text (if (= type ROOT-BUBBLE-TYPE) ROOT-BUBBLE-DEFAULT-TEXT BUBBLE-DEFAULT-TEXT)
+              default-text-length (count default-text)
+              line-max-length-tmp (->> @current-text string/split-lines (map count) (apply max))
+              line-max-length (if (= line-max-length-tmp 0) default-text-length line-max-length-tmp)]
            [:textarea
             {:style
              {
               :overflow "hidden"
-              ;; :position "absolute"
               :font-size "20px"
               :justify-content "center"
               :border "none"
@@ -391,7 +393,7 @@
               }
              :otline "none"
              :wrap "off"
-             :placeholder "New task"
+             :placeholder default-text
              :rows nb-lines
              :cols line-max-length
              :value @current-text
@@ -412,7 +414,7 @@
                               nil))
              }]))})))
 
-(defn bubble-input [{:keys [id center text rx ry initial-state on-save on-stop]}]
+(defn bubble-input [{:keys [id type center text rx ry initial-state on-save on-stop]}]
   (let [width (reagent/atom (* 2 rx))
         height (reagent/atom (* 2 ry))
         top-left-x (reagent/atom (g/x center))
@@ -427,7 +429,7 @@
         }
        [custom-textarea id center text on-save on-stop
         width height top-left-x top-left-y
-        initial-state]
+        initial-state type]
        ])))
 
 (defn update-bubble-size [dom-node bubble-id]
