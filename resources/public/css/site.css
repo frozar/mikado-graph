@@ -41,6 +41,18 @@ a:hover {
 
 .graph_link:hover path {
     cursor: pointer;
-    stroke-width: 15;
-    stroke: #60f;
+    stroke-width: 10;
+    stroke: #30f;
+}
+
+/* Avoid selection when user doule click on ellipse */
+.graph_link path, .button, .label, ellipse {
+    /* webkit (safari, chrome) browsers */
+    -webkit-user-select: none;
+    /* mozilla browsers */
+    -moz-user-select: none;
+    /* webkit (konqueror) browsers */
+    -khtml-user-select: none;
+    /* IE10+ */
+    -ms-user-select: none
 }

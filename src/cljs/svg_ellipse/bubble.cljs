@@ -176,16 +176,7 @@
            list-bubble))))))
 
 (def ellipse-defaults
-  {:style {;; /* webkit (safari, chrome) browsers */
-           :-webkit-user-select "none"
-           ;; /* mozilla browsers */
-           :-moz-user-select "none"
-           ;; /* webkit (konqueror) browsers */
-           :-khtml-user-select "none"
-           ;; /* IE10+ */
-           :-ms-user-select "none"
-           }
-   :stroke "black"
+  {:stroke "black"
    :stroke-width 5
    })
 
