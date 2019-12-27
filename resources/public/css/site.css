@@ -1,17 +1,12 @@
 /* SVG Fullscreen */
-html, body { margin:0; padding:0; overflow:hidden }
-svg { position:fixed; top:0; left:0; height:100%; width:100% }
-
-.body-container {
-  font-family: 'Helvetica Neue', Verdana, Helvetica, Arial, sans-serif;
-  max-width: 800px;
-  margin: 0 auto;
-  padding-top: 72px;
-  -webkit-font-smoothing: antialiased;
-  font-size: 1.125em;
-  color: #333;
-  line-height: 1.5em;
+html, body {
+    font-family: 'Helvetica Neue', Verdana, Helvetica, Arial, sans-serif;
+    margin:0;
+    padding:0;
+    overflow:hidden
 }
+
+svg { position:fixed; top:0; left:0; height:100%; width:100% }
 
 h1, h2, h3 {
   color: #000;
@@ -35,4 +30,16 @@ a {
 
 a:hover {
   text-decoration: underline;
+}
+
+.button:hover {
+    outline-color: -webkit-focus-ring-color;
+    outline-style: auto;
+    outline-width: 5px;
+}
+
+.label:hover {
+    outline-color: -webkit-focus-ring-color;
+    outline-style: auto;
+    outline-width: 5px;
 }

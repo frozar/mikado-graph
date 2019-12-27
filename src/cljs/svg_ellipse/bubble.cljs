@@ -26,7 +26,7 @@
 (def nil-bubble
   {:id NIL-BUBBLE-ID
    :type NIL-BUBBLE-TYPE
-   :initial-state true
+   :initial-state? true
    :done? false
    :center (g/point 0 0)
    :rx 100 :ry 50
@@ -37,7 +37,7 @@
   (merge nil-bubble
          {:id ROOT-BUBBLE-ID
           :type ROOT-BUBBLE-TYPE
-          :initial-state true
+          :initial-state? true
           :done? false
           :center (g/point 450 450)
           :rx 100
@@ -114,15 +114,19 @@
                                              vec)))
     ))
 
+(defn update-bubble [bubble-id dictionary]
+  (let [bubble (-> (get-bubble bubble-id) (merge dictionary))]
+    (delete-bubble-shape bubble-id)
+    (add-bubble bubble)))
+
+(defn toggle-bubble-validation [bubble-id]
+  (let [validation-state (-> (get-bubble bubble-id) :done? not)]
+    (update-bubble bubble-id {:done? validation-state})))
+
 ;;
 (defn gen-id []
   "Generate a string of length 8, e.g.: 'b56d74c5'"
   (apply str (repeatedly 8 #(rand-nth "0123456789abcdef"))))
-
-(defn get-bcr [svg-root]
-  (-> svg-root
-      reagent/dom-node
-      .getBoundingClientRect))
 
 (defn get-svg-coord
   [bounding-client-rect x y]
@@ -170,7 +174,6 @@
            ;; /* IE10+ */
            :-ms-user-select "none"
            }
-   :fill "#f06"
    :stroke "black"
    :stroke-width 5
    })
@@ -217,13 +220,6 @@
        (dragging on-drag center-x center-y))))
   )
 
-(defn bubble-init [bubble-id cx cy]
-  {:id bubble-id :center (g/point cx cy)
-   :type BUBBLE-TYPE
-   :rx 100 :ry 50
-   :text BUBBLE-DEFAULT-TEXT
-   :initial-state true})
-
 (defn new-bubble [parent-bubble-id cx cy]
   (let [bubble-id (gen-id)
         new-bubble
@@ -246,7 +242,7 @@
         max-bound semi-length
         x-offset  (-> center g/x (+ 25))
         y-offset  (- (g/y center) (+ ry max-bound 10))]
-    [:g
+    [:g.button
      {:stroke "darkgreen"
       :stroke-width 2
       :transform (str "translate(" x-offset "," y-offset ")")
@@ -270,23 +266,22 @@
   )
 
 (defn draw-link-button [visible? bubble-id center rx ry]
-  (let [semi-length 15
-        min-bound (- 0 semi-length)
-        max-bound semi-length
-        x-offset  (-> center g/x (+ 60))
+  (let [x-offset  (-> center g/x (+ 60))
         y-offset  (- (g/y center) (+ ry 5))
         ]
-    [:g
+    [:g.button
      {:stroke "darkblue"
-      :stroke-width 0.5
-      :transform (str "translate(" x-offset "," y-offset ") scale(7) rotate(-90)")
+      :stroke-width 4
+      :transform (str "translate(" x-offset "," y-offset ") scale(1) rotate(-90)")
       :visibility (if visible? "visible" "hidden")
       :pointer-events "bounding-box"
       :on-click #(set-link-src bubble-id)
       }
      ;; Draw dash line
      (for [i (map #(* 2 %) (range 3))]
-       ^{:key (str i)} [:line {:x1 i :y1 i :x2 (inc i) :y2 (inc i)}])
+       (let [start (* 7 i)
+             end (* 7 (inc i))]
+         ^{:key (str i)} [:line {:x1 start :y1 start :x2 end :y2 end}]))
      ]))
 
 (defn save-text-bubble [id text default-text]
@@ -301,11 +296,11 @@
          (do
            (let [current-bubble (get-bubble id)
                  initial-state-value (and (= text default-text)
-                                          (:initial-state current-bubble))]
+                                          (:initial-state? current-bubble))]
              (update
               list-bubble
               (.indexOf list-idxs id)
-              #(merge % {:text text :initial-state initial-state-value}))))
+              #(merge % {:text text :initial-state? initial-state-value}))))
          ;; Else body
          list-bubble)))))
 
@@ -492,7 +487,7 @@
                            {:font-style "normal" :fill "#000"})
               {:keys [id center]} (get-bubble bubble-id)
               ]
-          [:text (merge (get-bubble-event-handling bubble-id center)
+          [:text.label (merge (get-bubble-event-handling bubble-id center)
                         {:style
                          (merge text-style
                           {
@@ -521,40 +516,41 @@
                                    tspan-text])))]))})))
 
 (defn draw-ellipse-shape [bubble-id center-x center-y rx ry
-                          new-center-x new-center-y
+                          new-center-x new-center-y done?
                           ]
   [:ellipse
    (merge ellipse-defaults
           (get-bubble-event-handling bubble-id center-x center-y)
-          {:on-double-click #(new-bubble bubble-id new-center-x new-center-y)
+          {:cx center-x
+           :cy center-y
+           :rx rx
+           :ry ry
+           :cursor "grab"
+           :fill (if done? "#6f0" "#f06" )
+           :on-double-click #(new-bubble bubble-id new-center-x new-center-y)
            :on-click
            (fn []
              (when (get-link-src)
                (building-link-end bubble-id)
                ))
-           :cx center-x
-           :cy center-y
-           :rx rx
-           :ry ry
-           :cursor "grab"
            })])
 
 (defn draw-bubble-shape [bubble]
-  (let [{:keys [id type center rx ry]} bubble]
+  (let [{:keys [id type center rx ry done?]} bubble]
     (case type
       ROOT-BUBBLE-TYPE
       [:<>
        [draw-ellipse-shape
         id (g/x center) (g/y center) (+ 10 rx) (+ 10 ry)
-        (g/x center) (- (g/y center) (* 3 ry))]
+        (g/x center) (- (g/y center) (* 3 ry)) done?]
        [draw-ellipse-shape
         id (g/x center) (g/y center) rx ry
-        (g/x center) (- (g/y center) (* 3 ry))]]
+        (g/x center) (- (g/y center) (* 3 ry)) done?]]
 
       BUBBLE-TYPE
       [draw-ellipse-shape
        id (g/x center) (g/y center) rx ry
-       (g/x center) (- (g/y center) (* 3 ry))]
+       (g/x center) (- (g/y center) (* 3 ry)) done?]
 
       nil)))
 
@@ -564,7 +560,7 @@
         max-bound semi-length
         x-offset  (-> center g/x (- 25))
         y-offset  (- (g/y center) (+ ry max-bound 5))]
-    [:g
+    [:g.button
      {:stroke "darkred"
       :stroke-width 5
       :transform (str "translate(" x-offset "," y-offset ")")
@@ -575,37 +571,55 @@
      [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound}]])
   )
 
-(defn add-button [bubble-type
-                  edition?-atom show-button? initial-state?
-                  bubble-id center rx ry]
-  (case bubble-type
-    ROOT-BUBBLE-TYPE
-    [:<>
-     [draw-pencil-button edition?-atom show-button? bubble-id center (+ 10 rx) (+ 10 ry)]
-     [draw-link-button show-button? bubble-id center (+ 10 rx) (+ 10 ry)]
-     [bubble-text edition?-atom initial-state? bubble-id]]
+(defn draw-validation-button [visible? bubble-id center rx ry]
+  (let [length 30
+        x-offset  (-> center g/x (+ rx 20))
+        y-offset  (g/y center)
+        ]
+    [:path.button
+     {
+      :stroke "darkgreen"
+      :stroke-width 6
+      :transform (str "translate(" x-offset "," y-offset ")")
+      :visibility (if visible? "visible" "hidden")
+      :pointer-events "bounding-box"
+      :fill "none"
+      :d (str "M " (- 0 (/ length 2)) "," (- 0 (/ length 2)) " L 0,0 L " length "," (- 0 length))
+      :on-click #(toggle-bubble-validation bubble-id)
+      }
+     ])
+  )
 
-    BUBBLE-TYPE
-    [:<>
-     [draw-delete-button show-button? bubble-id center rx ry]
-     [draw-pencil-button edition?-atom show-button? bubble-id center rx ry]
-     [draw-link-button show-button? bubble-id center rx ry]
-     [bubble-text edition?-atom initial-state? bubble-id]]
+(defn add-button [bubble edition?-atom show-button?]
+  (let [{:keys [id type center rx ry text initial-state]} bubble
+        initial-state? initial-state]
+    (case type
+      ROOT-BUBBLE-TYPE
+      [:<>
+       [draw-validation-button show-button? id center (+ 10 rx) (+ 10 ry)]
+       [draw-pencil-button edition?-atom show-button? id center (+ 10 rx) (+ 10 ry)]
+       [draw-link-button show-button? id center (+ 10 rx) (+ 10 ry)]]
 
-    nil))
+      BUBBLE-TYPE
+      [:<>
+       [draw-validation-button show-button? id center rx ry]
+       [draw-delete-button show-button? id center rx ry]
+       [draw-pencil-button edition?-atom show-button? id center rx ry]
+       [draw-link-button show-button? id center rx ry]]
+
+      nil)))
 
 (defn draw-bubble [bubble]
   (let [edition? (reagent/atom false)
         show-button? (reagent/atom false)
         ]
     (fn [bubble]
-      (let [{:keys [id type center rx ry]} bubble
-            on-save (fn[text-bubble] (save-text-bubble id text-bubble BUBBLE-DEFAULT-TEXT))
+      (let [{:keys [id type center rx ry initial-state?]} bubble
+            on-save (fn[bubble-text] (save-text-bubble id bubble-text BUBBLE-DEFAULT-TEXT))
             on-stop #(reset! edition? false)
-            initial-state? (:initial-state bubble)
             ]
         ;; Throw an exception if one try to draw a nil-bubble
-        (if (= (:type bubble) NIL-BUBBLE-TYPE)
+        (if (= type NIL-BUBBLE-TYPE)
           (throw (js/Error. "Try to draw nil-bubble!"))
           )
 
@@ -622,11 +636,13 @@
 
          [draw-bubble-shape bubble]
 
+         (when (not @edition?)
+           [add-button bubble edition? @show-button?]
+           )
+
          (if @edition?
            [bubble-input bubble on-save on-stop]
-           [add-button type
-            edition? @show-button? initial-state?
-            id center rx ry]
+           [bubble-text edition? initial-state? id]
            )
          ]))))
 
