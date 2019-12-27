@@ -338,10 +338,10 @@
 (defn get-nb-lines [s]
   (->> s (filter #(= % \newline)) count inc))
 
-(defn custom-textarea [id center text on-save on-stop
-                       width-atom height-atom top-left-x-atom top-left-y-atom
-                       initial-state? type]
-  (let [current-text (reagent/atom text)
+(defn custom-textarea [bubble on-save on-stop
+                       width-atom height-atom top-left-x-atom top-left-y-atom]
+  (let [{:keys [id center text type initial-state?]} bubble
+        current-text (reagent/atom text)
         dom-node (reagent/atom nil)
         stop #(if on-stop (on-stop))
         save (fn []
@@ -372,9 +372,8 @@
                          width-atom height-atom top-left-x-atom top-left-y-atom))
 
       :reagent-render
-      (fn [id center text on-save on-stop
-           width-atom height-atom top-left-x-atom top-left-y-atom
-           initial-state? type]
+      (fn [bubble on-save on-stop
+           width-atom height-atom top-left-x-atom top-left-y-atom]
         (let [nb-lines (get-nb-lines @current-text)
               default-text (if (= type ROOT-BUBBLE-TYPE) ROOT-BUBBLE-DEFAULT-TEXT BUBBLE-DEFAULT-TEXT)
               default-text-length (count default-text)
@@ -414,22 +413,22 @@
                               nil))
              }]))})))
 
-(defn bubble-input [{:keys [id type center text rx ry initial-state on-save on-stop]}]
-  (let [width (reagent/atom (* 2 rx))
+(defn bubble-input [bubble on-save on-stop]
+  (let [{:keys [center rx ry]} bubble
+        width (reagent/atom (* 2 rx))
         height (reagent/atom (* 2 ry))
         top-left-x (reagent/atom (g/x center))
         top-left-y (reagent/atom (g/y center))
         ]
-    (fn [{:keys [c text rx ry on-save on-stop]}]
+    (fn [bubble on-save on-stop]
       [:foreignObject
        {:width @width
         :height @height
         :x @top-left-x
         :y @top-left-y
         }
-       [custom-textarea id center text on-save on-stop
-        width height top-left-x top-left-y
-        initial-state type]
+       [custom-textarea bubble on-save on-stop
+        width height top-left-x top-left-y]
        ])))
 
 (defn update-bubble-size [dom-node bubble-id]
@@ -601,11 +600,11 @@
         ]
     (fn [bubble]
       (let [{:keys [id type center rx ry]} bubble
-            on-save (fn[text] (save-text-bubble id text BUBBLE-DEFAULT-TEXT))
+            on-save (fn[text-bubble] (save-text-bubble id text-bubble BUBBLE-DEFAULT-TEXT))
             on-stop #(reset! edition? false)
             initial-state? (:initial-state bubble)
             ]
-        ;; Throw an exception if a nil-bubble is in the application state
+        ;; Throw an exception if one try to draw a nil-bubble
         (if (= (:type bubble) NIL-BUBBLE-TYPE)
           (throw (js/Error. "Try to draw nil-bubble!"))
           )
@@ -624,23 +623,12 @@
          [draw-bubble-shape bubble]
 
          (if @edition?
-           [bubble-input (merge bubble {:on-save on-save :on-stop on-stop})]
+           [bubble-input bubble on-save on-stop]
            [add-button type
             edition? @show-button? initial-state?
             id center rx ry]
            )
          ]))))
-
-;; (defn draw-bubble [bubble]
-;;   (if (= (:id bubble) NIL-BUBBLE-ID)
-;;     (do
-;;       ;; (js/console.error "Try to draw nil-bubble!")
-;;       ;; (js/console.trace)
-;;       (js/throw "Try to draw nil-bubble!")
-;;       ;; (break "Try to draw nil-bubble!")
-;;       ;; (dbgn "Try to draw nil-bubble!")
-;;       nil)
-;;     (do-draw-bubble bubble)))
 
 (defn get-link-path [link]
   (let [{:keys [src dst]} link
