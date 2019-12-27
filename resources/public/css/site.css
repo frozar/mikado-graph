@@ -32,14 +32,15 @@ a:hover {
   text-decoration: underline;
 }
 
-.button:hover {
+.button:hover, .label:hover {
     outline-color: -webkit-focus-ring-color;
     outline-style: auto;
     outline-width: 5px;
+    cursor: pointer;
 }
 
-.label:hover {
-    outline-color: -webkit-focus-ring-color;
-    outline-style: auto;
-    outline-width: 5px;
+.graph_link:hover path {
+    cursor: pointer;
+    stroke-width: 15;
+    stroke: #60f;
 }

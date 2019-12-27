@@ -72,6 +72,9 @@
 (defn get-bubble [id]
   (first (filter #(= (:id %) id) (:bubbles @points))))
 
+(defn get-all-bubble []
+  (:bubbles @points))
+
 (defn get-root-bubble []
   (get-bubble ROOT-BUBBLE-ID))
 
@@ -124,9 +127,17 @@
     (update-bubble bubble-id {:done? validation-state})))
 
 ;;
-(defn gen-id []
-  "Generate a string of length 8, e.g.: 'b56d74c5'"
-  (apply str (repeatedly 8 #(rand-nth "0123456789abcdef"))))
+(defn gen-id
+  "Generate a string of length 8, e.g.: 'b56d74c5'
+  This generated id is not already present in the current application state"
+  ([]
+   (let [list-id (->> (get-all-bubble) (map :id))]
+     (gen-id list-id)))
+  ([list-id]
+   (let [try-id (apply str (repeatedly 8 #(rand-nth "0123456789abcdef")))]
+     (if (some #{try-id} list-id)
+       (recur list-id)
+       try-id))))
 
 (defn get-svg-coord
   [bounding-client-rect x y]
@@ -573,8 +584,8 @@
 
 (defn draw-validation-button [visible? bubble-id center rx ry]
   (let [length 30
-        x-offset  (-> center g/x (+ rx 20))
-        y-offset  (g/y center)
+        x-offset  (-> center g/x )
+        y-offset  (-> center g/y (+ ry length 10))
         ]
     [:path.button
      {
@@ -667,9 +678,12 @@
 (defn draw-links []
   (let [links-path (doall (map (fn [link] (get-link-path link)) (:links @points)))]
     (when links-path
-      [:g
+      [:g.graph_link
        (for [path links-path]
-         [:path path])
+         [:<>
+          [:path (merge path {:stroke-width 20 :stroke "white"})]
+          [:path path]]
+         )
        ])
     )
   )
