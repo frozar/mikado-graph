@@ -15,18 +15,28 @@
 
 (def router
   (reitit/router
-   [["/" :index]
-    ["/items"
-     ["" :items]
-     ["/:item-id" :item]]
-    ["/about" :about]]))
+   [
+    ;; ["/" :index]
+    ;; ["/items"
+    ;;  ["" :items]
+    ;;  ["/:item-id" :item]]
+    ;; ["/about" :about]
+    ;; ["/toto/*path" :index]
+    ;; ["/toto" :index]
+    ;; ["/toto" :index]
+    ;; ["/" :index]
+    ["/" :index]
+    ["/mika/{mg}" :index]
+    ;; ["/a" :index]
+    ;; ["/graphe" :index]
+    ]))
 
 (defn path-for [route & [params]]
   (if params
     (:path (reitit/match-by-name router route params))
     (:path (reitit/match-by-name router route))))
 
-(path-for :about)
+;; (path-for :about)
 ;; -------------------------
 ;; Page components
 
@@ -41,39 +51,42 @@
 
 
 
-(defn items-page []
-  (fn []
-    [:span.main
-     [:h1 "The items of svg_ellipse"]
-     [:ul (map (fn [item-id]
-                 [:li {:name (str "item-" item-id) :key (str "item-" item-id)}
-                  [:a {:href (path-for :item {:item-id item-id})} "Item: " item-id]])
-               (range 1 60))]]))
+;; (defn items-page []
+;;   (fn []
+;;     [:span.main
+;;      [:h1 "The items of svg_ellipse"]
+;;      [:ul (map (fn [item-id]
+;;                  [:li {:name (str "item-" item-id) :key (str "item-" item-id)}
+;;                   [:a {:href (path-for :item {:item-id item-id})} "Item: " item-id]])
+;;                (range 1 60))]]))
 
 
-(defn item-page []
-  (fn []
-    (let [routing-data (session/get :route)
-          item (get-in routing-data [:route-params :item-id])]
-      [:span.main
-       [:h1 (str "Item " item " of svg_ellipse")]
-       [:p [:a {:href (path-for :items)} "Back to the list of items"]]])))
+;; (defn item-page []
+;;   (fn []
+;;     (let [routing-data (session/get :route)
+;;           item (get-in routing-data [:route-params :item-id])]
+;;       [:span.main
+;;        [:h1 (str "Item " item " of svg_ellipse")]
+;;        [:p [:a {:href (path-for :items)} "Back to the list of items"]]])))
 
 
-(defn about-page []
-  (fn [] [:span.main
-          [:h1 "About svg_ellipse"]]))
+;; (defn about-page []
+;;   (fn [] [:span.main
+;;           [:h1 "About svg_ellipse"]]))
 
 
 ;; -------------------------
 ;; Translate routes -> page components
 
 (defn page-for [route]
+  (clog "page-for")
+  (clog route)
   (case route
     :index #'home-page
-    :about #'about-page
-    :items #'items-page
-    :item #'item-page))
+    ;; :about #'about-page
+    ;; :items #'items-page
+    ;; :item #'item-page
+    ))
 
 
 ;; -------------------------
@@ -85,7 +98,6 @@
 ;;                                      :x (.-pageX %)
 ;;                                      :y (.-pageY %))
 ;;                      _ (.addEventListener js/document "mousemove" handler)]
-;;                      ;; _ (.addEventListener svg-component "mousemove" handler)]
 ;;     @pointer
 ;;     (finally
 ;;       (.removeEventListener js/document "mousemove" handler))))
@@ -119,13 +131,18 @@
   (reagent/render [current-page] (.getElementById js/document "app")))
 
 (defn init! []
+  (clog "init!")
   (clerk/initialize!)
   (accountant/configure-navigation!
    {:nav-handler
     (fn [path]
+      (js/console.trace)
       (let [match (reitit/match-by-path router path)
             current-page (:name (:data  match))
             route-params (:path-params match)]
+        (clog ":nav-handler")
+        (clog path)
+        (clog match)
         (reagent/after-render clerk/after-render!)
         (session/put! :route {:current-page (page-for current-page)
                               :route-params route-params})
@@ -133,6 +150,8 @@
         ))
     :path-exists?
     (fn [path]
+      (clog ":path-exists?")
+      (clog path)
       (boolean (reitit/match-by-path router path)))})
   (accountant/dispatch-current!)
   (mount-root))
