@@ -669,12 +669,14 @@
 (defn draw-links []
   (let [links-path (doall (map (fn [link] (get-link-path link)) (:links @points)))]
     (when links-path
-      [:g.graph_link
+      [:g
        (for [path links-path]
-         [:<>
-          [:path (merge path {:stroke-width 20 :stroke "white"})]
-          [:path path]]
-         )
+         (let [key-wider (str (path :key) "-wider")]
+           ^{:key key-wider}
+           [:g.graph_link
+            [:path (merge path {:key key-wider :stroke-width 20 :stroke "white"})]
+            [:path path]]
+           ))
        ])
     )
   )

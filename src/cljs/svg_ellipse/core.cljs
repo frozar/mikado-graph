@@ -15,7 +15,7 @@
   (reitit/router
    [
     ["/" :index]
-    ["/{graphe-name}" :graphe]
+    ["/{graph-name}" :graph]
     ["/page/about" :about]
     ]))
 
@@ -55,7 +55,7 @@
   ;; (clog route)
   (case route
     :index #'home-page
-    :graphe #'graphe-page
+    :graph #'graphe-page
     :about #'about-page
     ;; :about #'about-page
     ;; :items #'items-page

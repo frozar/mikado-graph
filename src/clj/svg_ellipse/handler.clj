@@ -36,7 +36,7 @@
   (reitit-ring/ring-handler
    (reitit-ring/router
     [["/" {:get {:handler index-handler}}]
-     ["/{graphe-name}" {:get {:handler index-handler}}]
+     ["/{graph-name}" {:get {:handler index-handler}}]
      ["/page/about" {:get {:handler index-handler}}]])
    (reitit-ring/routes
     (reitit-ring/create-resource-handler {:path "/" :root "/public"})
