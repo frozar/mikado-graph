@@ -1,4 +1,4 @@
-(ns svg-ellipse.geometry)
+(ns bubble.geometry)
 
 (defprotocol IPoint
   (x [p])

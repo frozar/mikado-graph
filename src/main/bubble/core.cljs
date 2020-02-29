@@ -1,8 +1,8 @@
-(ns svg-ellipse.bubble
+(ns bubble.core
   (:require [reagent.core :as reagent]
-            [svg-ellipse.geometry :as g]
+            [bubble.geometry :as g]
             [goog.events :as events]
-            [debux.cs.core :as d :refer-macros [clog clogn dbg dbgn break]]
+            ;; [debux.cs.core :as d :refer-macros [clog clogn dbg dbgn break]]
             [clojure.string :as string]
             ;; [cljs.test :refer-macros [deftest is testing run-tests]]
             )
@@ -718,11 +718,15 @@
 
       :reagent-render
       (fn []
-        [:svg {:style {:border "1px solid"
-                       :background "white"
-                       ;; :width "800"
-                       ;; :height "800"
-                       }
+        [:svg {:style
+               {:border "none"
+                :background "white"
+                :position "fixed"
+                :top 0
+                :left 0
+                :height "100%"
+                :width "100%"
+                }
                :on-context-menu (fn [evt] (.preventDefault evt))
 
                ;; :pointer-events "none"
