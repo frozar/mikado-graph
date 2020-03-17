@@ -2,178 +2,34 @@
   (:require [reagent.core :as reagent]
             [bubble.geometry :as g]
             [goog.events :as events]
-            ;; [debux.cs.core :as d :refer-macros [clog clogn dbg dbgn break]]
             [clojure.string :as string]
-            ;; [cljs.test :refer-macros [deftest is testing run-tests]]
+            [bubble.utils :as utils]
+            [bubble.state :as state]
+            [bubble.constant :as const]
             )
   (:import [goog.events EventType]
            )
   )
 
-;; (deftest test-numbers
-;;   (is (= 1 1)))
-
-(def ^:const NIL-BUBBLE-ID "not-initialized")
-(def ^:const ROOT-BUBBLE-ID "root")
-
-(def ^:const NIL-BUBBLE-TYPE  "nil-bubble")
-(def ^:const ROOT-BUBBLE-TYPE "root-bubble")
-(def ^:const BUBBLE-TYPE      "bubble")
-
-(def ^:const BUBBLE-DEFAULT-TEXT      "New task")
-(def ^:const ROOT-BUBBLE-DEFAULT-TEXT "Main goal")
-
-(def nil-bubble
-  {:id NIL-BUBBLE-ID
-   :type NIL-BUBBLE-TYPE
-   :initial-state? true
-   :done? false
-   :center (g/point 0 0)
-   :rx 100 :ry 50
-   :text BUBBLE-DEFAULT-TEXT
-   })
-
-(def root-bubble
-  (merge nil-bubble
-         {:id ROOT-BUBBLE-ID
-          :type ROOT-BUBBLE-TYPE
-          :initial-state? true
-          :done? false
-          :center (g/point 450 450)
-          :rx 100
-          :ry 50
-          :text ROOT-BUBBLE-DEFAULT-TEXT
-          }))
-
-(defn initial-application-state []
-  {
-   :bubbles [root-bubble]
-   :links []
-   :link-src nil
-   })
-
-(defonce points
-  (reagent/atom (initial-application-state)))
 
 (defonce svg-bounding-box (reagent/atom nil))
 
-;; Read/Write application state
-(defn set-link-src [id]
-  (swap! points update :link-src (fn [] id))
-  )
-
-(defn get-link-src []
-  (:link-src @points)
-  )
-
-(defn reset-link-src []
-  (swap! points update :link-src (fn [] nil)))
-
-(defn get-bubble [id]
-  (first (filter #(= (:id %) id) (:bubbles @points))))
-
-(defn get-all-bubble []
-  (:bubbles @points))
-
 (defn get-root-bubble []
-  (get-bubble ROOT-BUBBLE-ID))
-
-(defn get-bubble-but-root []
-  (filter #(not= (:id %) ROOT-BUBBLE-ID) (:bubbles @points)))
-
-(defn add-bubble [bubble]
-  (swap! points update :bubbles conj bubble))
-
-(defn delete-bubble-shape [bubble-id]
-  (swap! points update :bubbles (fn [l] (filterv #(not (= (:id %) bubble-id)) l))))
-
-(defn add-link [id-src id-dst]
-  (swap! points update :links conj {:src id-src :dst id-dst}))
-
-(defn delete-link-to-bubble [bubble-id]
-  (swap! points update :links (fn [l] (filterv
-                                       (fn [link] not (= (some #{bubble-id} (vals link)) nil)) l))))
-
-(defn delete-link [src-id dst-id]
-  (swap! points update :links (fn [links]
-                                (filterv
-                                 (fn [link] (not= {:src src-id :dst dst-id} link))
-                                 links))))
-
-(defn update-link [bubble-id]
-  (let [ids-dst (->> (:links @points)
-                     (filterv (fn [link] (= bubble-id (:src link))))
-                     (map :dst))
-        ids-src (->> (:links @points)
-                     (filterv (fn [link] (= bubble-id (:dst link))))
-                     (map :src))
-        new-links (vec (for [id-src ids-src
-                             id-dst ids-dst]
-                         {:src id-src :dst id-dst}))
-        ]
-    (delete-link-to-bubble bubble-id)
-    (swap! points update :links (fn [l] (->> (apply conj l new-links)
-                                             set
-                                             vec)))
-    ))
+  (state/get-bubble const/ROOT-BUBBLE-ID))
 
 (defn update-bubble [bubble-id dictionary]
-  (let [bubble (-> (get-bubble bubble-id) (merge dictionary))]
-    (delete-bubble-shape bubble-id)
-    (add-bubble bubble)))
+  (let [bubble (-> (state/get-bubble bubble-id) (merge dictionary))]
+    (state/delete-bubble-shape bubble-id)
+    (state/add-bubble bubble)))
 
 (defn toggle-bubble-validation [bubble-id]
-  (let [validation-state (-> (get-bubble bubble-id) :done? not)]
+  (let [validation-state (-> (state/get-bubble bubble-id) :done? not)]
     (update-bubble bubble-id {:done? validation-state})))
-
-;;
-(defn gen-id
-  "Generate a string of length 8, e.g.: 'b56d74c5'
-  This generated id is not already present in the current application state"
-  ([]
-   (let [list-id (->> (get-all-bubble) (map :id))]
-     (gen-id list-id)))
-  ([list-id]
-   (let [try-id (apply str (repeatedly 8 #(rand-nth "0123456789abcdef")))]
-     (if (some #{try-id} list-id)
-       (recur list-id)
-       try-id))))
 
 (defn get-svg-coord
   [bounding-client-rect x y]
   {:x (- x (.-left bounding-client-rect)) :y (- y (.-top bounding-client-rect))}
   )
-
-(defn resize-bubble [bubble-id rx ry]
-  (swap! points update :bubbles
-         (fn [list-bubble]
-           (let [list-idxs (map #(:id %) list-bubble)]
-             ;; Check if the id to resize is present in the model.
-             (if (some #{bubble-id} list-idxs)
-               (update
-                list-bubble
-                (.indexOf list-idxs bubble-id)
-                (fn [b] (merge b {:rx rx :ry ry}))
-                ;; Else body
-                list-bubble))))))
-
-
-(defn move-bubble [id]
-  (fn [x y]
-    (swap!
-     points update :bubbles
-     (fn [list-bubble]
-       (let [list-idxs (map #(:id %) list-bubble)]
-         ;; Check if the id to delete is present in the model.
-         ;; When the user drag a bubble on a right click, the move action
-         ;; associated try to delete an id which was ready deleted.
-         (if (some #{id} list-idxs)
-           (update
-            list-bubble
-            (.indexOf list-idxs id)
-            (fn [b] (merge b {:center (g/point x y)})))
-           ;; Else body
-           list-bubble))))))
 
 (def ellipse-defaults
   {:stroke "black"
@@ -223,19 +79,19 @@
   )
 
 (defn new-bubble [parent-bubble-id cx cy]
-  (let [bubble-id (gen-id)
+  (let [bubble-id (utils/gen-id)
         new-bubble
-        (merge nil-bubble {:id bubble-id :type BUBBLE-TYPE :center (g/point cx cy)})]
-    (add-bubble new-bubble)
-    (add-link parent-bubble-id bubble-id)
+        (merge state/nil-bubble {:id bubble-id :type const/BUBBLE-TYPE :center (g/point cx cy)})]
+    (state/add-bubble new-bubble)
+    (state/add-link parent-bubble-id bubble-id)
     ))
 
 (defn delete-bubble [bubble-id]
   (fn [evt]
     (.preventDefault evt)
-    (delete-bubble-shape bubble-id)
-    (update-link bubble-id)
-    (reset-link-src)
+    (state/delete-bubble-shape bubble-id)
+    (state/update-link bubble-id)
+    (state/reset-link-src)
     ))
 
 (defn draw-pencil-button [edition?-atom visible? bubble-id center rx ry]
@@ -277,7 +133,7 @@
       :transform (str "translate(" x-offset "," y-offset ") scale(1) rotate(-90)")
       :visibility (if visible? "visible" "hidden")
       :pointer-events "bounding-box"
-      :on-click #(set-link-src bubble-id)
+      :on-click #(state/set-link-src bubble-id)
       }
      ;; Draw dash line
      (for [i (map #(* 2 %) (range 3))]
@@ -285,26 +141,6 @@
              end (* 7 (inc i))]
          ^{:key (str i)} [:line {:x1 start :y1 start :x2 end :y2 end}]))
      ]))
-
-(defn save-text-bubble [id text default-text]
-  (swap!
-   points update :bubbles
-   (fn [list-bubble]
-     (let [list-idxs (map #(:id %) list-bubble)]
-       ;; Check if the id to delete is present in the model.
-       ;; When the user drag a bubble on a right click, the move action
-       ;; associated try to delete an id which was ready deleted.
-       (if (some #{id} list-idxs)
-         (do
-           (let [current-bubble (get-bubble id)
-                 initial-state-value (and (= text default-text)
-                                          (:initial-state? current-bubble))]
-             (update
-              list-bubble
-              (.indexOf list-idxs id)
-              #(merge % {:text text :initial-state? initial-state-value}))))
-         ;; Else body
-         list-bubble)))))
 
 (defn center-textarea [dom-node id center
                        width-atom height-atom top-left-x-atom top-left-y-atom]
@@ -319,7 +155,7 @@
     (reset! height-atom height)
     (reset! top-left-x-atom (- (g/x center) (/ width 2)))
     (reset! top-left-y-atom (- (g/y center) (/ height 2)))
-    (resize-bubble id (add-50 (/ width 2)) (add-50 (/ height 2)))
+    (state/resize-bubble id (add-50 (/ width 2)) (add-50 (/ height 2)))
     ))
 
 (defn cursor-to-end-textarea [dom-node current-text initial-state?]
@@ -372,7 +208,7 @@
       (fn [bubble on-save on-stop
            width-atom height-atom top-left-x-atom top-left-y-atom]
         (let [nb-lines (get-nb-lines @current-text)
-              default-text (if (= type ROOT-BUBBLE-TYPE) ROOT-BUBBLE-DEFAULT-TEXT BUBBLE-DEFAULT-TEXT)
+              default-text (if (= type const/ROOT-BUBBLE-TYPE) const/ROOT-BUBBLE-DEFAULT-TEXT const/BUBBLE-DEFAULT-TEXT)
               default-text-length (count default-text)
               line-max-length-tmp (->> @current-text string/split-lines (map count) (apply max))
               line-max-length (if (= line-max-length-tmp 0) default-text-length line-max-length-tmp)]
@@ -433,13 +269,13 @@
         height (.-height (.getBoundingClientRect dom-node))
         new-rx (-> width (/ 2) (+ 50))
         new-ry (-> height (/ 2) (+ 50))]
-    (resize-bubble bubble-id new-rx new-ry)
+    (state/resize-bubble bubble-id new-rx new-ry)
     )
   )
 
 (defn update-y-pos [y-pos-atom dom-node bubble-id]
   (let [height (.-height (.getBoundingClientRect dom-node))
-        bubble (get-bubble bubble-id)
+        bubble (state/get-bubble bubble-id)
         y-bubble (g/y (:center bubble))
         nb-lines (->> bubble :text string/split-lines count)
         height-line (/ height nb-lines)
@@ -449,17 +285,17 @@
     ))
 
 (defn building-link-end [id-dst]
-  (let [id-src (get-link-src)]
-    (add-link id-src id-dst)
-    (reset-link-src)))
+  (let [id-src (state/get-link-src)]
+    (state/add-link id-src id-dst)
+    (state/reset-link-src)))
 
 (defn get-bubble-event-handling
   ([bubble-id center]
-   (let [on-drag (move-bubble bubble-id)]
+   (let [on-drag (state/move-bubble bubble-id)]
      {:on-mouse-down (dragging-fn on-drag center)
       :on-context-menu (delete-bubble bubble-id)}))
   ([bubble-id center-x center-y]
-   (let [on-drag (move-bubble bubble-id)]
+   (let [on-drag (state/move-bubble bubble-id)]
      {:on-mouse-down (dragging-fn on-drag center-x center-y)
       :on-context-menu (delete-bubble bubble-id)}))
   )
@@ -487,7 +323,7 @@
               text-style (if initial-state?
                            {:font-style "italic" :fill "#555"}
                            {:font-style "normal" :fill "#000"})
-              {:keys [id center]} (get-bubble bubble-id)
+              {:keys [id center]} (state/get-bubble bubble-id)
               ]
           [:text.label (merge (get-bubble-event-handling bubble-id center)
                         {:style
@@ -501,12 +337,12 @@
                          :on-double-click #(reset! edition?-atom true)
                          :on-click
                          (fn [evt]
-                           (when (get-link-src)
+                           (when (state/get-link-src)
                              (building-link-end bubble-id)
                              ))
                          })
            (let [counter (atom 0)
-                 bubble (get-bubble bubble-id)
+                 bubble (state/get-bubble bubble-id)
                  c (:center bubble)]
              (for [tspan-text (->> bubble :text string/split-lines)]
                (let [id-number @counter
@@ -532,7 +368,7 @@
            :on-double-click #(new-bubble bubble-id new-center-x new-center-y)
            :on-click
            (fn []
-             (when (get-link-src)
+             (when (state/get-link-src)
                (building-link-end bubble-id)
                ))
            })])
@@ -540,7 +376,7 @@
 (defn draw-bubble-shape [bubble]
   (let [{:keys [id type center rx ry done?]} bubble]
     (case type
-      ROOT-BUBBLE-TYPE
+      const/ROOT-BUBBLE-TYPE
       [:<>
        [draw-ellipse-shape
         id (g/x center) (g/y center) (+ 10 rx) (+ 10 ry)
@@ -549,7 +385,7 @@
         id (g/x center) (g/y center) rx ry
         (g/x center) (- (g/y center) (* 3 ry)) done?]]
 
-      BUBBLE-TYPE
+      const/BUBBLE-TYPE
       [draw-ellipse-shape
        id (g/x center) (g/y center) rx ry
        (g/x center) (- (g/y center) (* 3 ry)) done?]
@@ -596,13 +432,13 @@
   (let [{:keys [id type center rx ry text initial-state]} bubble
         initial-state? initial-state]
     (case type
-      ROOT-BUBBLE-TYPE
+      const/ROOT-BUBBLE-TYPE
       [:<>
        [draw-validation-button show-button? id center (+ 10 rx) (+ 10 ry)]
        [draw-pencil-button edition?-atom show-button? id center (+ 10 rx) (+ 10 ry)]
        [draw-link-button show-button? id center (+ 10 rx) (+ 10 ry)]]
 
-      BUBBLE-TYPE
+      const/BUBBLE-TYPE
       [:<>
        [draw-validation-button show-button? id center rx ry]
        [draw-delete-button show-button? id center rx ry]
@@ -617,11 +453,11 @@
         ]
     (fn [bubble]
       (let [{:keys [id type center rx ry initial-state?]} bubble
-            on-save (fn[bubble-text] (save-text-bubble id bubble-text BUBBLE-DEFAULT-TEXT))
+            on-save (fn[bubble-text] (state/save-text-bubble id bubble-text const/BUBBLE-DEFAULT-TEXT))
             on-stop #(reset! edition? false)
             ]
         ;; Throw an exception if one try to draw a nil-bubble
-        (if (= type NIL-BUBBLE-TYPE)
+        (if (= type const/NIL-BUBBLE-TYPE)
           (throw (js/Error. "Try to draw nil-bubble!"))
           )
 
@@ -629,7 +465,7 @@
         [:g
          {
           :on-mouse-over
-          (fn [] (if (get-link-src)
+          (fn [] (if (state/get-link-src)
                    (reset! show-button? false)
                    (reset! show-button? true)))
           :on-mouse-leave #(reset! show-button? false)
@@ -650,15 +486,15 @@
 
 (defn get-link-path [link]
   (let [{:keys [src dst]} link
-        src-b (get-bubble src)
-        dst-b (get-bubble dst)
+        src-b (state/get-bubble src)
+        dst-b (state/get-bubble dst)
         src-id (:id src-b)
         dst-id (:id dst-b)
         src-pt (:center src-b)
         dst-pt (:center dst-b)
         path-str (str "M " (g/x src-pt) "," (g/y src-pt) " L " (g/x dst-pt) "," (g/y dst-pt))]
     {:key (str src-id "-" dst-id)
-     :on-context-menu #(delete-link src-id dst-id)
+     :on-context-menu #(state/delete-link src-id dst-id)
      :stroke-width 4
      :stroke "black"
      :fill "none"
@@ -667,7 +503,7 @@
   )
 
 (defn draw-links []
-  (let [links-path (doall (map (fn [link] (get-link-path link)) (:links @points)))]
+  (let [links-path (doall (map (fn [link] (get-link-path link)) (:links @state/points)))]
     (when links-path
       [:g
        (for [path links-path]
@@ -682,8 +518,8 @@
   )
 
 (defn draw-building-link [mouse-svg-pos]
-  (let [bubble-src-id (get-link-src)
-        bubble-src (get-bubble bubble-src-id)
+  (let [bubble-src-id (state/get-link-src)
+        bubble-src (state/get-bubble bubble-src-id)
         {:keys [center]} bubble-src]
     [:line {:stroke "black"
             :stroke-width 5
@@ -693,11 +529,11 @@
 (defn all-bubble [mouse-svg-pos]
   [:g
    (draw-links)
-   (when (get-link-src)
+   (when (state/get-link-src)
      [draw-building-link mouse-svg-pos])
    [draw-bubble (get-root-bubble)]
    (doall
-    (for [bubble (get-bubble-but-root)]
+    (for [bubble (state/get-bubble-but-root)]
       ^{:key (:id bubble)} [draw-bubble bubble]
       )
     )
@@ -718,7 +554,8 @@
 
       :reagent-render
       (fn []
-        [:svg {:style
+        [:svg {:id "svg-canvas"
+               :style
                {:border "none"
                 :background "white"
                 :position "fixed"

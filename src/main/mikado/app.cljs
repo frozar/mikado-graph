@@ -16,11 +16,12 @@
     ))
 
 (defn current-page []
-  [:h1 "Hell0"]
+  [:h1 "Hello"]
   )
 
 (defn mount-root [component]
-  (reagent/render [component] (.getElementById js/document "app")))
+  (reagent/render [component] (.getElementById js/document "app"))
+  )
 
 (defn ^:dev/after-load reload! []
   (mount-root graphe-page)
