@@ -3,16 +3,14 @@
             [bubble.geometry :as g]
             [goog.events :as events]
             [clojure.string :as string]
-            [bubble.utils :as utils]
             [bubble.state :as state]
             [bubble.constant :as const]
+            [bubble.event :as event]
             [cljs.core.async :refer [chan put! <! go-loop]]
             )
   (:import [goog.events EventType]
            )
   )
-
-(def event-queue (chan))
 
 (defonce svg-bounding-box (reagent/atom nil))
 
@@ -27,70 +25,6 @@
 (defn toggle-bubble-validation [bubble-id]
   (let [validation-state (-> (state/get-bubble bubble-id) :done? not)]
     (update-bubble bubble-id {:done? validation-state})))
-
-(defn get-svg-coord
-  [bounding-client-rect x y]
-  {:x (- x (.-left bounding-client-rect)) :y (- y (.-top bounding-client-rect))}
-  )
-
-(def ellipse-defaults
-  {:stroke "black"
-   :stroke-width 5
-   })
-
-(defn drag-move-fn [on-drag cx cy]
-  (let [first-evt-coord (atom nil)]
-    (fn [evt]
-      (let [{:keys [x y]} (get-svg-coord @svg-bounding-box (.-clientX evt) (.-clientY evt))
-            current-x-evt x
-            current-y-evt y]
-        (if (nil? @first-evt-coord)
-          (reset! first-evt-coord {:x current-x-evt :y current-y-evt}))
-        (on-drag (+ cx (- current-x-evt (:x @first-evt-coord)))
-                 (+ cy (- current-y-evt (:y @first-evt-coord))))))))
-
-(defn drag-end-fn [drag-move drag-end-atom on-end]
-  (fn [evt]
-    (events/unlisten js/window EventType.MOUSEMOVE drag-move)
-    (events/unlisten js/window EventType.MOUSEUP @drag-end-atom)
-    (on-end)))
-
-(defn dragging
-  ([on-drag cx cy] (dragging on-drag (fn []) (fn []) cx cy))
-  ([on-drag on-start on-end cx cy]
-   (let [drag-move (drag-move-fn on-drag cx cy)
-         drag-end-atom (atom nil)
-         drag-end (drag-end-fn drag-move drag-end-atom on-end)]
-     (on-start)
-     (reset! drag-end-atom drag-end)
-     (events/listen js/window EventType.MOUSEMOVE drag-move)
-     (events/listen js/window EventType.MOUSEUP drag-end))))
-
-(defn dragging-fn
-  [on-drag center-x center-y]
-  (let [if-left-click (fn [evt]
-                        (= 0 (.-button evt)))]
-    (fn [evt]
-      (if (if-left-click evt)
-        (dragging on-drag center-x center-y)))))
-
-(defn create-bubble [parent-bubble-id cx cy]
-  (let [bubble-id (utils/gen-id)
-        new-bubble
-        (merge state/nil-bubble {:id bubble-id :type const/BUBBLE-TYPE :center (g/point cx cy)})]
-    (state/add-bubble new-bubble)
-    (state/add-link parent-bubble-id bubble-id)
-    ))
-
-(defn delete-bubble [bubble-id]
-  (state/delete-bubble-shape bubble-id)
-  (state/update-link bubble-id)
-  (state/reset-link-src))
-
-(defn prevent-context-menu [func]
-  (fn [evt]
-    (.preventDefault evt)
-    (func)))
 
 (defn draw-pencil-button [edition?-atom visible? bubble-id center rx ry]
   (let [semi-length 15
@@ -287,12 +221,63 @@
     (state/add-link id-src id-dst)
     (state/reset-link-src)))
 
+(defn get-svg-coord
+  [bounding-client-rect x y]
+  {:x (- x (.-left bounding-client-rect)) :y (- y (.-top bounding-client-rect))}
+  )
+
+(defn drag-move-fn [on-drag cx cy]
+  (let [first-evt-coord (atom nil)]
+    (fn [evt]
+      (let [{:keys [x y]} (get-svg-coord @svg-bounding-box (.-clientX evt) (.-clientY evt))
+            current-x-evt x
+            current-y-evt y]
+        (if (nil? @first-evt-coord)
+          (reset! first-evt-coord {:x current-x-evt :y current-y-evt}))
+        (on-drag (+ cx (- current-x-evt (:x @first-evt-coord)))
+                 (+ cy (- current-y-evt (:y @first-evt-coord))))
+        (put! event/event-queue
+              [:dragging
+               (+ cx (- current-x-evt (:x @first-evt-coord)))
+               (+ cy (- current-y-evt (:y @first-evt-coord)))])
+        ))))
+
+(defn drag-end-fn [drag-move drag-end-atom on-end]
+  (fn [evt]
+    (events/unlisten js/window EventType.MOUSEMOVE drag-move)
+    (events/unlisten js/window EventType.MOUSEUP @drag-end-atom)
+    (on-end)))
+
+(defn dragging
+  ([on-drag cx cy] (dragging on-drag (fn []) (fn []) cx cy))
+  ([on-drag on-start on-end cx cy]
+   (let [drag-move (drag-move-fn on-drag cx cy)
+         drag-end-atom (atom nil)
+         drag-end (drag-end-fn drag-move drag-end-atom on-end)]
+     (on-start)
+     (reset! drag-end-atom drag-end)
+     (events/listen js/window EventType.MOUSEMOVE drag-move)
+     (events/listen js/window EventType.MOUSEUP drag-end))))
+
+(defn dragging-fn
+  [on-drag center-x center-y]
+  (let [if-left-click (fn [evt]
+                        (= 0 (.-button evt)))]
+    (fn [evt]
+      (if (if-left-click evt)
+        (dragging on-drag center-x center-y)))))
+
 (defn get-bubble-event-handling
   [bubble-id center-x center-y]
-  (let [on-drag (state/move-bubble bubble-id)]
+  (let [on-drag (state/move-bubble bubble-id)
+        prevent-context-menu
+        (fn [func]
+          (fn [evt]
+            (.preventDefault evt)
+            (func)))]
     {:on-mouse-down (dragging-fn on-drag center-x center-y)
      :on-context-menu
-     (prevent-context-menu #(put! event-queue [:delete-bubble bubble-id]))}))
+     (prevent-context-menu #(put! event/event-queue [:delete-bubble bubble-id]))}))
 
 (defn bubble-text [edition?-atom initial-state? bubble-id]
   (let [dom-node (reagent/atom nil)
@@ -321,22 +306,23 @@
               cx (g/x center)
               cy (g/y center)
               ]
-          [:text.label (merge (get-bubble-event-handling bubble-id cx cy)
-                        {:style
-                         (merge text-style
+          [:text.label
+           (merge (get-bubble-event-handling bubble-id cx cy)
+                  {:style
+                   (merge text-style
                           {
                            :text-anchor "middle"
                            :dominant-baseline "middle"
                            })
-                         :y @y-pos
-                         :font-size font-size
-                         :on-double-click #(reset! edition?-atom true)
-                         :on-click
-                         (fn [evt]
-                           (when (state/get-link-src)
-                             (building-link-end bubble-id)
-                             ))
-                         })
+                   :y @y-pos
+                   :font-size font-size
+                   :on-double-click #(reset! edition?-atom true)
+                   :on-click
+                   (fn [evt]
+                     (when (state/get-link-src)
+                       (building-link-end bubble-id)
+                       ))
+                   })
            (let [counter (atom 0)
                  bubble (state/get-bubble bubble-id)
                  c (:center bubble)]
@@ -348,6 +334,11 @@
                                            :dy (if (= id-number 0) 0 "1.2em")
                                            }
                                    tspan-text])))]))})))
+
+(def ellipse-defaults
+  {:stroke "black"
+   :stroke-width 5
+   })
 
 (defn draw-ellipse-shape [bubble-id center-x center-y rx ry
                           new-center-x new-center-y done?
@@ -364,7 +355,7 @@
 
            :on-double-click
            (fn []
-             (put! event-queue [:create-bubble bubble-id new-center-x new-center-y]))
+             (put! event/event-queue [:create-bubble bubble-id new-center-x new-center-y]))
 
            :on-click
            (fn []
@@ -404,7 +395,7 @@
       :transform (str "translate(" x-offset "," y-offset ")")
       :visibility (if visible? "visible" "hidden")
       :on-click
-      #(put! event-queue [:delete-bubble bubble-id])
+      #(put! event/event-queue [:delete-bubble bubble-id])
       }
      [:line {:x1 min-bound :y1 min-bound :x2 max-bound :y2 max-bound}]
      [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound}]])
@@ -591,14 +582,3 @@
                }
          [all-bubble @mouse-svg-pos]
          ])})))
-
-(go-loop [ [event & args] (<! event-queue)]
-  (case event
-    :create-bubble
-    (let [ [bubble-id new-center-x new-center-y] args ]
-      (create-bubble bubble-id new-center-x new-center-y))
-    :delete-bubble
-    (let [ [bubble-id] args ]
-      (delete-bubble bubble-id))
-    )
-  (recur (<! event-queue)))
