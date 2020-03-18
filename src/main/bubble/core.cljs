@@ -66,19 +66,13 @@
      (events/listen js/window EventType.MOUSEMOVE drag-move)
      (events/listen js/window EventType.MOUSEUP drag-end))))
 
-(defn if-left-click [evt]
-  (= 0 (.-button evt)))
-
 (defn dragging-fn
-  ([on-drag center]
-   (fn [evt]
-     (if (if-left-click evt)
-       (dragging on-drag (g/x center) (g/y center)))))
-  ([on-drag center-x center-y]
-   (fn [evt]
-     (if (if-left-click evt)
-       (dragging on-drag center-x center-y))))
-  )
+  [on-drag center-x center-y]
+  (let [if-left-click (fn [evt]
+                        (= 0 (.-button evt)))]
+    (fn [evt]
+      (if (if-left-click evt)
+        (dragging on-drag center-x center-y)))))
 
 (defn create-bubble [parent-bubble-id cx cy]
   (let [bubble-id (utils/gen-id)
@@ -294,19 +288,11 @@
     (state/reset-link-src)))
 
 (defn get-bubble-event-handling
-  ([bubble-id center]
-   (let [on-drag (state/move-bubble bubble-id)]
-     {:on-mouse-down (dragging-fn on-drag center)
-      :on-context-menu
-      (prevent-context-menu #(put! event-queue [:delete-bubble bubble-id]))
-      }))
-  ([bubble-id center-x center-y]
-   (let [on-drag (state/move-bubble bubble-id)]
-     {:on-mouse-down (dragging-fn on-drag center-x center-y)
-      :on-context-menu
-      (prevent-context-menu #(put! event-queue [:delete-bubble bubble-id]))
-      }))
-  )
+  [bubble-id center-x center-y]
+  (let [on-drag (state/move-bubble bubble-id)]
+    {:on-mouse-down (dragging-fn on-drag center-x center-y)
+     :on-context-menu
+     (prevent-context-menu #(put! event-queue [:delete-bubble bubble-id]))}))
 
 (defn bubble-text [edition?-atom initial-state? bubble-id]
   (let [dom-node (reagent/atom nil)
@@ -332,8 +318,10 @@
                            {:font-style "italic" :fill "#555"}
                            {:font-style "normal" :fill "#000"})
               {:keys [id center]} (state/get-bubble bubble-id)
+              cx (g/x center)
+              cy (g/y center)
               ]
-          [:text.label (merge (get-bubble-event-handling bubble-id center)
+          [:text.label (merge (get-bubble-event-handling bubble-id cx cy)
                         {:style
                          (merge text-style
                           {
