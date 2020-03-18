@@ -8,6 +8,7 @@
  [[reagent "0.9.1"]
   [reagent-utils "0.3.3"]
   [hiccup "1.0.5"]
+  [org.clojure/core.async "1.0.567"]
   ]
 
  :builds

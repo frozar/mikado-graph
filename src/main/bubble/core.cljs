@@ -6,11 +6,13 @@
             [bubble.utils :as utils]
             [bubble.state :as state]
             [bubble.constant :as const]
+            [cljs.core.async :refer [chan put! <! go-loop]]
             )
   (:import [goog.events EventType]
            )
   )
 
+(def event-queue (chan))
 
 (defonce svg-bounding-box (reagent/atom nil))
 
@@ -78,7 +80,7 @@
        (dragging on-drag center-x center-y))))
   )
 
-(defn new-bubble [parent-bubble-id cx cy]
+(defn create-bubble [parent-bubble-id cx cy]
   (let [bubble-id (utils/gen-id)
         new-bubble
         (merge state/nil-bubble {:id bubble-id :type const/BUBBLE-TYPE :center (g/point cx cy)})]
@@ -87,12 +89,14 @@
     ))
 
 (defn delete-bubble [bubble-id]
+  (state/delete-bubble-shape bubble-id)
+  (state/update-link bubble-id)
+  (state/reset-link-src))
+
+(defn prevent-context-menu [func]
   (fn [evt]
     (.preventDefault evt)
-    (state/delete-bubble-shape bubble-id)
-    (state/update-link bubble-id)
-    (state/reset-link-src)
-    ))
+    (func)))
 
 (defn draw-pencil-button [edition?-atom visible? bubble-id center rx ry]
   (let [semi-length 15
@@ -293,11 +297,15 @@
   ([bubble-id center]
    (let [on-drag (state/move-bubble bubble-id)]
      {:on-mouse-down (dragging-fn on-drag center)
-      :on-context-menu (delete-bubble bubble-id)}))
+      :on-context-menu
+      (prevent-context-menu #(put! event-queue [:delete-bubble bubble-id]))
+      }))
   ([bubble-id center-x center-y]
    (let [on-drag (state/move-bubble bubble-id)]
      {:on-mouse-down (dragging-fn on-drag center-x center-y)
-      :on-context-menu (delete-bubble bubble-id)}))
+      :on-context-menu
+      (prevent-context-menu #(put! event-queue [:delete-bubble bubble-id]))
+      }))
   )
 
 (defn bubble-text [edition?-atom initial-state? bubble-id]
@@ -365,7 +373,11 @@
            :ry ry
            :cursor "grab"
            :fill (if done? "#6f0" "#f06" )
-           :on-double-click #(new-bubble bubble-id new-center-x new-center-y)
+
+           :on-double-click
+           (fn []
+             (put! event-queue [:create-bubble bubble-id new-center-x new-center-y]))
+
            :on-click
            (fn []
              (when (state/get-link-src)
@@ -403,7 +415,8 @@
       :stroke-width 5
       :transform (str "translate(" x-offset "," y-offset ")")
       :visibility (if visible? "visible" "hidden")
-      :on-click (delete-bubble bubble-id)
+      :on-click
+      #(put! event-queue [:delete-bubble bubble-id])
       }
      [:line {:x1 min-bound :y1 min-bound :x2 max-bound :y2 max-bound}]
      [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound}]])
@@ -590,3 +603,14 @@
                }
          [all-bubble @mouse-svg-pos]
          ])})))
+
+(go-loop [ [event & args] (<! event-queue)]
+  (case event
+    :create-bubble
+    (let [ [bubble-id new-center-x new-center-y] args ]
+      (create-bubble bubble-id new-center-x new-center-y))
+    :delete-bubble
+    (let [ [bubble-id] args ]
+      (delete-bubble bubble-id))
+    )
+  (recur (<! event-queue)))
