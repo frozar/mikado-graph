@@ -22,21 +22,27 @@
   )
 
 (defn drag-move-fn [bubble-id]
-  (let [initial-evt-coord (atom nil)
-        {:keys [center]} (state/get-bubble bubble-id)
+  (let [{:keys [center]} (state/get-bubble bubble-id)
         initial-cx (g/x center)
-        initial-cy (g/y center)]
+        initial-cy (g/y center)
+        initial-evt-x (atom nil)
+        initial-evt-y (atom nil)]
     (fn [evt]
-      (let [{:keys [x y]} (get-svg-coord @svg-bounding-box (.-clientX evt) (.-clientY evt))
-            current-x-evt x
-            current-y-evt y]
-        (if (nil? @initial-evt-coord)
-          (reset! initial-evt-coord {:x current-x-evt :y current-y-evt}))
+      (let [{evt-x :x evt-y :y} (get-svg-coord
+                                 @svg-bounding-box
+                                 (.-clientX evt) (.-clientY evt))
+            ]
+        (if (and (nil? @initial-evt-x)
+                 (nil? @initial-evt-y))
+          (do
+            (reset! initial-evt-x evt-x)
+            (reset! initial-evt-y evt-y))
+          )
         (put! event/event-queue
               [:dragging
                bubble-id
-               (+ initial-cx (- current-x-evt (:x @initial-evt-coord)))
-               (+ initial-cy (- current-y-evt (:y @initial-evt-coord)))])
+               (+ initial-cx (- evt-x @initial-evt-x))
+               (+ initial-cy (- evt-y @initial-evt-y))])
         ))))
 
 (defn drag-end-fn [drag-move drag-end-atom on-end]
