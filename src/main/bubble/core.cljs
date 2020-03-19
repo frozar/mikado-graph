@@ -6,13 +6,14 @@
             [bubble.state :as state]
             [bubble.constant :as const]
             [bubble.event :as event]
+            [bubble.drag :as drag]
             [cljs.core.async :refer [chan put! <! go-loop]]
             )
   (:import [goog.events EventType]
            )
   )
 
-(defonce svg-bounding-box (reagent/atom nil))
+;; (defonce svg-bounding-box (reagent/atom nil))
 
 (defn get-root-bubble []
   (state/get-bubble const/ROOT-BUBBLE-ID))
@@ -221,52 +222,6 @@
     (state/add-link id-src id-dst)
     (state/reset-link-src)))
 
-(defn get-svg-coord
-  [bounding-client-rect x y]
-  {:x (- x (.-left bounding-client-rect)) :y (- y (.-top bounding-client-rect))}
-  )
-
-(defn drag-move-fn [on-drag cx cy]
-  (let [first-evt-coord (atom nil)]
-    (fn [evt]
-      (let [{:keys [x y]} (get-svg-coord @svg-bounding-box (.-clientX evt) (.-clientY evt))
-            current-x-evt x
-            current-y-evt y]
-        (if (nil? @first-evt-coord)
-          (reset! first-evt-coord {:x current-x-evt :y current-y-evt}))
-        (on-drag (+ cx (- current-x-evt (:x @first-evt-coord)))
-                 (+ cy (- current-y-evt (:y @first-evt-coord))))
-        (put! event/event-queue
-              [:dragging
-               (+ cx (- current-x-evt (:x @first-evt-coord)))
-               (+ cy (- current-y-evt (:y @first-evt-coord)))])
-        ))))
-
-(defn drag-end-fn [drag-move drag-end-atom on-end]
-  (fn [evt]
-    (events/unlisten js/window EventType.MOUSEMOVE drag-move)
-    (events/unlisten js/window EventType.MOUSEUP @drag-end-atom)
-    (on-end)))
-
-(defn dragging
-  ([on-drag cx cy] (dragging on-drag (fn []) (fn []) cx cy))
-  ([on-drag on-start on-end cx cy]
-   (let [drag-move (drag-move-fn on-drag cx cy)
-         drag-end-atom (atom nil)
-         drag-end (drag-end-fn drag-move drag-end-atom on-end)]
-     (on-start)
-     (reset! drag-end-atom drag-end)
-     (events/listen js/window EventType.MOUSEMOVE drag-move)
-     (events/listen js/window EventType.MOUSEUP drag-end))))
-
-(defn dragging-fn
-  [on-drag center-x center-y]
-  (let [if-left-click (fn [evt]
-                        (= 0 (.-button evt)))]
-    (fn [evt]
-      (if (if-left-click evt)
-        (dragging on-drag center-x center-y)))))
-
 (defn get-bubble-event-handling
   [bubble-id center-x center-y]
   (let [on-drag (state/move-bubble bubble-id)
@@ -275,7 +230,7 @@
           (fn [evt]
             (.preventDefault evt)
             (func)))]
-    {:on-mouse-down (dragging-fn on-drag center-x center-y)
+    {:on-mouse-down (drag/dragging-fn on-drag bubble-id center-x center-y)
      :on-context-menu
      (prevent-context-menu #(put! event/event-queue [:delete-bubble bubble-id]))}))
 
@@ -542,7 +497,8 @@
       :component-did-mount
       (fn [this]
         (reset! dom-node (reagent/dom-node this))
-        (reset! svg-bounding-box (.getBoundingClientRect @dom-node)))
+        ;; (reset! svg-bounding-box (.getBoundingClientRect @dom-node))
+        (drag/init-svg-bounding-box (.getBoundingClientRect @dom-node)))
 
       :reagent-render
       (fn []
@@ -574,8 +530,8 @@
 
                :on-mouse-move
                (fn [evt]
-                 (reset! mouse-svg-pos (get-svg-coord
-                                        @svg-bounding-box
+                 (reset! mouse-svg-pos (drag/get-svg-coord
+                                        @drag/svg-bounding-box
                                         (.-clientX evt)
                                         (.-clientY evt)))
                  )

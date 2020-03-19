@@ -17,7 +17,8 @@
       (state/delete-bubble bubble-id))
 
     :dragging
-    (let [ [cx cy] args ]
-      (prn "cx" cx "cy" cy))
+    (let [ [id cx cy] args ]
+      ((state/move-bubble id) cx cy)
+      )
     )
   (recur (<! event-queue)))
