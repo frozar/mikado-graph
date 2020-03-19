@@ -3,7 +3,7 @@
             [goog.events :as events]
             [bubble.event :as event]
             [bubble.state :as state]
-            [bubble.geometry :as g]
+            [bubble.geometry :as geom]
             [bubble.coordinate :as coord]
             [cljs.core.async :refer [put!]]
             )
@@ -13,8 +13,8 @@
 
 (defn drag-move-fn [bubble-id]
   (let [{:keys [center]} (state/get-bubble bubble-id)
-        init-cx (g/x center)
-        init-cy (g/y center)
+        init-cx (geom/x center)
+        init-cy (geom/y center)
         init-evt-x (atom nil)
         init-evt-y (atom nil)]
     (fn [evt]

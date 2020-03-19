@@ -464,11 +464,13 @@
 (defn draw-building-link [mouse-svg-pos]
   (let [bubble-src-id (state/get-link-src)
         bubble-src (state/get-bubble bubble-src-id)
-        {:keys [center]} bubble-src]
+        {:keys [center]} bubble-src
+        [mouse-x mouse-y] mouse-svg-pos]
     [:line {:stroke "black"
             :stroke-width 5
             :x1 (geom/x center) :y1 (geom/y center)
-            :x2 (:x mouse-svg-pos) :y2 (:y mouse-svg-pos)}]))
+            :x2 mouse-x :y2 mouse-y
+            }]))
 
 (defn all-bubble [mouse-svg-pos]
   [:g
@@ -484,20 +486,19 @@
    ])
 
 (defn svg-canvas []
-  (let [dom-node (reagent/atom nil)
-        mouse-svg-pos (reagent/atom nil)
-        ]
+  (let [mouse-svg-pos (reagent/atom nil)]
     (reagent/create-class
      {
       :display-name "svg-canvas"
 
       :component-did-mount
-      (fn [this]
-        (reset! dom-node (reagent/dom-node this))
-        (let [svg-bbox-client (.getBoundingClientRect @dom-node)
-              svg-origin-x (.-left svg-bbox-client)
-              svg-origin-y (.-top svg-bbox-client)]
-          (coord/init-svg-origin! svg-origin-x svg-origin-y)))
+      (let [dom-node (reagent/atom nil)]
+        (fn [this]
+          (reset! dom-node (reagent/dom-node this))
+          (let [svg-bbox-client (.getBoundingClientRect @dom-node)
+                svg-origin-x (.-left svg-bbox-client)
+                svg-origin-y (.-top svg-bbox-client)]
+            (coord/init-svg-origin! svg-origin-x svg-origin-y))))
 
       :reagent-render
       (fn []
