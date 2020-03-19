@@ -1,16 +1,13 @@
 (ns bubble.core
   (:require [reagent.core :as reagent]
-            [bubble.geometry :as g]
-            [goog.events :as events]
             [clojure.string :as string]
+            [bubble.geometry :as geom]
             [bubble.state :as state]
             [bubble.constant :as const]
             [bubble.event :as event]
             [bubble.drag :as drag]
             [cljs.core.async :refer [chan put! <! go-loop]]
             )
-  (:import [goog.events EventType]
-           )
   )
 
 ;; (defonce svg-bounding-box (reagent/atom nil))
@@ -31,8 +28,8 @@
   (let [semi-length 15
         min-bound (- 0 semi-length)
         max-bound semi-length
-        x-offset  (-> center g/x (+ 25))
-        y-offset  (- (g/y center) (+ ry max-bound 10))]
+        x-offset  (-> center geom/x (+ 25))
+        y-offset  (- (geom/y center) (+ ry max-bound 10))]
     [:g.button
      {:stroke "darkgreen"
       :stroke-width 2
@@ -57,8 +54,8 @@
   )
 
 (defn draw-link-button [visible? bubble-id center rx ry]
-  (let [x-offset  (-> center g/x (+ 60))
-        y-offset  (- (g/y center) (+ ry 5))
+  (let [x-offset  (-> center geom/x (+ 60))
+        y-offset  (- (geom/y center) (+ ry 5))
         ]
     [:g.button
      {:stroke "darkblue"
@@ -86,8 +83,8 @@
         ]
     (reset! width-atom width)
     (reset! height-atom height)
-    (reset! top-left-x-atom (- (g/x center) (/ width 2)))
-    (reset! top-left-y-atom (- (g/y center) (/ height 2)))
+    (reset! top-left-x-atom (- (geom/x center) (/ width 2)))
+    (reset! top-left-y-atom (- (geom/y center) (/ height 2)))
     (state/resize-bubble id (add-50 (/ width 2)) (add-50 (/ height 2)))
     ))
 
@@ -183,8 +180,8 @@
   (let [{:keys [center rx ry]} bubble
         width (reagent/atom (* 2 rx))
         height (reagent/atom (* 2 ry))
-        top-left-x (reagent/atom (g/x center))
-        top-left-y (reagent/atom (g/y center))
+        top-left-x (reagent/atom (geom/x center))
+        top-left-y (reagent/atom (geom/y center))
         ]
     (fn [bubble on-save on-stop]
       [:foreignObject
@@ -209,7 +206,7 @@
 (defn update-y-pos [y-pos-atom dom-node bubble-id]
   (let [height (.-height (.getBoundingClientRect dom-node))
         bubble (state/get-bubble bubble-id)
-        y-bubble (g/y (:center bubble))
+        y-bubble (geom/y (:center bubble))
         nb-lines (->> bubble :text string/split-lines count)
         height-line (/ height nb-lines)
         y-offset (-> nb-lines dec (* height-line) (/ 2))
@@ -223,14 +220,13 @@
     (state/reset-link-src)))
 
 (defn get-bubble-event-handling
-  [bubble-id center-x center-y]
-  (let [on-drag (state/move-bubble bubble-id)
-        prevent-context-menu
+  [bubble-id cx cy]
+  (let [prevent-context-menu
         (fn [func]
           (fn [evt]
             (.preventDefault evt)
             (func)))]
-    {:on-mouse-down (drag/dragging-fn on-drag bubble-id center-x center-y)
+    {:on-mouse-down (drag/dragging-fn bubble-id)
      :on-context-menu
      (prevent-context-menu #(put! event/event-queue [:delete-bubble bubble-id]))}))
 
@@ -258,8 +254,8 @@
                            {:font-style "italic" :fill "#555"}
                            {:font-style "normal" :fill "#000"})
               {:keys [id center]} (state/get-bubble bubble-id)
-              cx (g/x center)
-              cy (g/y center)
+              cx (geom/x center)
+              cy (geom/y center)
               ]
           [:text.label
            (merge (get-bubble-event-handling bubble-id cx cy)
@@ -285,7 +281,7 @@
                (let [id-number @counter
                      tspan-id (str bubble-id @counter)]
                  (swap! counter inc)
-                 ^{:key tspan-id} [:tspan {:x (g/x c)
+                 ^{:key tspan-id} [:tspan {:x (geom/x c)
                                            :dy (if (= id-number 0) 0 "1.2em")
                                            }
                                    tspan-text])))]))})))
@@ -325,16 +321,16 @@
       const/ROOT-BUBBLE-TYPE
       [:<>
        [draw-ellipse-shape
-        id (g/x center) (g/y center) (+ 10 rx) (+ 10 ry)
-        (g/x center) (- (g/y center) (* 3 ry)) done?]
+        id (geom/x center) (geom/y center) (+ 10 rx) (+ 10 ry)
+        (geom/x center) (- (geom/y center) (* 3 ry)) done?]
        [draw-ellipse-shape
-        id (g/x center) (g/y center) rx ry
-        (g/x center) (- (g/y center) (* 3 ry)) done?]]
+        id (geom/x center) (geom/y center) rx ry
+        (geom/x center) (- (geom/y center) (* 3 ry)) done?]]
 
       const/BUBBLE-TYPE
       [draw-ellipse-shape
-       id (g/x center) (g/y center) rx ry
-       (g/x center) (- (g/y center) (* 3 ry)) done?]
+       id (geom/x center) (geom/y center) rx ry
+       (geom/x center) (- (geom/y center) (* 3 ry)) done?]
 
       nil)))
 
@@ -342,8 +338,8 @@
   (let [semi-length 15
         min-bound (- 0 semi-length)
         max-bound semi-length
-        x-offset  (-> center g/x (- 25))
-        y-offset  (- (g/y center) (+ ry max-bound 5))]
+        x-offset  (-> center geom/x (- 25))
+        y-offset  (- (geom/y center) (+ ry max-bound 5))]
     [:g.button
      {:stroke "darkred"
       :stroke-width 5
@@ -358,8 +354,8 @@
 
 (defn draw-validation-button [visible? bubble-id center rx ry]
   (let [length 30
-        x-offset  (-> center g/x )
-        y-offset  (-> center g/y (+ ry length 10))
+        x-offset  (-> center geom/x )
+        y-offset  (-> center geom/y (+ ry length 10))
         ]
     [:path.button
      {
@@ -439,7 +435,7 @@
         dst-id (:id dst-b)
         src-pt (:center src-b)
         dst-pt (:center dst-b)
-        path-str (str "M " (g/x src-pt) "," (g/y src-pt) " L " (g/x dst-pt) "," (g/y dst-pt))]
+        path-str (str "M " (geom/x src-pt) "," (geom/y src-pt) " L " (geom/x dst-pt) "," (geom/y dst-pt))]
     {:key (str src-id "-" dst-id)
      :on-context-menu #(state/delete-link src-id dst-id)
      :stroke-width 4
@@ -470,7 +466,7 @@
         {:keys [center]} bubble-src]
     [:line {:stroke "black"
             :stroke-width 5
-            :x1 (g/x center) :y1 (g/y center)
+            :x1 (geom/x center) :y1 (geom/y center)
             :x2 (:x mouse-svg-pos) :y2 (:y mouse-svg-pos)}]))
 
 (defn all-bubble [mouse-svg-pos]
@@ -497,7 +493,6 @@
       :component-did-mount
       (fn [this]
         (reset! dom-node (reagent/dom-node this))
-        ;; (reset! svg-bounding-box (.getBoundingClientRect @dom-node))
         (drag/init-svg-bounding-box (.getBoundingClientRect @dom-node)))
 
       :reagent-render

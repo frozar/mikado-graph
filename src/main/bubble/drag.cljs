@@ -2,6 +2,8 @@
   (:require [reagent.core :as reagent]
             [goog.events :as events]
             [bubble.event :as event]
+            [bubble.state :as state]
+            [bubble.geometry :as g]
             [cljs.core.async :refer [chan put! <! go-loop]]
             )
   (:import [goog.events EventType]
@@ -15,24 +17,26 @@
 
 (defn get-svg-coord
   [bounding-client-rect x y]
-  {:x (- x (.-left bounding-client-rect)) :y (- y (.-top bounding-client-rect))}
+  {:x (- x (.-left bounding-client-rect))
+   :y (- y (.-top bounding-client-rect))}
   )
 
-(defn drag-move-fn [on-drag bubble-id cx cy]
-  (let [first-evt-coord (atom nil)]
+(defn drag-move-fn [bubble-id]
+  (let [initial-evt-coord (atom nil)
+        {:keys [center]} (state/get-bubble bubble-id)
+        initial-cx (g/x center)
+        initial-cy (g/y center)]
     (fn [evt]
       (let [{:keys [x y]} (get-svg-coord @svg-bounding-box (.-clientX evt) (.-clientY evt))
             current-x-evt x
             current-y-evt y]
-        (if (nil? @first-evt-coord)
-          (reset! first-evt-coord {:x current-x-evt :y current-y-evt}))
-        ;; (on-drag (+ cx (- current-x-evt (:x @first-evt-coord)))
-        ;;          (+ cy (- current-y-evt (:y @first-evt-coord))))
+        (if (nil? @initial-evt-coord)
+          (reset! initial-evt-coord {:x current-x-evt :y current-y-evt}))
         (put! event/event-queue
               [:dragging
                bubble-id
-               (+ cx (- current-x-evt (:x @first-evt-coord)))
-               (+ cy (- current-y-evt (:y @first-evt-coord)))])
+               (+ initial-cx (- current-x-evt (:x @initial-evt-coord)))
+               (+ initial-cy (- current-y-evt (:y @initial-evt-coord)))])
         ))))
 
 (defn drag-end-fn [drag-move drag-end-atom on-end]
@@ -42,9 +46,9 @@
     (on-end)))
 
 (defn dragging
-  ([on-drag bubble-id cx cy] (dragging on-drag bubble-id (fn []) (fn []) cx cy))
-  ([on-drag bubble-id on-start on-end cx cy]
-   (let [drag-move (drag-move-fn on-drag bubble-id cx cy)
+  ([bubble-id] (dragging bubble-id (fn []) (fn [])))
+  ([bubble-id on-start on-end]
+   (let [drag-move (drag-move-fn bubble-id)
          drag-end-atom (atom nil)
          drag-end (drag-end-fn drag-move drag-end-atom on-end)]
      (on-start)
@@ -53,9 +57,10 @@
      (events/listen js/window EventType.MOUSEUP drag-end))))
 
 (defn dragging-fn
-  [on-drag bubble-id center-x center-y]
-  (let [if-left-click (fn [evt]
-                        (= 0 (.-button evt)))]
+  [bubble-id]
+  (let [if-left-click
+        (fn [evt]
+          (= 0 (.-button evt)))]
     (fn [evt]
       (if (if-left-click evt)
-        (dragging on-drag bubble-id center-x center-y)))))
+        (dragging bubble-id)))))
