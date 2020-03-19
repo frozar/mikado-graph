@@ -6,6 +6,7 @@
             [bubble.constant :as const]
             [bubble.event :as event]
             [bubble.drag :as drag]
+            [bubble.coordinate :as coord]
             [cljs.core.async :refer [chan put! <! go-loop]]
             )
   )
@@ -493,7 +494,10 @@
       :component-did-mount
       (fn [this]
         (reset! dom-node (reagent/dom-node this))
-        (drag/init-svg-bounding-box (.getBoundingClientRect @dom-node)))
+        (let [svg-bbox-client (.getBoundingClientRect @dom-node)
+              svg-origin-x (.-left svg-bbox-client)
+              svg-origin-y (.-top svg-bbox-client)]
+          (coord/init-svg-origin! svg-origin-x svg-origin-y)))
 
       :reagent-render
       (fn []
@@ -525,8 +529,7 @@
 
                :on-mouse-move
                (fn [evt]
-                 (reset! mouse-svg-pos (drag/get-svg-coord
-                                        @drag/svg-bounding-box
+                 (reset! mouse-svg-pos (coord/get-svg-coord
                                         (.-clientX evt)
                                         (.-clientY evt)))
                  )

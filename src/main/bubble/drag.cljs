@@ -4,45 +4,34 @@
             [bubble.event :as event]
             [bubble.state :as state]
             [bubble.geometry :as g]
-            [cljs.core.async :refer [chan put! <! go-loop]]
+            [bubble.coordinate :as coord]
+            [cljs.core.async :refer [put!]]
             )
   (:import [goog.events EventType]
            )
 )
 
-(defonce svg-bounding-box (reagent/atom nil))
-
-(defn init-svg-bounding-box [bounding-client-svg-node]
-  (reset! svg-bounding-box bounding-client-svg-node))
-
-(defn get-svg-coord
-  [bounding-client-rect x y]
-  {:x (- x (.-left bounding-client-rect))
-   :y (- y (.-top bounding-client-rect))}
-  )
-
 (defn drag-move-fn [bubble-id]
   (let [{:keys [center]} (state/get-bubble bubble-id)
-        initial-cx (g/x center)
-        initial-cy (g/y center)
-        initial-evt-x (atom nil)
-        initial-evt-y (atom nil)]
+        init-cx (g/x center)
+        init-cy (g/y center)
+        init-evt-x (atom nil)
+        init-evt-y (atom nil)]
     (fn [evt]
-      (let [{evt-x :x evt-y :y} (get-svg-coord
-                                 @svg-bounding-box
-                                 (.-clientX evt) (.-clientY evt))
+      (let [[evt-x evt-y] (coord/get-svg-coord
+                           (.-clientX evt) (.-clientY evt))
             ]
-        (if (and (nil? @initial-evt-x)
-                 (nil? @initial-evt-y))
+        (if (and (nil? @init-evt-x)
+                 (nil? @init-evt-y))
           (do
-            (reset! initial-evt-x evt-x)
-            (reset! initial-evt-y evt-y))
+            (reset! init-evt-x evt-x)
+            (reset! init-evt-y evt-y))
           )
         (put! event/event-queue
               [:dragging
                bubble-id
-               (+ initial-cx (- evt-x @initial-evt-x))
-               (+ initial-cy (- evt-y @initial-evt-y))])
+               (+ init-cx (- evt-x @init-evt-x))
+               (+ init-cy (- evt-y @init-evt-y))])
         ))))
 
 (defn drag-end-fn [drag-move drag-end-atom on-end]
