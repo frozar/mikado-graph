@@ -514,31 +514,18 @@ Else, drag the current bubble.
 
     :reagent-render
     (fn []
-      [:svg {:id "svg-canvas"
-             :style
-             {:border "none"
-              :background "white"
-              :position "fixed"
-              :top 0
-              :left 0
-              :height "100%"
-              :width "100%"
-              }
-             :on-context-menu (fn [evt] (.preventDefault evt))
-
-             ;; :pointer-events "none"
-             ;; :on-click (fn []
-             ;;             (clog (:link-src @points))
-             ;;             (reset-link-src)
-             ;;             (clog (:link-src @points))
-             ;;             )
-
-             ;; :on-key-down (fn [evt]
-             ;;                (clog (.-which evt))
-             ;;                ;; 27: escape-keycode
-             ;;                (case (.-which evt)
-             ;;                  27 (reset-link-src)
-             ;;                  nil))
-             }
+      [:svg
+       {:id "svg-canvas"
+        :style
+        {:border "none"
+         :background "white"
+         :position "fixed"
+         :top 0
+         :left 0
+         :height "100%"
+         :width "100%"
+         }
+        :on-context-menu (fn [evt] (.preventDefault evt))
+        }
        [all-bubble]
        ])}))

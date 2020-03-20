@@ -1,7 +1,10 @@
 (ns bubble.event
-  (:require [bubble.state :as state]
+  (:require [goog.events :as events]
+            [bubble.state :as state]
             [cljs.core.async :refer [chan put! <! go-loop]]
-            ))
+            )
+  (:import [goog.events EventType]
+           ))
 
 (def event-queue (chan))
 
@@ -35,5 +38,19 @@
       (state/building-link-end id)
       (state/reset-build-link)
       )
+
+    :build-link-exit
+    (state/reset-build-link)
     )
   (recur (<! event-queue)))
+
+(defn window-keydown-evt [evt]
+  (let [escape-key-code 27]
+    (if (= escape-key-code (.-keyCode evt))
+      (put! event-queue [:build-link-exit]))))
+
+(defn window-keydown-evt-fn []
+  (events/listen js/window EventType.KEYDOWN window-keydown-evt)
+  )
+
+(window-keydown-evt-fn) ;; auto-execution
