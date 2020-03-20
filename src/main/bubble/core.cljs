@@ -224,9 +224,26 @@
           (fn [evt]
             (.preventDefault evt)
             (func)))]
-    {:on-mouse-down (drag/dragging-fn bubble-id)
+    {
+     :on-mouse-down
+     (fn [evt]
+       "
+If the 'ctrl' is press during a click, build a link.
+Else, drag the current bubble.
+"
+       (if (.-ctrlKey evt)
+         (do
+           ((build-link/build-link-start-fn bubble-id) evt)
+           )
+         (do
+           ((drag/dragging-fn bubble-id) evt))
+         ))
+
      :on-context-menu
-     (prevent-context-menu #(put! event/event-queue [:delete-bubble bubble-id]))}))
+     (prevent-context-menu
+      #(put! event/event-queue [:delete-bubble bubble-id]))
+
+     }))
 
 (defn bubble-text [edition?-atom initial-state? bubble-id]
   (let [dom-node (reagent/atom nil)
@@ -299,11 +316,12 @@
            :fill (if done? "#6f0" "#f06" )
 
            :on-double-click
-           (fn []
-             (put! event/event-queue [:create-bubble bubble-id new-center-x new-center-y]))
+           #(put! event/event-queue
+                  [:create-bubble bubble-id new-center-x new-center-y])
 
            :on-click
            (build-link/build-link-end-fn bubble-id)
+
            })])
 
 (defn draw-bubble-shape [bubble]
