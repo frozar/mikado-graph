@@ -66,10 +66,6 @@
       :visibility (if visible? "visible" "hidden")
       :pointer-events "bounding-box"
       :on-click
-      ;; (fn []
-      ;;   (build-link/build-link-start bubble-id)
-      ;;   ;; (state/set-link-src bubble-id)
-      ;;   )
       (build-link/build-link-start-fn bubble-id)
       }
      ;; Draw dash line
@@ -221,11 +217,6 @@
     (reset! y-pos-atom (- y-bubble y-offset))
     ))
 
-(defn building-link-end [id-dst]
-  (let [id-src (state/get-link-src)]
-    (state/add-link id-src id-dst)
-    (state/reset-link-src)))
-
 (defn get-bubble-event-handling
   [bubble-id cx cy]
   (let [prevent-context-menu
@@ -261,8 +252,7 @@
                            {:font-style "italic" :fill "#555"}
                            {:font-style "normal" :fill "#000"})
               {:keys [id center]} (state/get-bubble bubble-id)
-              cx (geom/x center)
-              cy (geom/y center)
+              [cx cy] [(geom/x center) (geom/y center)]
               ]
           [:text.label
            (merge (get-bubble-event-handling bubble-id cx cy)
@@ -276,10 +266,7 @@
                    :font-size font-size
                    :on-double-click #(reset! edition?-atom true)
                    :on-click
-                   (fn [evt]
-                     (when (state/get-link-src)
-                       (building-link-end bubble-id)
-                       ))
+                   (build-link/build-link-end-fn bubble-id)
                    })
            (let [counter (atom 0)
                  bubble (state/get-bubble bubble-id)
@@ -316,11 +303,7 @@
              (put! event/event-queue [:create-bubble bubble-id new-center-x new-center-y]))
 
            :on-click
-           (fn []
-             (build-link/build-link-end bubble-id)
-             (when (state/get-link-src)
-               (building-link-end bubble-id)
-               ))
+           (build-link/build-link-end-fn bubble-id)
            })])
 
 (defn draw-bubble-shape [bubble]
@@ -468,24 +451,27 @@
     )
   )
 
-(defn draw-building-link [mouse-svg-pos]
+(defn draw-building-link []
   (let [bubble-src-id (state/get-link-src)
         bubble-src (state/get-bubble bubble-src-id)
         {:keys [center]} bubble-src
-        ;; [mouse-x mouse-y] mouse-svg-pos
+        [cx cy] [(geom/x center) (geom/y center)]
         [mouse-x mouse-y] (state/get-mouse-position)
         ]
     [:line {:stroke "black"
             :stroke-width 5
-            :x1 (geom/x center) :y1 (geom/y center)
+            :x1 cx :y1 cy
             :x2 mouse-x :y2 mouse-y
             }]))
 
-(defn all-bubble [mouse-svg-pos]
+(defn all-bubble []
   [:g
-   (draw-links)
+   ;; Interactive part
    (when (state/get-link-src)
-     [draw-building-link mouse-svg-pos])
+     [draw-building-link])
+
+   ;; Static part
+   (draw-links)
    [draw-bubble (get-root-bubble)]
    (doall
     (for [bubble (state/get-bubble-but-root)]
@@ -495,54 +481,46 @@
    ])
 
 (defn svg-canvas []
-  (let [mouse-svg-pos (reagent/atom nil)]
-    (reagent/create-class
-     {
-      :display-name "svg-canvas"
+  (reagent/create-class
+   {
+    :display-name "svg-canvas"
 
-      :component-did-mount
-      (let [dom-node (reagent/atom nil)]
-        (fn [this]
-          (reset! dom-node (reagent/dom-node this))
-          (let [svg-bbox-client (.getBoundingClientRect @dom-node)
-                svg-origin-x (.-left svg-bbox-client)
-                svg-origin-y (.-top svg-bbox-client)]
-            (coord/init-svg-origin! svg-origin-x svg-origin-y))))
+    :component-did-mount
+    (let [dom-node (reagent/atom nil)]
+      (fn [this]
+        (reset! dom-node (reagent/dom-node this))
+        (let [svg-bbox-client (.getBoundingClientRect @dom-node)
+              svg-origin-x (.-left svg-bbox-client)
+              svg-origin-y (.-top svg-bbox-client)]
+          (coord/init-svg-origin! svg-origin-x svg-origin-y))))
 
-      :reagent-render
-      (fn []
-        [:svg {:id "svg-canvas"
-               :style
-               {:border "none"
-                :background "white"
-                :position "fixed"
-                :top 0
-                :left 0
-                :height "100%"
-                :width "100%"
-                }
-               :on-context-menu (fn [evt] (.preventDefault evt))
+    :reagent-render
+    (fn []
+      [:svg {:id "svg-canvas"
+             :style
+             {:border "none"
+              :background "white"
+              :position "fixed"
+              :top 0
+              :left 0
+              :height "100%"
+              :width "100%"
+              }
+             :on-context-menu (fn [evt] (.preventDefault evt))
 
-               ;; :pointer-events "none"
-               ;; :on-click (fn []
-               ;;             (clog (:link-src @points))
-               ;;             (reset-link-src)
-               ;;             (clog (:link-src @points))
-               ;;             )
+             ;; :pointer-events "none"
+             ;; :on-click (fn []
+             ;;             (clog (:link-src @points))
+             ;;             (reset-link-src)
+             ;;             (clog (:link-src @points))
+             ;;             )
 
-               ;; :on-key-down (fn [evt]
-               ;;                (clog (.-which evt))
-               ;;                ;; 27: escape-keycode
-               ;;                (case (.-which evt)
-               ;;                  27 (reset-link-src)
-               ;;                  nil))
-
-               :on-mouse-move
-               (fn [evt]
-                 (reset! mouse-svg-pos (coord/get-svg-coord
-                                        (.-clientX evt)
-                                        (.-clientY evt)))
-                 )
-               }
-         [all-bubble @mouse-svg-pos]
-         ])})))
+             ;; :on-key-down (fn [evt]
+             ;;                (clog (.-which evt))
+             ;;                ;; 27: escape-keycode
+             ;;                (case (.-which evt)
+             ;;                  27 (reset-link-src)
+             ;;                  nil))
+             }
+       [all-bubble]
+       ])}))

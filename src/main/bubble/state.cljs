@@ -40,32 +40,6 @@
 
 ;; Read/Write application state
 
-;; START: Building link
-(defn set-link-src [id]
-  (swap! points update :link-src (fn [] id)))
-
-(defn get-link-src []
-  (:link-src @points))
-
-(defn reset-link-src []
-  (swap! points update :link-src (fn [] nil)))
-
-(defn set-mouse-position [mouse-x mouse-y]
-  (swap! points update :mouse-position (fn [] [mouse-x mouse-y])))
-
-(defn get-mouse-position []
-  (:mouse-position @points))
-
-(defn reset-mouse-position []
-  (swap! points update :mouse-position (fn [] nil)))
-
-(defn reset-build-link []
-  (do
-    (reset-link-src)
-    (reset-mouse-position))
-  )
-;; END: Building link
-
 (defn get-bubble [id]
   (first (filter #(= (:id %) id) (:bubbles @points))))
 
@@ -189,5 +163,35 @@
 
 (defn delete-bubble [bubble-id]
   (delete-bubble-shape bubble-id)
-  (update-link bubble-id)
-  (reset-link-src))
+  (update-link bubble-id))
+
+;; START: Building link
+(defn set-link-src [id]
+  (swap! points update :link-src (fn [] id)))
+
+(defn get-link-src []
+  (:link-src @points))
+
+(defn reset-link-src []
+  (swap! points update :link-src (fn [] nil)))
+
+(defn set-mouse-position [mouse-x mouse-y]
+  (swap! points update :mouse-position (fn [] [mouse-x mouse-y])))
+
+(defn get-mouse-position []
+  (:mouse-position @points))
+
+(defn reset-mouse-position []
+  (swap! points update :mouse-position (fn [] nil)))
+
+(defn reset-build-link []
+  (do
+    (reset-link-src)
+    (reset-mouse-position))
+  )
+
+(defn building-link-end [id-dst]
+  (let [id-src (get-link-src)]
+    (add-link id-src id-dst)
+    ))
+;; END: Building link

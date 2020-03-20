@@ -23,18 +23,16 @@
 
     :build-link-start
     (let [[id] args]
-      (prn "build start" id)
       (state/set-link-src id)
       )
 
     :build-link-move
     (let [[mouse-x mouse-y] args]
-      (prn "mouse" mouse-x mouse-y)
       (state/set-mouse-position mouse-x mouse-y))
 
     :build-link-end
     (let [[id] args]
-      (prn "build-end" id)
+      (state/building-link-end id)
       (state/reset-build-link)
       )
     )

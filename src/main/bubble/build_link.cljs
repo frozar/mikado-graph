@@ -15,7 +15,6 @@
    (.-clientX evt) (.-clientY evt)))
 
 (defn build-link-move [evt]
-  (prn "in event listen")
   (let [[mouse-x mouse-y] (get-mouse-position evt)
         ]
     (put! event/event-queue
@@ -25,15 +24,14 @@
     ))
 
 (defn build-link-start
-  ([bubble-id mouse-x mouse-y] (build-link-start bubble-id mouse-x mouse-y(fn [])))
+  ([bubble-id mouse-x mouse-y]
+   (build-link-start bubble-id mouse-x mouse-y (fn [])))
   ([bubble-id mouse-x mouse-y on-start]
    (do
      (on-start)
      (put! event/event-queue [:build-link-start bubble-id])
-     (prn "before event listen")
      (state/set-mouse-position mouse-x mouse-y)
      (events/listen js/window EventType.MOUSEMOVE build-link-move)
-     (prn "after event listen")
      )))
 
 (defn build-link-start-fn [bubble-id]
@@ -42,14 +40,12 @@
       (build-link-start bubble-id mouse-x mouse-y))))
 
 (defn build-link-end
-  ([bubble-id] (build-link-end bubble-id (fn [])))
+  ([bubble-id]
+   (build-link-end bubble-id (fn [])))
   ([bubble-id on-end]
    (if-not (nil? (state/get-link-src))
      (do
-       (prn "link-src" (state/get-link-src))
-       (prn "before event unlisten")
        (events/unlisten js/window EventType.MOUSEMOVE build-link-move)
-       (prn "after event unlisten")
        (put! event/event-queue [:build-link-end bubble-id])
        (on-end)))))
 
