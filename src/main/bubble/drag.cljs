@@ -1,6 +1,5 @@
 (ns bubble.drag
-  (:require [reagent.core :as reagent]
-            [goog.events :as events]
+  (:require [goog.events :as events]
             [bubble.event :as event]
             [bubble.state :as state]
             [bubble.geometry :as geom]
@@ -9,29 +8,29 @@
             )
   (:import [goog.events EventType]
            )
-)
+  )
 
 (defn drag-move-fn [bubble-id]
   (let [{:keys [center]} (state/get-bubble bubble-id)
         init-cx (geom/x center)
         init-cy (geom/y center)
-        init-evt-x (atom nil)
-        init-evt-y (atom nil)]
+        init-mouse-x (atom nil)
+        init-mouse-y (atom nil)]
     (fn [evt]
-      (let [[evt-x evt-y] (coord/get-svg-coord
-                           (.-clientX evt) (.-clientY evt))
+      (let [[mouse-x mouse-y] (coord/get-svg-coord
+                               (.-clientX evt) (.-clientY evt))
             ]
-        (if (and (nil? @init-evt-x)
-                 (nil? @init-evt-y))
+        (if (and (nil? @init-mouse-x)
+                 (nil? @init-mouse-y))
           (do
-            (reset! init-evt-x evt-x)
-            (reset! init-evt-y evt-y))
+            (reset! init-mouse-x mouse-x)
+            (reset! init-mouse-y mouse-y))
           )
         (put! event/event-queue
               [:dragging
                bubble-id
-               (+ init-cx (- evt-x @init-evt-x))
-               (+ init-cy (- evt-y @init-evt-y))])
+               (+ init-cx (- mouse-x @init-mouse-x))
+               (+ init-cy (- mouse-y @init-mouse-y))])
         ))))
 
 (defn drag-end-fn [drag-move drag-end-atom on-end]

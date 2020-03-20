@@ -7,6 +7,7 @@
             [bubble.event :as event]
             [bubble.drag :as drag]
             [bubble.coordinate :as coord]
+            [bubble.build-link :as build-link]
             [cljs.core.async :refer [chan put! <! go-loop]]
             )
   )
@@ -64,7 +65,12 @@
       :transform (str "translate(" x-offset "," y-offset ") scale(1) rotate(-90)")
       :visibility (if visible? "visible" "hidden")
       :pointer-events "bounding-box"
-      :on-click #(state/set-link-src bubble-id)
+      :on-click
+      ;; (fn []
+      ;;   (build-link/build-link-start bubble-id)
+      ;;   ;; (state/set-link-src bubble-id)
+      ;;   )
+      (build-link/build-link-start-fn bubble-id)
       }
      ;; Draw dash line
      (for [i (map #(* 2 %) (range 3))]
@@ -311,6 +317,7 @@
 
            :on-click
            (fn []
+             (build-link/build-link-end bubble-id)
              (when (state/get-link-src)
                (building-link-end bubble-id)
                ))
@@ -465,7 +472,9 @@
   (let [bubble-src-id (state/get-link-src)
         bubble-src (state/get-bubble bubble-src-id)
         {:keys [center]} bubble-src
-        [mouse-x mouse-y] mouse-svg-pos]
+        ;; [mouse-x mouse-y] mouse-svg-pos
+        [mouse-x mouse-y] (state/get-mouse-position)
+        ]
     [:line {:stroke "black"
             :stroke-width 5
             :x1 (geom/x center) :y1 (geom/y center)

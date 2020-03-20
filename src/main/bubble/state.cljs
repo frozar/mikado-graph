@@ -32,22 +32,39 @@
    :bubbles [root-bubble]
    :links []
    :link-src nil
+   :mouse-position nil
    })
 
 (defonce points
   (reagent/atom (initial-application-state)))
 
 ;; Read/Write application state
+
+;; START: Building link
 (defn set-link-src [id]
-  (swap! points update :link-src (fn [] id))
-  )
+  (swap! points update :link-src (fn [] id)))
 
 (defn get-link-src []
-  (:link-src @points)
-  )
+  (:link-src @points))
 
 (defn reset-link-src []
   (swap! points update :link-src (fn [] nil)))
+
+(defn set-mouse-position [mouse-x mouse-y]
+  (swap! points update :mouse-position (fn [] [mouse-x mouse-y])))
+
+(defn get-mouse-position []
+  (:mouse-position @points))
+
+(defn reset-mouse-position []
+  (swap! points update :mouse-position (fn [] nil)))
+
+(defn reset-build-link []
+  (do
+    (reset-link-src)
+    (reset-mouse-position))
+  )
+;; END: Building link
 
 (defn get-bubble [id]
   (first (filter #(= (:id %) id) (:bubbles @points))))
