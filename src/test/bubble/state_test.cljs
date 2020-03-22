@@ -31,6 +31,9 @@
             (s/add-bubble (b/create-bubble 0 0 "fake-bubble"))
             (s/delete-bubble "fake-bubble"))]
     (is
+     (vector? (-> new-appstate :bubbles))
+     "The 'bubbles' collection remain a vector")
+    (is
      (=
       (-> new-appstate :bubbles)
       [b/root-bubble])
@@ -105,3 +108,14 @@
      (true? (-> (s/get-bubble new-appstate ROOT-BUBBLE-ID) :edition?)))
     (is
      (false? (-> (s/get-bubble new-appstate "fake-bubble") :edition?)))))
+
+(deftest disable-edition_basic
+  (let [new-appstate
+        (-> appstate-2-bubble
+            (s/enable-edition ROOT-BUBBLE-ID)
+            (s/enable-edition "fake-bubble")
+            (s/disable-edition ROOT-BUBBLE-ID))]
+    (is
+     (false? (-> (s/get-bubble new-appstate ROOT-BUBBLE-ID) :edition?)))
+    (is
+     (true? (-> (s/get-bubble new-appstate "fake-bubble") :edition?)))))

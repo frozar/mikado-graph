@@ -20,16 +20,19 @@
 ;; Read/Write application state
 
 ;; START: bubble part
+;;TODO: add a unit test
 (defn get-bubble
   ([id] (get-bubble @appstate id))
   ([appstate id]
    (first (filter #(= (:id %) id) (:bubbles appstate)))))
 
+;;TODO: add a unit test
 (defn get-all-bubble
   ([] (get-all-bubble @appstate))
   ([appstate]
    (:bubbles appstate)))
 
+;;TODO: add a unit test
 (defn get-list-id
   ([] (get-list-id @appstate))
   ([appstate]
@@ -37,8 +40,9 @@
         (sp/transform [sp/ALL] :id)
         )))
 
+;;TODO: add a unit test
 (defn get-bubble-but-root []
-  (filter #(not= (:id %) const/ROOT-BUBBLE-ID) (:bubbles @appstate)))
+  (filterv #(not= (:id %) const/ROOT-BUBBLE-ID) (:bubbles @appstate)))
 
 (defn- add-bubble [appstate bubble]
   (update appstate :bubbles conj bubble))
@@ -47,7 +51,7 @@
   (sp/transform
    [:bubbles]
    (fn [bubbles]
-     (filter (fn [bubble] (not= (:id bubble) bubble-id)) bubbles))
+     (filterv (fn [bubble] (not= (:id bubble) bubble-id)) bubbles))
    appstate)
   )
 
@@ -228,4 +232,9 @@
 (defn enable-edition! [bubble-id]
   (swap! appstate #(enable-edition % bubble-id)))
 
+(defn- disable-edition [appstate bubble-id]
+  (update-bubble appstate bubble-id {:edition? false}))
+
+(defn disable-edition! [bubble-id]
+  (swap! appstate #(disable-edition % bubble-id)))
 ;; END: Edition
