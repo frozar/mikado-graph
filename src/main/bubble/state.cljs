@@ -1,6 +1,5 @@
 (ns bubble.state
-  (:require [bubble.geometry :as geom]
-            [bubble.constant :as const]
+  (:require [bubble.constant :as const]
             [reagent.core :as reagent]
             [com.rpl.specter :as sp]
             )
@@ -11,7 +10,8 @@
    :type const/NIL-BUBBLE-TYPE
    :initial-state? true
    :done? false
-   :center (geom/point 0 0)
+   :cx 0
+   :cy 0
    :rx 100 :ry 50
    :text const/BUBBLE-DEFAULT-TEXT
    })
@@ -23,7 +23,8 @@
           :initial-state? true
           :done? false
           :edition? false
-          :center (geom/point 450 450)
+          :cx 450
+          :cy 450
           :rx 100
           :ry 50
           :text const/ROOT-BUBBLE-DEFAULT-TEXT
@@ -120,7 +121,7 @@
            (update
             list-bubble
             (.indexOf list-idxs id)
-            (fn [b] (merge b {:center (geom/point cx cy)})))
+            (fn [b] (merge b {:cx cx :cy cy})))
            ;; Else body
            list-bubble))))))
 
@@ -162,7 +163,8 @@
    nil-bubble
    {:id id
     :type const/BUBBLE-TYPE
-    :center (geom/point cx cy)}))
+    :cx cx
+    :cy cy}))
 
 (defn- create-bubble
   ([cx cy] (create-bubble cx cy (gen-id)))

@@ -1,7 +1,6 @@
 (ns bubble.core
   (:require [reagent.core :as reagent]
             [clojure.string :as string]
-            [bubble.geometry :as geom]
             [bubble.state :as state]
             [bubble.constant :as const]
             [bubble.event :as event]
@@ -24,12 +23,12 @@
   (let [validation-state (-> (state/get-bubble bubble-id) :done? not)]
     (update-bubble bubble-id {:done? validation-state})))
 
-(defn draw-pencil-button [edition?-atom visible? bubble-id center rx ry]
+(defn draw-pencil-button [edition?-atom visible? bubble-id cx cy rx ry]
   (let [semi-length 15
         min-bound (- 0 semi-length)
         max-bound semi-length
-        x-offset  (-> center geom/x (+ 25))
-        y-offset  (- (geom/y center) (+ ry max-bound 10))]
+        x-offset  (+ cx 25)
+        y-offset  (- cy (+ ry max-bound 10))]
     [:g.button
      {:stroke "darkgreen"
       :stroke-width 2
@@ -56,9 +55,9 @@
     )
   )
 
-(defn draw-link-button [visible? bubble-id center rx ry]
-  (let [x-offset  (-> center geom/x (+ 60))
-        y-offset  (- (geom/y center) (+ ry 5))
+(defn draw-link-button [visible? bubble-id cx cy rx ry]
+  (let [x-offset  (+ cx 60)
+        y-offset  (- cy (+ ry 5))
         ]
     [:g.button
      {:stroke "darkblue"
@@ -76,7 +75,7 @@
          ^{:key (str i)} [:line {:x1 start :y1 start :x2 end :y2 end}]))
      ]))
 
-(defn center-textarea [dom-node id center
+(defn center-textarea [dom-node id cx cy
                        width-atom height-atom top-left-x-atom top-left-y-atom]
   "Center the textarea field against the surrounding bubble"
   (let [width (.-width (.getBoundingClientRect dom-node))
@@ -87,8 +86,8 @@
         ]
     (reset! width-atom width)
     (reset! height-atom height)
-    (reset! top-left-x-atom (- (geom/x center) (/ width 2)))
-    (reset! top-left-y-atom (- (geom/y center) (/ height 2)))
+    (reset! top-left-x-atom (- cx (/ width 2)))
+    (reset! top-left-y-atom (- cy (/ height 2)))
     (state/resize-bubble id (add-50 (/ width 2)) (add-50 (/ height 2)))
     ))
 
@@ -107,7 +106,7 @@
 
 (defn custom-textarea [bubble on-save on-stop
                        width-atom height-atom top-left-x-atom top-left-y-atom]
-  (let [{:keys [id center text type initial-state?]} bubble
+  (let [{:keys [id cx cy text type initial-state?]} bubble
         current-text (reagent/atom text)
         dom-node (reagent/atom nil)
         stop #(if on-stop (on-stop))
@@ -125,7 +124,7 @@
         (reset! dom-node (reagent/dom-node this))
         ;; Set the focus to the textarea
         (.focus @dom-node)
-        (center-textarea @dom-node id center
+        (center-textarea @dom-node id cx cy
                          width-atom height-atom top-left-x-atom top-left-y-atom)
         (cursor-to-end-textarea @dom-node @current-text initial-state?)
         (reset! current-text text)
@@ -135,7 +134,7 @@
       (fn []
         ;; Set the focus to the textarea
         (.focus @dom-node)
-        (center-textarea @dom-node id center
+        (center-textarea @dom-node id cx cy
                          width-atom height-atom top-left-x-atom top-left-y-atom))
 
       :reagent-render
@@ -181,11 +180,11 @@
              }]))})))
 
 (defn bubble-input [bubble on-save on-stop]
-  (let [{:keys [center rx ry]} bubble
+  (let [{:keys [cx cy rx ry]} bubble
         width (reagent/atom (* 2 rx))
         height (reagent/atom (* 2 ry))
-        top-left-x (reagent/atom (geom/x center))
-        top-left-y (reagent/atom (geom/y center))
+        top-left-x (reagent/atom cx)
+        top-left-y (reagent/atom cy)
         ]
     (fn [bubble on-save on-stop]
       [:foreignObject
@@ -210,7 +209,7 @@
 (defn update-y-pos [y-pos-atom dom-node bubble-id]
   (let [height (.-height (.getBoundingClientRect dom-node))
         bubble (state/get-bubble bubble-id)
-        y-bubble (geom/y (:center bubble))
+        y-bubble (:cy bubble)
         nb-lines (->> bubble :text string/split-lines count)
         height-line (/ height nb-lines)
         y-offset (-> nb-lines dec (* height-line) (/ 2))
@@ -250,9 +249,8 @@ Else, drag the current bubble.
 
 (defn bubble-text [edition?-atom initial-state? bubble-id]
   (let [dom-node (reagent/atom nil)
-        {:keys [center]} (state/get-bubble bubble-id)
-        [wk_cx wk_cy] [(geom/x center) (geom/y center)]
-        y-pos    (reagent/atom wk_cy)]
+        {:keys [cy]} (state/get-bubble bubble-id)
+        y-pos    (reagent/atom cy)]
     (reagent/create-class
      {
       :display-name "bubble-text"
@@ -276,8 +274,7 @@ Else, drag the current bubble.
               text-style (if initial-state?
                            {:font-style "italic" :fill "#555"}
                            {:font-style "normal" :fill "#000"})
-              {:keys [id center]} (state/get-bubble bubble-id)
-              [cx cy] [(geom/x center) (geom/y center)]
+              {:keys [id cx cy]} (state/get-bubble bubble-id)
               ]
           [:text.label
            (merge (get-bubble-event-handling bubble-id cx cy)
@@ -295,12 +292,12 @@ Else, drag the current bubble.
                    })
            (let [counter (atom 0)
                  bubble (state/get-bubble bubble-id)
-                 c (:center bubble)]
+                 cx (:cx bubble)]
              (for [tspan-text (->> bubble :text string/split-lines)]
                (let [id-number @counter
                      tspan-id (str bubble-id @counter)]
                  (swap! counter inc)
-                 ^{:key tspan-id} [:tspan {:x (geom/x c)
+                 ^{:key tspan-id} [:tspan {:x cx
                                            :dy (if (= id-number 0) 0 "1.2em")
                                            }
                                    tspan-text])))]))})))
@@ -333,30 +330,30 @@ Else, drag the current bubble.
            })])
 
 (defn draw-bubble-shape [bubble]
-  (let [{:keys [id type center rx ry done?]} bubble]
+  (let [{:keys [id type cx cy rx ry done?]} bubble]
     (case type
       const/ROOT-BUBBLE-TYPE
       [:<>
        [draw-ellipse-shape
-        id (geom/x center) (geom/y center) (+ 10 rx) (+ 10 ry)
-        (geom/x center) (- (geom/y center) (* 3 ry)) done?]
+        id cx cy (+ 10 rx) (+ 10 ry)
+        cx (- cy (* 3 ry)) done?]
        [draw-ellipse-shape
-        id (geom/x center) (geom/y center) rx ry
-        (geom/x center) (- (geom/y center) (* 3 ry)) done?]]
+        id cx cy rx ry
+        cx (- cy (* 3 ry)) done?]]
 
       const/BUBBLE-TYPE
       [draw-ellipse-shape
-       id (geom/x center) (geom/y center) rx ry
-       (geom/x center) (- (geom/y center) (* 3 ry)) done?]
+       id cx cy rx ry
+       cx (- cy (* 3 ry)) done?]
 
       nil)))
 
-(defn draw-delete-button [visible? bubble-id center rx ry]
+(defn draw-delete-button [visible? bubble-id cx cy rx ry]
   (let [semi-length 15
         min-bound (- 0 semi-length)
         max-bound semi-length
-        x-offset  (-> center geom/x (- 25))
-        y-offset  (- (geom/y center) (+ ry max-bound 5))]
+        x-offset  (- cx 25)
+        y-offset  (- cy (+ ry max-bound 5))]
     [:g.button
      {:stroke "darkred"
       :stroke-width 5
@@ -369,10 +366,10 @@ Else, drag the current bubble.
      [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound}]])
   )
 
-(defn draw-validation-button [visible? bubble-id center rx ry]
+(defn draw-validation-button [visible? bubble-id cx cy rx ry]
   (let [length 30
-        x-offset  (-> center geom/x )
-        y-offset  (-> center geom/y (+ ry length 10))
+        x-offset  cx
+        y-offset  (+ cy ry length 10)
         ]
     [:path.button
      {
@@ -389,21 +386,21 @@ Else, drag the current bubble.
   )
 
 (defn add-button [bubble edition?-atom show-button?]
-  (let [{:keys [id type center rx ry text initial-state]} bubble
+  (let [{:keys [id type cx cy rx ry text initial-state]} bubble
         initial-state? initial-state]
     (case type
       const/ROOT-BUBBLE-TYPE
       [:<>
-       [draw-validation-button show-button? id center (+ 10 rx) (+ 10 ry)]
-       [draw-pencil-button edition?-atom show-button? id center (+ 10 rx) (+ 10 ry)]
-       [draw-link-button show-button? id center (+ 10 rx) (+ 10 ry)]]
+       [draw-validation-button show-button? id cx cy (+ 10 rx) (+ 10 ry)]
+       [draw-pencil-button edition?-atom show-button? id cx cy (+ 10 rx) (+ 10 ry)]
+       [draw-link-button show-button? id cx cy (+ 10 rx) (+ 10 ry)]]
 
       const/BUBBLE-TYPE
       [:<>
-       [draw-validation-button show-button? id center rx ry]
-       [draw-delete-button show-button? id center rx ry]
-       [draw-pencil-button edition?-atom show-button? id center rx ry]
-       [draw-link-button show-button? id center rx ry]]
+       [draw-validation-button show-button? id cx cy rx ry]
+       [draw-delete-button show-button? id cx cy rx ry]
+       [draw-pencil-button edition?-atom show-button? id cx cy rx ry]
+       [draw-link-button show-button? id cx cy rx ry]]
 
       nil)))
 
@@ -450,9 +447,11 @@ Else, drag the current bubble.
         dst-b (state/get-bubble dst)
         src-id (:id src-b)
         dst-id (:id dst-b)
-        src-pt (:center src-b)
-        dst-pt (:center dst-b)
-        path-str (str "M " (geom/x src-pt) "," (geom/y src-pt) " L " (geom/x dst-pt) "," (geom/y dst-pt))]
+        src-pt-x (:cx src-b)
+        src-pt-y (:cy src-b)
+        dst-pt-x (:cx dst-b)
+        dst-pt-y (:cy dst-b)
+        path-str (str "M " src-pt-x "," src-pt-y " L " dst-pt-x "," dst-pt-y)]
     {:key (str src-id "-" dst-id)
      :on-context-menu #(state/delete-link src-id dst-id)
      :stroke-width 4
@@ -480,8 +479,7 @@ Else, drag the current bubble.
 (defn draw-building-link []
   (let [bubble-src-id (state/get-link-src)
         bubble-src (state/get-bubble bubble-src-id)
-        {:keys [center]} bubble-src
-        [cx cy] [(geom/x center) (geom/y center)]
+        {:keys [center cx cy]} bubble-src
         [mouse-x mouse-y] (state/get-mouse-position)
         ]
     [:line {:stroke "black"

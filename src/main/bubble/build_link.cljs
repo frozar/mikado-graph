@@ -2,7 +2,6 @@
   (:require [goog.events :as events]
             [bubble.event :as event]
             [bubble.state :as state]
-            [bubble.geometry :as geom]
             [bubble.coordinate :as coord]
             [cljs.core.async :refer [put!]]
             )
