@@ -10,6 +10,7 @@
    :type const/NIL-BUBBLE-TYPE
    :initial-state? true
    :done? false
+   :edition? false
    :cx 0
    :cy 0
    :rx 100 :ry 50
@@ -20,13 +21,8 @@
   (merge nil-bubble
          {:id const/ROOT-BUBBLE-ID
           :type const/ROOT-BUBBLE-TYPE
-          :initial-state? true
-          :done? false
-          :edition? false
           :cx 450
           :cy 450
-          :rx 100
-          :ry 50
           :text const/ROOT-BUBBLE-DEFAULT-TEXT
           }))
 
@@ -43,8 +39,10 @@
 
 ;; Read/Write application state
 
-(defn get-bubble [id]
-  (first (filter #(= (:id %) id) (:bubbles @appstate))))
+(defn get-bubble
+  ([id] (get-bubble @appstate id))
+  ([appstate id]
+   (first (filter #(= (:id %) id) (:bubbles appstate)))))
 
 (defn get-all-bubble []
   (:bubbles @appstate))
@@ -158,24 +156,20 @@
        (recur list-id)
        try-id))))
 
-(defn- get-new-bubble [cx cy id]
-  (merge
-   nil-bubble
-   {:id id
-    :type const/BUBBLE-TYPE
-    :cx cx
-    :cy cy}))
-
-(defn- create-bubble
-  ([cx cy] (create-bubble cx cy (gen-id)))
+(defn- get-new-bubble
+  ([cx cy] (get-new-bubble cx cy (gen-id)))
   ([cx cy id]
-   (let [new-bubble (get-new-bubble cx cy id)]
-     (add-bubble! new-bubble)))
-  )
+   (merge
+    nil-bubble
+    {:id id
+     :type const/BUBBLE-TYPE
+     :cx cx
+     :cy cy})))
 
 (defn create-bubble-and-link [parent-bubble-id cx cy]
-  (let [bubble-id (gen-id)]
-    (create-bubble cx cy bubble-id)
+  (let [bubble-id (gen-id)
+        new-bubble (get-new-bubble cx cy bubble-id)]
+    (add-bubble! new-bubble)
     (add-link parent-bubble-id bubble-id)
     )
   )
@@ -249,27 +243,3 @@
 (defn enable-edition! [id]
   (swap! appstate #(enable-edition % id)))
 ;; END: Edition
-
-(def training-data
-  (-> (init-appstate)
-      (add-bubble {:id "fake-bubble"}))
-  )
-
-(enable-edition training-data "root")
-
-;; (def training-data2
-;;   [{:rx 100,
-;;     :edition? false,
-;;     :done? false,
-;;     :type "root-bubble",
-;;     :center (geom/point 0 0),
-;;     :initial-state? true,
-;;     :id "root",
-;;     :ry 50,
-;;     :text "Main goal"}]
-;;   )
-
-;; (keep-indexed
-;;  (fn [idx val]
-;;    (if (= (:id val) "root") idx))
-;;  training-data)
