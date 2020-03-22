@@ -14,14 +14,11 @@
 (defn get-root-bubble []
   (state/get-bubble const/ROOT-BUBBLE-ID))
 
-(defn update-bubble [bubble-id hashmap]
-  (let [bubble (-> (state/get-bubble bubble-id) (merge hashmap))]
-    (state/delete-bubble-shape bubble-id)
-    (state/add-bubble! bubble)))
-
+;;TODO: Instead of calling a state function directly,
+;;      send a message to the event-queue
 (defn toggle-bubble-validation [bubble-id]
   (let [validation-state (-> (state/get-bubble bubble-id) :done? not)]
-    (update-bubble bubble-id {:done? validation-state})))
+    (state/update-bubble! bubble-id {:done? validation-state})))
 
 (defn draw-pencil-button [edition?-atom visible? bubble-id cx cy rx ry]
   (let [semi-length 15
@@ -88,7 +85,7 @@
     (reset! height-atom height)
     (reset! top-left-x-atom (- cx (/ width 2)))
     (reset! top-left-y-atom (- cy (/ height 2)))
-    (state/resize-bubble id (add-50 (/ width 2)) (add-50 (/ height 2)))
+    (state/resize-bubble! id (add-50 (/ width 2)) (add-50 (/ height 2)))
     ))
 
 (defn cursor-to-end-textarea [dom-node current-text initial-state?]
@@ -202,7 +199,7 @@
         height (.-height (.getBoundingClientRect dom-node))
         new-rx (-> width (/ 2) (+ 50))
         new-ry (-> height (/ 2) (+ 50))]
-    (state/resize-bubble bubble-id new-rx new-ry)
+    (state/resize-bubble! bubble-id new-rx new-ry)
     )
   )
 
@@ -257,19 +254,16 @@ Else, drag the current bubble.
 
       :component-did-mount
       (fn [this]
-        (prn "component-did-mount" y-pos)
         (reset! dom-node (reagent/dom-node this))
         (update-bubble-size @dom-node bubble-id)
         (update-y-pos y-pos @dom-node bubble-id))
 
       :component-did-update
       (fn []
-        (prn "component-did-update" y-pos)
         (update-y-pos y-pos @dom-node bubble-id))
 
       :reagent-render
       (fn [edition?-atom initial-state bubble-id]
-        (prn "render" y-pos)
         (let [font-size 20
               text-style (if initial-state?
                            {:font-style "italic" :fill "#555"}
@@ -329,6 +323,7 @@ Else, drag the current bubble.
 
            })])
 
+;;TODO: the root bubble must not be deletable
 (defn draw-bubble-shape [bubble]
   (let [{:keys [id type cx cy rx ry done?]} bubble]
     (case type
@@ -410,7 +405,11 @@ Else, drag the current bubble.
         ]
     (fn [bubble]
       (let [{:keys [id type center rx ry initial-state?]} bubble
-            on-save (fn[bubble-text] (state/save-text-bubble id bubble-text const/BUBBLE-DEFAULT-TEXT))
+            on-save
+            (fn [bubble-text]
+              ;;TODO: send anevent-queue message instead of calling
+              ;; state function directly
+              (state/save-text-bubble! id bubble-text const/BUBBLE-DEFAULT-TEXT))
             on-stop #(reset! edition? false)
             ]
         ;; Throw an exception if one try to draw a nil-bubble

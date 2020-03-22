@@ -13,15 +13,15 @@
 
     :create-bubble
     (let [[bubble-id new-center-x new-center-y] args]
-      (state/create-bubble-and-link bubble-id new-center-x new-center-y))
+      (state/create-bubble-and-link! bubble-id new-center-x new-center-y))
 
     :delete-bubble
     (let [[bubble-id] args]
-      (state/delete-bubble bubble-id))
+      (state/delete-bubble-and-update-link! bubble-id))
 
     :dragging
     (let [[id cx cy] args]
-      ((state/move-bubble id) cx cy)
+      (state/move-bubble! id cx cy)
       )
 
     :build-link-start
