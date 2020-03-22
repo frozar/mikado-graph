@@ -1,7 +1,8 @@
 (ns bubble.state
-  (:require [bubble.geometry :as g]
+  (:require [bubble.geometry :as geom]
             [bubble.constant :as const]
             [reagent.core :as reagent]
+            [com.rpl.specter :as sp]
             )
   )
 
@@ -10,7 +11,7 @@
    :type const/NIL-BUBBLE-TYPE
    :initial-state? true
    :done? false
-   :center (g/point 0 0)
+   :center (geom/point 0 0)
    :rx 100 :ry 50
    :text const/BUBBLE-DEFAULT-TEXT
    })
@@ -21,13 +22,14 @@
           :type const/ROOT-BUBBLE-TYPE
           :initial-state? true
           :done? false
-          :center (g/point 450 450)
+          :edition? false
+          :center (geom/point 450 450)
           :rx 100
           :ry 50
           :text const/ROOT-BUBBLE-DEFAULT-TEXT
           }))
 
-(defn initial-application-state []
+(defn init-appstate []
   {
    :bubbles [root-bubble]
    :links []
@@ -35,44 +37,47 @@
    :mouse-position nil
    })
 
-(defonce points
-  (reagent/atom (initial-application-state)))
+(defonce appstate
+  (reagent/atom (init-appstate)))
 
 ;; Read/Write application state
 
 (defn get-bubble [id]
-  (first (filter #(= (:id %) id) (:bubbles @points))))
+  (first (filter #(= (:id %) id) (:bubbles @appstate))))
 
 (defn get-all-bubble []
-  (:bubbles @points))
+  (:bubbles @appstate))
 
 (defn get-bubble-but-root []
-  (filter #(not= (:id %) const/ROOT-BUBBLE-ID) (:bubbles @points)))
+  (filter #(not= (:id %) const/ROOT-BUBBLE-ID) (:bubbles @appstate)))
 
-(defn add-bubble [bubble]
-  (swap! points update :bubbles conj bubble))
+(defn add-bubble [appstate bubble]
+  (update appstate :bubbles conj bubble))
+
+(defn add-bubble! [bubble]
+  (swap! appstate #(add-bubble % bubble)))
 
 (defn delete-bubble-shape [bubble-id]
-  (swap! points update :bubbles (fn [l] (filterv #(not (= (:id %) bubble-id)) l))))
+  (swap! appstate update :bubbles (fn [l] (filterv #(not (= (:id %) bubble-id)) l))))
 
 (defn add-link [id-src id-dst]
-  (swap! points update :links conj {:src id-src :dst id-dst}))
+  (swap! appstate update :links conj {:src id-src :dst id-dst}))
 
 (defn delete-link-to-bubble [bubble-id]
-  (swap! points update :links (fn [l] (filterv
+  (swap! appstate update :links (fn [l] (filterv
                                              (fn [link] not (= (some #{bubble-id} (vals link)) nil)) l))))
 
 (defn delete-link [src-id dst-id]
-  (swap! points update :links (fn [links]
+  (swap! appstate update :links (fn [links]
                                       (filterv
                                        (fn [link] (not= {:src src-id :dst dst-id} link))
                                        links))))
 
 (defn update-link [bubble-id]
-  (let [ids-dst (->> (:links @points)
+  (let [ids-dst (->> (:links @appstate)
                      (filterv (fn [link] (= bubble-id (:src link))))
                      (map :dst))
-        ids-src (->> (:links @points)
+        ids-src (->> (:links @appstate)
                      (filterv (fn [link] (= bubble-id (:dst link))))
                      (map :src))
         new-links (vec (for [id-src ids-src
@@ -80,13 +85,16 @@
                          {:src id-src :dst id-dst}))
         ]
     (delete-link-to-bubble bubble-id)
-    (swap! points update :links (fn [l] (->> (apply conj l new-links)
+    (swap! appstate update :links (fn [l] (->> (apply conj l new-links)
                                              set
                                              vec)))
     ))
 
+(defn get-links []
+  (:links @appstate))
+
 (defn resize-bubble [bubble-id rx ry]
-  (swap! points update :bubbles
+  (swap! appstate update :bubbles
          (fn [list-bubble]
            (let [list-idxs (map #(:id %) list-bubble)]
              ;; Check if the id to resize is present in the model.
@@ -102,7 +110,7 @@
 (defn move-bubble [id]
   (fn [cx cy]
     (swap!
-     points update :bubbles
+     appstate update :bubbles
      (fn [list-bubble]
        (let [list-idxs (map #(:id %) list-bubble)]
          ;; Check if the id to delete is present in the model.
@@ -112,13 +120,13 @@
            (update
             list-bubble
             (.indexOf list-idxs id)
-            (fn [b] (merge b {:center (g/point cx cy)})))
+            (fn [b] (merge b {:center (geom/point cx cy)})))
            ;; Else body
            list-bubble))))))
 
 (defn save-text-bubble [id text default-text]
   (swap!
-   points update :bubbles
+   appstate update :bubbles
    (fn [list-bubble]
      (let [list-idxs (map #(:id %) list-bubble)]
        ;; Check if the id to delete is present in the model.
@@ -149,17 +157,26 @@
        (recur list-id)
        try-id))))
 
-(defn create-bubble [parent-bubble-id cx cy]
-  (let [bubble-id (gen-id)
-        new-bubble
-        (merge
-         nil-bubble
-         {:id bubble-id
-          :type const/BUBBLE-TYPE
-          :center (g/point cx cy)})]
-    (add-bubble new-bubble)
+(defn- get-new-bubble [cx cy id]
+  (merge
+   nil-bubble
+   {:id id
+    :type const/BUBBLE-TYPE
+    :center (geom/point cx cy)}))
+
+(defn- create-bubble
+  ([cx cy] (create-bubble cx cy (gen-id)))
+  ([cx cy id]
+   (let [new-bubble (get-new-bubble cx cy id)]
+     (add-bubble! new-bubble)))
+  )
+
+(defn create-bubble-and-link [parent-bubble-id cx cy]
+  (let [bubble-id (gen-id)]
+    (create-bubble cx cy bubble-id)
     (add-link parent-bubble-id bubble-id)
-    ))
+    )
+  )
 
 (defn delete-bubble [bubble-id]
   (delete-bubble-shape bubble-id)
@@ -167,22 +184,22 @@
 
 ;; START: Building link
 (defn set-link-src [id]
-  (swap! points update :link-src (fn [] id)))
+  (swap! appstate update :link-src (fn [] id)))
 
 (defn get-link-src []
-  (:link-src @points))
+  (:link-src @appstate))
 
 (defn reset-link-src []
-  (swap! points update :link-src (fn [] nil)))
+  (swap! appstate update :link-src (fn [] nil)))
 
 (defn set-mouse-position [mouse-x mouse-y]
-  (swap! points update :mouse-position (fn [] [mouse-x mouse-y])))
+  (swap! appstate update :mouse-position (fn [] [mouse-x mouse-y])))
 
 (defn get-mouse-position []
-  (:mouse-position @points))
+  (:mouse-position @appstate))
 
 (defn reset-mouse-position []
-  (swap! points update :mouse-position (fn [] nil)))
+  (swap! appstate update :mouse-position (fn [] nil)))
 
 (defn reset-build-link []
   (do
@@ -195,3 +212,62 @@
     (add-link id-src id-dst)
     ))
 ;; END: Building link
+
+;; START: Edition
+(defn- enable-edition [appstate id]
+  (let [get-idx-by-bubble-id
+        (fn [id]
+          (fn [bubbles]
+            (keep-indexed
+             (fn [idx val]
+               (if (= (:id val) id) idx))
+             bubbles)))]
+    (sp/transform
+     [:bubbles
+      (sp/srange-dynamic
+       (fn [bubbles]
+         (-> bubbles
+             ((fn [bubbles] ((get-idx-by-bubble-id id) bubbles)))
+             first)
+         )
+       (fn [bubbles]
+         (-> bubbles
+              ((fn [bubbles] ((get-idx-by-bubble-id id) bubbles)))
+              first
+              inc)
+         )
+       )
+      sp/ALL
+      ]
+     (fn [bubble]
+       (merge bubble {:edition? true}))
+     appstate))
+  )
+
+(defn enable-edition! [id]
+  (swap! appstate #(enable-edition % id)))
+;; END: Edition
+
+(def training-data
+  (-> (init-appstate)
+      (add-bubble {:id "fake-bubble"}))
+  )
+
+(enable-edition training-data "root")
+
+;; (def training-data2
+;;   [{:rx 100,
+;;     :edition? false,
+;;     :done? false,
+;;     :type "root-bubble",
+;;     :center (geom/point 0 0),
+;;     :initial-state? true,
+;;     :id "root",
+;;     :ry 50,
+;;     :text "Main goal"}]
+;;   )
+
+;; (keep-indexed
+;;  (fn [idx val]
+;;    (if (= (:id val) "root") idx))
+;;  training-data)

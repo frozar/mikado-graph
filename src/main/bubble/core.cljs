@@ -12,15 +12,13 @@
             )
   )
 
-;; (defonce svg-bounding-box (reagent/atom nil))
-
 (defn get-root-bubble []
   (state/get-bubble const/ROOT-BUBBLE-ID))
 
-(defn update-bubble [bubble-id dictionary]
-  (let [bubble (-> (state/get-bubble bubble-id) (merge dictionary))]
+(defn update-bubble [bubble-id hashmap]
+  (let [bubble (-> (state/get-bubble bubble-id) (merge hashmap))]
     (state/delete-bubble-shape bubble-id)
-    (state/add-bubble bubble)))
+    (state/add-bubble! bubble)))
 
 (defn toggle-bubble-validation [bubble-id]
   (let [validation-state (-> (state/get-bubble bubble-id) :done? not)]
@@ -37,7 +35,10 @@
       :stroke-width 2
       :transform (str "translate(" x-offset "," y-offset ")")
       :visibility (if visible? "visible" "hidden")
-      :on-click #(reset! edition?-atom true)
+      :on-click
+      (fn []
+        (reset! edition?-atom true)
+        (put! event/event-queue [:enable-edition bubble-id]))
       }
      ;; Draw a pencil
      ;; The body of the pencil
@@ -243,27 +244,34 @@ Else, drag the current bubble.
      (prevent-context-menu
       #(put! event/event-queue [:delete-bubble bubble-id]))
 
+     :on-click
+     (build-link/build-link-end-fn bubble-id)
      }))
 
 (defn bubble-text [edition?-atom initial-state? bubble-id]
   (let [dom-node (reagent/atom nil)
-        y-pos    (reagent/atom 0)]
+        {:keys [center]} (state/get-bubble bubble-id)
+        [wk_cx wk_cy] [(geom/x center) (geom/y center)]
+        y-pos    (reagent/atom wk_cy)]
     (reagent/create-class
      {
       :display-name "bubble-text"
 
       :component-did-mount
       (fn [this]
+        (prn "component-did-mount" y-pos)
         (reset! dom-node (reagent/dom-node this))
         (update-bubble-size @dom-node bubble-id)
         (update-y-pos y-pos @dom-node bubble-id))
 
       :component-did-update
       (fn []
+        (prn "component-did-update" y-pos)
         (update-y-pos y-pos @dom-node bubble-id))
 
       :reagent-render
       (fn [edition?-atom initial-state bubble-id]
+        (prn "render" y-pos)
         (let [font-size 20
               text-style (if initial-state?
                            {:font-style "italic" :fill "#555"}
@@ -282,8 +290,8 @@ Else, drag the current bubble.
                    :y @y-pos
                    :font-size font-size
                    :on-double-click #(reset! edition?-atom true)
-                   :on-click
-                   (build-link/build-link-end-fn bubble-id)
+                   ;; :on-click
+                   ;; (build-link/build-link-end-fn bubble-id)
                    })
            (let [counter (atom 0)
                  bubble (state/get-bubble bubble-id)
@@ -319,8 +327,8 @@ Else, drag the current bubble.
            #(put! event/event-queue
                   [:create-bubble bubble-id new-center-x new-center-y])
 
-           :on-click
-           (build-link/build-link-end-fn bubble-id)
+           ;; :on-click
+           ;; (build-link/build-link-end-fn bubble-id)
 
            })])
 
@@ -455,7 +463,7 @@ Else, drag the current bubble.
   )
 
 (defn draw-links []
-  (let [links-path (doall (map (fn [link] (get-link-path link)) (:links @state/points)))]
+  (let [links-path (doall (map get-link-path (state/get-links)))]
     (when links-path
       [:g
        (for [path links-path]

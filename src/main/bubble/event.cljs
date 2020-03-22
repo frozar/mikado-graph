@@ -13,7 +13,7 @@
 
     :create-bubble
     (let [[bubble-id new-center-x new-center-y] args]
-      (state/create-bubble bubble-id new-center-x new-center-y))
+      (state/create-bubble-and-link bubble-id new-center-x new-center-y))
 
     :delete-bubble
     (let [[bubble-id] args]
@@ -41,6 +41,10 @@
 
     :build-link-exit
     (state/reset-build-link)
+
+    :enable-edition
+    (let [[id] args]
+      (state/enable-edition! id))
     )
   (recur (<! event-queue)))
 
