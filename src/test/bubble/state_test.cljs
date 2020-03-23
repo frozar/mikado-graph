@@ -119,3 +119,21 @@
      (false? (-> (s/get-bubble new-appstate ROOT-BUBBLE-ID) :edition?)))
     (is
      (true? (-> (s/get-bubble new-appstate "fake-bubble") :edition?)))))
+
+(deftest enable-show-button_basic
+  (let [new-appstate (s/enable-show-button appstate-2-bubble ROOT-BUBBLE-ID)]
+    (is
+     (true? (-> (s/get-bubble new-appstate ROOT-BUBBLE-ID) :show-button?)))
+    (is
+     (false? (-> (s/get-bubble new-appstate "fake-bubble") :show-button?)))))
+
+(deftest disable-show-button_basic
+  (let [new-appstate
+        (-> appstate-2-bubble
+            (s/enable-show-button ROOT-BUBBLE-ID)
+            (s/enable-show-button "fake-bubble")
+            (s/disable-show-button ROOT-BUBBLE-ID))]
+    (is
+     (false? (-> (s/get-bubble new-appstate ROOT-BUBBLE-ID) :show-button?)))
+    (is
+     (true? (-> (s/get-bubble new-appstate "fake-bubble") :show-button?)))))

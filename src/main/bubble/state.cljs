@@ -17,6 +17,9 @@
 (defonce appstate
   (reagent/atom (init-appstate)))
 
+;;TODO: Write a macro to generete the bang (!) version
+;;      of relevant function
+
 ;; Read/Write application state
 
 ;; START: bubble part
@@ -238,3 +241,17 @@
 (defn disable-edition! [bubble-id]
   (swap! appstate #(disable-edition % bubble-id)))
 ;; END: Edition
+
+;; START: Show button
+(defn- enable-show-button [appstate bubble-id]
+  (update-bubble appstate bubble-id {:show-button? true}))
+
+(defn enable-show-button! [bubble-id]
+  (swap! appstate #(enable-show-button % bubble-id)))
+
+(defn- disable-show-button [appstate bubble-id]
+  (update-bubble appstate bubble-id {:show-button? false}))
+
+(defn disable-show-button! [bubble-id]
+  (swap! appstate #(disable-show-button % bubble-id)))
+;; END: Show button

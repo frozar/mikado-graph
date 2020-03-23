@@ -20,22 +20,22 @@
   (let [validation-state (-> (state/get-bubble bubble-id) :done? not)]
     (state/update-bubble! bubble-id {:done? validation-state})))
 
-;; (defn draw-pencil-button [edition?-atom visible? bubble-id cx cy rx ry]
-(defn draw-pencil-button [visible? bubble-id cx cy rx ry]
-  (let [semi-length 15
+(defn draw-pencil-button [bubble rx ry]
+  (let [{:keys [id cx cy show-button?]} bubble
+        semi-length 15
         min-bound (- 0 semi-length)
         max-bound semi-length
-        x-offset  (+ cx 25)
-        y-offset  (- cy (+ ry max-bound 10))]
-    [:g.button
-     {:stroke "darkgreen"
+        x-offset (+ cx 25)
+        y-offset (- cy (+ ry max-bound 10))]
+    [:g
+     {:class "button"
+      :stroke "darkgreen"
       :stroke-width 2
       :transform (str "translate(" x-offset "," y-offset ")")
-      :visibility (if visible? "visible" "hidden")
+      :visibility (if show-button? "visible" "hidden")
       :on-click
       (fn []
-        ;; (reset! edition?-atom true)
-        (put! event/event-queue [:enable-edition bubble-id]))
+        (put! event/event-queue [:enable-edition id]))
       }
      ;; Draw a pencil
      ;; The body of the pencil
@@ -53,18 +53,20 @@
     )
   )
 
-(defn draw-link-button [visible? bubble-id cx cy rx ry]
-  (let [x-offset  (+ cx 60)
-        y-offset  (- cy (+ ry 5))
+(defn draw-link-button [bubble rx ry]
+  (let [{:keys [id cx cy show-button?]} bubble
+        x-offset (+ cx 60)
+        y-offset (- cy (+ ry 5))
         ]
-    [:g.button
-     {:stroke "darkblue"
+    [:g
+     {:class "button"
+      :stroke "darkblue"
       :stroke-width 4
       :transform (str "translate(" x-offset "," y-offset ") scale(1) rotate(-90)")
-      :visibility (if visible? "visible" "hidden")
+      :visibility (if show-button? "visible" "hidden")
       :pointer-events "bounding-box"
       :on-click
-      (build-link/build-link-start-fn bubble-id)
+      (build-link/build-link-start-fn id)
       }
      ;; Draw dash line
      (for [i (map #(* 2 %) (range 3))]
@@ -248,10 +250,10 @@ Else, drag the current bubble.
      (build-link/build-link-end-fn bubble-id)
      }))
 
-(defn bubble-text [initial-state? bubble-id]
+(defn bubble-text [bubble]
   (let [dom-node (reagent/atom nil)
-        {:keys [cy]} (state/get-bubble bubble-id)
-        y-pos    (reagent/atom cy)]
+        {:keys [id cy]} bubble
+        y-pos (reagent/atom cy)]
     (reagent/create-class
      {
       :display-name "bubble-text"
@@ -259,23 +261,24 @@ Else, drag the current bubble.
       :component-did-mount
       (fn [this]
         (reset! dom-node (reagent/dom-node this))
-        (update-bubble-size @dom-node bubble-id)
-        (update-y-pos y-pos @dom-node bubble-id))
+        (update-bubble-size @dom-node id)
+        (update-y-pos y-pos @dom-node id))
 
       :component-did-update
       (fn []
-        (update-y-pos y-pos @dom-node bubble-id))
+        (update-y-pos y-pos @dom-node id))
 
       :reagent-render
-      (fn [initial-state bubble-id]
+      (fn [bubble]
         (let [font-size 20
+              {:keys [id initial-state? cx cy]} bubble
               text-style (if initial-state?
                            {:font-style "italic" :fill "#555"}
                            {:font-style "normal" :fill "#000"})
-              {:keys [id cx cy]} (state/get-bubble bubble-id)
+              for-counter (atom 0)
               ]
           [:text.label
-           (merge (get-bubble-event-handling bubble-id cx cy)
+           (merge (get-bubble-event-handling id cx cy)
                   {:style
                    (merge text-style
                           {
@@ -285,19 +288,17 @@ Else, drag the current bubble.
                    :y @y-pos
                    :font-size font-size
                    :on-double-click
-                   #(put! event/event-queue [:enable-edition bubble-id])
+                   #(put! event/event-queue [:enable-edition id])
                    })
-           (let [counter (atom 0)
-                 bubble (state/get-bubble bubble-id)
-                 cx (:cx bubble)]
-             (for [tspan-text (->> bubble :text string/split-lines)]
-               (let [id-number @counter
-                     tspan-id (str bubble-id @counter)]
-                 (swap! counter inc)
-                 ^{:key tspan-id} [:tspan {:x cx
-                                           :dy (if (= id-number 0) 0 "1.2em")
-                                           }
-                                   tspan-text])))]))})))
+           (for [tspan-text (->> bubble :text string/split-lines)]
+             (let [id-number @for-counter
+                   tspan-id (str id @for-counter)]
+               (swap! for-counter inc)
+               ^{:key tspan-id}
+               [:tspan {:x cx
+                        :dy (if (= id-number 0) 0 "1.2em")
+                        }
+                tspan-text]))]))})))
 
 (def ellipse-defaults
   {:stroke "black"
@@ -346,59 +347,64 @@ Else, drag the current bubble.
 
       nil)))
 
-(defn draw-delete-button [visible? bubble-id cx cy rx ry]
-  (let [semi-length 15
+(defn draw-delete-button [bubble rx ry]
+  (let [{:keys [id cx cy show-button?]} bubble
+        semi-length 15
         min-bound (- 0 semi-length)
         max-bound semi-length
         x-offset  (- cx 25)
         y-offset  (- cy (+ ry max-bound 5))]
-    [:g.button
-     {:stroke "darkred"
+    [:g
+     {:class "button"
+      :stroke "darkred"
       :stroke-width 5
       :transform (str "translate(" x-offset "," y-offset ")")
-      :visibility (if visible? "visible" "hidden")
+      :visibility (if show-button? "visible" "hidden")
       :on-click
-      #(put! event/event-queue [:delete-bubble bubble-id])
+      #(put! event/event-queue [:delete-bubble id])
       }
      [:line {:x1 min-bound :y1 min-bound :x2 max-bound :y2 max-bound}]
      [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound}]])
   )
 
-(defn draw-validation-button [visible? bubble-id cx cy rx ry]
-  (let [length 30
-        x-offset  cx
-        y-offset  (+ cy ry length 10)
+(defn draw-validation-button [bubble rx ry]
+  (let [{:keys [id cx cy show-button?]} bubble
+        length 30
+        x-offset cx
+        y-offset (+ cy ry length 10)
         ]
-    [:path.button
+    [:path
      {
+      :class "button"
       :stroke "darkgreen"
       :stroke-width 6
       :transform (str "translate(" x-offset "," y-offset ")")
-      :visibility (if visible? "visible" "hidden")
+      :visibility (if show-button? "visible" "hidden")
       :pointer-events "bounding-box"
       :fill "none"
       :d (str "M " (- 0 (/ length 2)) "," (- 0 (/ length 2)) " L 0,0 L " length "," (- 0 length))
-      :on-click #(toggle-bubble-validation bubble-id)
+      ;;TODO: send an event/queue message
+      :on-click #(toggle-bubble-validation id)
       }
      ])
   )
 
-(defn add-button [bubble show-button?]
-  (let [{:keys [id type cx cy rx ry text initial-state]} bubble
-        initial-state? initial-state]
+(defn add-button [bubble]
+  (let [{:keys [type rx ry]} bubble
+        ]
     (case type
       const/ROOT-BUBBLE-TYPE
       [:<>
-       [draw-validation-button show-button? id cx cy (+ 10 rx) (+ 10 ry)]
-       [draw-pencil-button show-button? id cx cy (+ 10 rx) (+ 10 ry)]
-       [draw-link-button show-button? id cx cy (+ 10 rx) (+ 10 ry)]]
+       [draw-validation-button bubble (+ 10 rx) (+ 10 ry)]
+       [draw-pencil-button bubble (+ 10 rx) (+ 10 ry)]
+       [draw-link-button bubble (+ 10 rx) (+ 10 ry)]]
 
       const/BUBBLE-TYPE
       [:<>
-       [draw-validation-button show-button? id cx cy rx ry]
-       [draw-delete-button show-button? id cx cy rx ry]
-       [draw-pencil-button show-button? id cx cy rx ry]
-       [draw-link-button show-button? id cx cy rx ry]]
+       [draw-validation-button bubble rx ry]
+       [draw-delete-button bubble rx ry]
+       [draw-pencil-button bubble rx ry]
+       [draw-link-button bubble rx ry]]
 
       nil)))
 
@@ -414,21 +420,23 @@ Else, drag the current bubble.
           :on-mouse-over
           (fn []
             (if (state/get-link-src)
-              (reset! show-button? false)
-              (reset! show-button? true)))
-          :on-mouse-leave #(reset! show-button? false)
+              (put! event/event-queue [:disable-show-button id])
+              (put! event/event-queue [:enable-show-button id])
+              ))
+          :on-mouse-leave
+          (fn []
+            (put! event/event-queue [:disable-show-button id])
+            )
           :pointer-events "bounding-box"
           }
 
          [draw-bubble-shape bubble]
 
-         (when (not edition?)
-           [add-button bubble @show-button?]
-           )
-
          (if edition?
            [bubble-input bubble]
-           [bubble-text initial-state? id]
+           [:<>
+            [bubble-text bubble]
+            [add-button bubble]]
            )
          ]))))
 
