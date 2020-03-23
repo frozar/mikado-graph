@@ -102,17 +102,20 @@
 (defn get-nb-lines [s]
   (->> s (filter #(= % \newline)) count inc))
 
-(defn custom-textarea [bubble on-save
+(defn custom-textarea [bubble
                        width-atom height-atom top-left-x-atom top-left-y-atom]
   (let [{:keys [id cx cy text type initial-state?]} bubble
         current-text (reagent/atom text)
         dom-node (reagent/atom nil)
         stop #(put! event/event-queue [:disable-edition id])
-        save (fn []
-               (let [v (-> @current-text str clojure.string/trim)]
-                 (if-not (empty? v)
-                   (on-save v))
-                 (stop)))]
+        save
+        (fn []
+          (let [input-text (-> @current-text str clojure.string/trim)]
+            (if-not (empty? input-text)
+              ;; (on-save text)
+              (put! event/event-queue [:save-text id input-text])
+              )
+            (stop)))]
     (reagent/create-class
      {
       :display-name "custom-textarea"
@@ -136,7 +139,7 @@
                          width-atom height-atom top-left-x-atom top-left-y-atom))
 
       :reagent-render
-      (fn [bubble on-save
+      (fn [bubble
            width-atom height-atom top-left-x-atom top-left-y-atom]
         (let [nb-lines (get-nb-lines @current-text)
               default-text (if (= type const/ROOT-BUBBLE-TYPE) const/ROOT-BUBBLE-DEFAULT-TEXT const/BUBBLE-DEFAULT-TEXT)
@@ -177,21 +180,21 @@
                               nil))
              }]))})))
 
-(defn bubble-input [bubble on-save]
+(defn bubble-input [bubble]
   (let [{:keys [cx cy rx ry]} bubble
         width (reagent/atom (* 2 rx))
         height (reagent/atom (* 2 ry))
         top-left-x (reagent/atom cx)
         top-left-y (reagent/atom cy)
         ]
-    (fn [bubble on-save on-stop]
+    (fn [bubble]
       [:foreignObject
        {:width @width
         :height @height
         :x @top-left-x
         :y @top-left-y
         }
-       [custom-textarea bubble on-save
+       [custom-textarea bubble
         width height top-left-x top-left-y]
        ])))
 
@@ -407,18 +410,13 @@ Else, drag the current bubble.
         ]
     (fn [bubble]
       (let [{:keys [id type center rx ry initial-state? edition?]} bubble
-            on-save
-            (fn [bubble-text]
-              ;;TODO: send anevent-queue message instead of calling
-              ;; state function directly
-              (state/save-text-bubble! id bubble-text const/BUBBLE-DEFAULT-TEXT))
             ]
         ;; Throw an exception if one try to draw a nil-bubble
         (if (= type const/NIL-BUBBLE-TYPE)
           (throw (js/Error. "Try to draw nil-bubble!"))
           )
 
-        ^{:key (str id "-g")}
+        ^{:key (str id "-group")}
         [:g
          {
           :on-mouse-over
@@ -436,7 +434,7 @@ Else, drag the current bubble.
            )
 
          (if edition?
-           [bubble-input bubble on-save]
+           [bubble-input bubble]
            [bubble-text initial-state? id]
            )
          ]))))

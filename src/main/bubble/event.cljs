@@ -50,6 +50,10 @@
     (let [[id] args]
       (state/disable-edition! id))
 
+    :save-text
+    (let [[id text] args]
+      (state/save-text-bubble! id text))
+
     )
   (recur (<! event-queue)))
 

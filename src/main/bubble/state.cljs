@@ -157,7 +157,7 @@
 (defn- save-text-bubble [appstate bubble-id text]
   (update-bubble appstate bubble-id {:text text :initial-state? false}))
 
-(defn save-text-bubble! [bubble-id text default-text]
+(defn save-text-bubble! [bubble-id text]
   (swap! appstate #(save-text-bubble % bubble-id text)))
 
 (defn gen-id
