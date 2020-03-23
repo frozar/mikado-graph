@@ -241,35 +241,58 @@
   )
 
 ;; START: Building link
-(defn set-link-src [id]
-  (swap! appstate update :link-src (fn [] id)))
+;;TODO: UT
+(defn- set-link-src [appstate id]
+  (update appstate :link-src (fn [] id)))
+
+(defn set-link-src! [id]
+  (swap! appstate #(set-link-src % id)))
 
 (defn get-link-src []
   (:link-src @appstate))
 
-(defn reset-link-src []
-  (swap! appstate update :link-src (fn [] nil)))
+;;TODO: UT
+(defn- reset-link-src [appstate]
+  (update appstate :link-src (fn [] nil)))
 
-(defn set-mouse-position [mouse-x mouse-y]
-  (swap! appstate update :mouse-position (fn [] [mouse-x mouse-y])))
+(defn reset-link-src! []
+  (swap! appstate #(reset-link-src %)))
+
+;;TODO: UT
+(defn set-mouse-position [appstate mouse-x mouse-y]
+  (update appstate :mouse-position (fn [] [mouse-x mouse-y])))
+
+(defn set-mouse-position! [mouse-x mouse-y]
+  (swap! appstate #(set-mouse-position % mouse-x mouse-y)))
 
 (defn get-mouse-position []
   (:mouse-position @appstate))
 
-(defn reset-mouse-position []
-  (swap! appstate update :mouse-position (fn [] nil)))
+;;TODO: UT
+(defn- reset-mouse-position [appstate]
+  (update appstate :mouse-position (fn [] nil)))
 
-(defn reset-build-link []
-  (do
-    (reset-link-src)
-    (reset-mouse-position))
-  )
+(defn reset-mouse-position! []
+  (swap! appstate #(reset-mouse-position %)))
 
-;;TODO: avoid to use add-link! directly
-(defn building-link-end [id-dst]
+;;TODO: UT
+(defn- reset-build-link [appstate]
+  (-> appstate
+      (reset-link-src)
+      (reset-mouse-position)))
+
+(defn reset-build-link! []
+  (swap! appstate #(reset-build-link %)))
+
+;;TODO: UT
+(defn- building-link-end [appstate id-dst]
   (let [id-src (get-link-src)]
-    (add-link! id-src id-dst)
-    ))
+    (if id-src
+      (add-link appstate id-src id-dst)
+      appstate)))
+
+(defn building-link-end! [id-dst]
+  (swap! appstate #(building-link-end % id-dst)))
 ;; END: Building link
 
 ;; START: Edition
@@ -302,7 +325,7 @@
 
 ;; START: Toggle done
 (defn- toggle-done-status [appstate bubble-id]
-  (let [bubble (get-bubble bubble-id)
+  (let [bubble (get-bubble appstate bubble-id)
         new-status (-> (:done? bubble) not)]
     (update-bubble appstate bubble-id {:done? new-status})))
 

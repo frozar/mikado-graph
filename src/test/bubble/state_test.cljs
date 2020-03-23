@@ -137,6 +137,22 @@
     (is
      (true? (-> (s/get-bubble new-appstate "bubble-1") :show-button?)))))
 
+(deftest toggle-done-status_basic
+  (let [new-appstate
+        (-> appstate-2-bubble
+            (s/toggle-done-status ROOT-BUBBLE-ID))]
+    (is
+     (true? (-> (s/get-bubble new-appstate ROOT-BUBBLE-ID) :done?)))
+    )
+  (let [new-appstate
+        (-> appstate-2-bubble
+            (s/toggle-done-status ROOT-BUBBLE-ID)
+            (s/toggle-done-status ROOT-BUBBLE-ID))]
+    (is
+     (false? (-> (s/get-bubble new-appstate ROOT-BUBBLE-ID) :done?)))
+    )
+  )
+
 (deftest create-bubble-and-link_basic
   (let [new-appstate
         (-> (s/init-appstate)

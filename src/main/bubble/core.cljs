@@ -455,6 +455,7 @@ Else, drag the current bubble.
     )
   )
 
+;;TODO: draw arrow as link, not straight line
 (defn draw-links []
   (let [links-path (doall (map get-link-path (state/get-links)))]
     (when links-path

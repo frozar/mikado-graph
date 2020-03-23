@@ -16,11 +16,7 @@
 (defn build-link-move [evt]
   (let [[mouse-x mouse-y] (get-mouse-position evt)
         ]
-    (put! event/event-queue
-          [:build-link-move
-           mouse-x mouse-y
-           ])
-    ))
+    (put! event/event-queue [:build-link-move mouse-x mouse-y])))
 
 (defn build-link-start
   ([bubble-id mouse-x mouse-y]
@@ -28,8 +24,7 @@
   ([bubble-id mouse-x mouse-y on-start]
    (do
      (on-start)
-     (put! event/event-queue [:build-link-start bubble-id])
-     (state/set-mouse-position mouse-x mouse-y)
+     (put! event/event-queue [:build-link-start bubble-id mouse-x mouse-y])
      (events/listen js/window EventType.MOUSEMOVE build-link-move)
      )))
 

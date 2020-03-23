@@ -25,22 +25,23 @@
       )
 
     :build-link-start
-    (let [[id] args]
-      (state/set-link-src id)
+    (let [[id mouse-x mouse-y] args]
+      (state/set-link-src! id)
+      (state/set-mouse-position! mouse-x mouse-y)
       )
 
     :build-link-move
     (let [[mouse-x mouse-y] args]
-      (state/set-mouse-position mouse-x mouse-y))
+      (state/set-mouse-position! mouse-x mouse-y))
 
     :build-link-end
     (let [[id] args]
-      (state/building-link-end id)
-      (state/reset-build-link)
+      (state/building-link-end! id)
+      (state/reset-build-link!)
       )
 
     :build-link-exit
-    (state/reset-build-link)
+    (state/reset-build-link!)
 
     :enable-edition
     (let [[id] args]
