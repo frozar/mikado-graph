@@ -383,7 +383,6 @@ Else, drag the current bubble.
      ])
   )
 
-;; (defn add-button [bubble edition?-atom show-button?]
 (defn add-button [bubble show-button?]
   (let [{:keys [id type cx cy rx ry text initial-state]} bubble
         initial-state? initial-state]
@@ -391,7 +390,6 @@ Else, drag the current bubble.
       const/ROOT-BUBBLE-TYPE
       [:<>
        [draw-validation-button show-button? id cx cy (+ 10 rx) (+ 10 ry)]
-       ;; [draw-pencil-button edition?-atom show-button? id cx cy (+ 10 rx) (+ 10 ry)]
        [draw-pencil-button show-button? id cx cy (+ 10 rx) (+ 10 ry)]
        [draw-link-button show-button? id cx cy (+ 10 rx) (+ 10 ry)]]
 
@@ -399,7 +397,6 @@ Else, drag the current bubble.
       [:<>
        [draw-validation-button show-button? id cx cy rx ry]
        [draw-delete-button show-button? id cx cy rx ry]
-       ;; [draw-pencil-button edition?-atom show-button? id cx cy rx ry]
        [draw-pencil-button show-button? id cx cy rx ry]
        [draw-link-button show-button? id cx cy rx ry]]
 
@@ -409,20 +406,16 @@ Else, drag the current bubble.
   (let [show-button? (reagent/atom false)
         ]
     (fn [bubble]
-      (let [{:keys [id type center rx ry initial-state? edition?]} bubble
-            ]
-        ;; Throw an exception if one try to draw a nil-bubble
-        (if (= type const/NIL-BUBBLE-TYPE)
-          (throw (js/Error. "Try to draw nil-bubble!"))
-          )
+      (let [{:keys [id initial-state? edition?]} bubble]
 
         ^{:key (str id "-group")}
         [:g
          {
           :on-mouse-over
-          (fn [] (if (state/get-link-src)
-                   (reset! show-button? false)
-                   (reset! show-button? true)))
+          (fn []
+            (if (state/get-link-src)
+              (reset! show-button? false)
+              (reset! show-button? true)))
           :on-mouse-leave #(reset! show-button? false)
           :pointer-events "bounding-box"
           }
