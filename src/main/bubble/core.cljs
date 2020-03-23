@@ -7,18 +7,12 @@
             [bubble.drag :as drag]
             [bubble.coordinate :as coord]
             [bubble.build-link :as build-link]
-            [cljs.core.async :refer [chan put! <! go-loop]]
+            [cljs.core.async :refer [put!]]
             )
   )
 
 (defn get-root-bubble []
   (state/get-bubble const/ROOT-BUBBLE-ID))
-
-;;TODO: Instead of calling a state function directly,
-;;      send a message to the event-queue
-(defn toggle-bubble-validation [bubble-id]
-  (let [validation-state (-> (state/get-bubble bubble-id) :done? not)]
-    (state/update-bubble! bubble-id {:done? validation-state})))
 
 (defn draw-pencil-button [bubble rx ry]
   (let [{:keys [id cx cy show-button?]} bubble
@@ -383,8 +377,8 @@ Else, drag the current bubble.
       :pointer-events "bounding-box"
       :fill "none"
       :d (str "M " (- 0 (/ length 2)) "," (- 0 (/ length 2)) " L 0,0 L " length "," (- 0 length))
-      ;;TODO: send an event/queue message
-      :on-click #(toggle-bubble-validation id)
+      :on-click
+      #(put! event/event-queue [:toggle-done-status id])
       }
      ])
   )
@@ -452,7 +446,8 @@ Else, drag the current bubble.
         dst-pt-y (:cy dst-b)
         path-str (str "M " src-pt-x "," src-pt-y " L " dst-pt-x "," dst-pt-y)]
     {:key (str src-id "-" dst-id)
-     :on-context-menu #(state/delete-link src-id dst-id)
+     ;;TODO: send an event-queue message
+     :on-context-menu #(state/delete-link! src-id dst-id)
      :stroke-width 4
      :stroke "black"
      :fill "none"

@@ -30,8 +30,8 @@
    (first (filter #(= (:id %) id) (:bubbles appstate)))))
 
 ;;TODO: add a unit test
-(defn get-all-bubble
-  ([] (get-all-bubble @appstate))
+(defn- get-bubbles
+  ([] (get-bubbles @appstate))
   ([appstate]
    (:bubbles appstate)))
 
@@ -39,7 +39,7 @@
 (defn get-list-id
   ([] (get-list-id @appstate))
   ([appstate]
-   (->> (get-all-bubble appstate)
+   (->> (get-bubbles appstate)
         (sp/transform [sp/ALL] :id)
         )))
 
@@ -58,16 +58,16 @@
    appstate)
   )
 
-;;TODO: Delete this angerous function
-(defn delete-bubble! [bubble-id]
-  (swap! appstate #(delete-bubble % bubble-id)))
-
 (defn- get-bubble-idx-by-id [id]
   (fn [bubbles]
     (keep-indexed
      (fn [idx bubble]
        (if (= (:id bubble) id) idx))
      bubbles)))
+
+(defn- bubble-id-exist [appstate id]
+  (let [idx (get-list-id appstate)]
+    (not= (some #{id} idx) nil)))
 
 (defn update-bubble [appstate bubble-id hashmap]
   (sp/transform
@@ -96,23 +96,58 @@
   (swap! appstate #(update-bubble % bubble-id hashmap)))
 ;; END: bubble part
 
-
 ;; START: link part
-(defn add-link [appstate id-src id-dst]
-  (update appstate :links conj {:src id-src :dst id-dst}))
+(defn add-link
+  ([appstate id-src id-dst]
+   (add-link appstate {:src id-src :dst id-dst}))
+  ([appstate link]
+   (if (and
+        (bubble-id-exist appstate (:src link))
+        (bubble-id-exist appstate (:dst link)))
+     (update appstate
+             :links
+             (fn [links] (-> (conj links link)
+                             set
+                             vec))
+             )
+     appstate)))
 
 (defn add-link! [id-src id-dst]
   (swap! appstate #(add-link % id-src id-dst)))
 
-(defn delete-link-to-bubble [bubble-id]
-  (swap! appstate update :links (fn [l] (filterv
-                                             (fn [link] not (= (some #{bubble-id} (vals link)) nil)) l))))
+(defn add-links
+  ([appstate links]
+   (if (empty? links)
+     appstate
+     (add-links appstate (first links) (rest links))))
+  ([appstate link links]
+   (let [new-appstate
+         (add-link appstate link)]
+     (if (empty? links)
+       new-appstate
+       (recur new-appstate (first links) (rest links)))
+     ))
+  )
 
-(defn delete-link [src-id dst-id]
-  (swap! appstate update :links (fn [links]
-                                      (filterv
-                                       (fn [link] (not= {:src src-id :dst dst-id} link))
-                                       links))))
+(defn higher-delete-link [appstate filter-func]
+  (sp/transform
+   [:links]
+   #(filterv filter-func %)
+   appstate)
+  )
+
+(defn- delete-link-involving-bubble [appstate bubble-id]
+  (higher-delete-link
+   appstate
+   (fn [link] (= (some #{bubble-id} (vals link)) nil))))
+
+(defn- delete-link [appstate src-id dst-id]
+  (higher-delete-link
+   appstate
+   (fn [link] (not= {:src src-id :dst dst-id} link))))
+
+(defn delete-link! [src-id dst-id]
+  (swap! appstate #(delete-link % src-id dst-id)))
 
 (defn- get-links
   ([]
@@ -120,26 +155,35 @@
   ([appstate]
    (:links appstate)))
 
-(defn delete-link-to-id-and-update-children-of-id! [bubble-id]
-  (let [ids-dst (->> (get-links)
+(defn- link-exist [appstate src-id dst-id]
+  (let [links (get-links appstate)]
+    (not= (some #{{:src src-id :dst dst-id}} links) nil)))
+
+(defn- delete-link-to-id-and-update-children-of-id [appstate bubble-id]
+  (let [ids-dst (->> (get-links appstate)
                      (filterv (fn [link] (= bubble-id (:src link))))
                      (map :dst))
-        ids-src (->> (get-links)
+        ids-src (->> (get-links appstate)
                      (filterv (fn [link] (= bubble-id (:dst link))))
                      (map :src))
         new-links (vec (for [id-src ids-src
                              id-dst ids-dst]
                          {:src id-src :dst id-dst}))
         ]
-    (delete-link-to-bubble bubble-id)
-    (swap! appstate update :links (fn [l] (->> (apply conj l new-links)
-                                             set
-                                             vec)))
+    (-> appstate
+        (delete-link-involving-bubble bubble-id)
+        (add-links new-links)
+        )
     ))
 
+(defn- delete-bubble-and-update-link [appstate bubble-id]
+  (-> appstate
+      (delete-bubble bubble-id)
+      (delete-link-to-id-and-update-children-of-id bubble-id)))
+
 (defn delete-bubble-and-update-link! [bubble-id]
-  (delete-bubble! bubble-id)
-  (delete-link-to-id-and-update-children-of-id! bubble-id))
+  (swap! appstate
+         #(delete-bubble-and-update-link % bubble-id)))
 ;; END: link part
 
 ;;TODO: add a unit test
@@ -255,3 +299,13 @@
 (defn disable-show-button! [bubble-id]
   (swap! appstate #(disable-show-button % bubble-id)))
 ;; END: Show button
+
+;; START: Toggle done
+(defn- toggle-done-status [appstate bubble-id]
+  (let [bubble (get-bubble bubble-id)
+        new-status (-> (:done? bubble) not)]
+    (update-bubble appstate bubble-id {:done? new-status})))
+
+(defn toggle-done-status! [bubble-id]
+  (swap! appstate #(toggle-done-status % bubble-id)))
+;; END: Toggle done

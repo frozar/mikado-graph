@@ -12,8 +12,8 @@
   (case event
 
     :create-bubble
-    (let [[bubble-id new-center-x new-center-y] args]
-      (state/create-bubble-and-link! bubble-id new-center-x new-center-y))
+    (let [[bubble-id new-cx new-cy] args]
+      (state/create-bubble-and-link! bubble-id new-cx new-cy))
 
     :delete-bubble
     (let [[bubble-id] args]
@@ -61,6 +61,10 @@
     :save-text
     (let [[id text] args]
       (state/save-text-bubble! id text))
+
+    :toggle-done-status
+    (let [[id] args]
+      (state/toggle-done-status! id))
 
     )
   (recur (<! event-queue)))
