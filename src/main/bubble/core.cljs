@@ -20,7 +20,8 @@
   (let [validation-state (-> (state/get-bubble bubble-id) :done? not)]
     (state/update-bubble! bubble-id {:done? validation-state})))
 
-(defn draw-pencil-button [edition?-atom visible? bubble-id cx cy rx ry]
+;; (defn draw-pencil-button [edition?-atom visible? bubble-id cx cy rx ry]
+(defn draw-pencil-button [visible? bubble-id cx cy rx ry]
   (let [semi-length 15
         min-bound (- 0 semi-length)
         max-bound semi-length
@@ -33,7 +34,7 @@
       :visibility (if visible? "visible" "hidden")
       :on-click
       (fn []
-        (reset! edition?-atom true)
+        ;; (reset! edition?-atom true)
         (put! event/event-queue [:enable-edition bubble-id]))
       }
      ;; Draw a pencil
@@ -101,12 +102,12 @@
 (defn get-nb-lines [s]
   (->> s (filter #(= % \newline)) count inc))
 
-(defn custom-textarea [bubble on-save on-stop
+(defn custom-textarea [bubble on-save
                        width-atom height-atom top-left-x-atom top-left-y-atom]
   (let [{:keys [id cx cy text type initial-state?]} bubble
         current-text (reagent/atom text)
         dom-node (reagent/atom nil)
-        stop #(if on-stop (on-stop))
+        stop #(put! event/event-queue [:disable-edition id])
         save (fn []
                (let [v (-> @current-text str clojure.string/trim)]
                  (if-not (empty? v)
@@ -135,7 +136,7 @@
                          width-atom height-atom top-left-x-atom top-left-y-atom))
 
       :reagent-render
-      (fn [bubble on-save on-stop
+      (fn [bubble on-save
            width-atom height-atom top-left-x-atom top-left-y-atom]
         (let [nb-lines (get-nb-lines @current-text)
               default-text (if (= type const/ROOT-BUBBLE-TYPE) const/ROOT-BUBBLE-DEFAULT-TEXT const/BUBBLE-DEFAULT-TEXT)
@@ -176,7 +177,7 @@
                               nil))
              }]))})))
 
-(defn bubble-input [bubble on-save on-stop]
+(defn bubble-input [bubble on-save]
   (let [{:keys [cx cy rx ry]} bubble
         width (reagent/atom (* 2 rx))
         height (reagent/atom (* 2 ry))
@@ -190,7 +191,7 @@
         :x @top-left-x
         :y @top-left-y
         }
-       [custom-textarea bubble on-save on-stop
+       [custom-textarea bubble on-save
         width height top-left-x top-left-y]
        ])))
 
@@ -244,7 +245,7 @@ Else, drag the current bubble.
      (build-link/build-link-end-fn bubble-id)
      }))
 
-(defn bubble-text [edition?-atom initial-state? bubble-id]
+(defn bubble-text [initial-state? bubble-id]
   (let [dom-node (reagent/atom nil)
         {:keys [cy]} (state/get-bubble bubble-id)
         y-pos    (reagent/atom cy)]
@@ -263,7 +264,7 @@ Else, drag the current bubble.
         (update-y-pos y-pos @dom-node bubble-id))
 
       :reagent-render
-      (fn [edition?-atom initial-state bubble-id]
+      (fn [initial-state bubble-id]
         (let [font-size 20
               text-style (if initial-state?
                            {:font-style "italic" :fill "#555"}
@@ -280,9 +281,8 @@ Else, drag the current bubble.
                            })
                    :y @y-pos
                    :font-size font-size
-                   :on-double-click #(reset! edition?-atom true)
-                   ;; :on-click
-                   ;; (build-link/build-link-end-fn bubble-id)
+                   :on-double-click
+                   #(put! event/event-queue [:enable-edition bubble-id])
                    })
            (let [counter (atom 0)
                  bubble (state/get-bubble bubble-id)
@@ -380,37 +380,38 @@ Else, drag the current bubble.
      ])
   )
 
-(defn add-button [bubble edition?-atom show-button?]
+;; (defn add-button [bubble edition?-atom show-button?]
+(defn add-button [bubble show-button?]
   (let [{:keys [id type cx cy rx ry text initial-state]} bubble
         initial-state? initial-state]
     (case type
       const/ROOT-BUBBLE-TYPE
       [:<>
        [draw-validation-button show-button? id cx cy (+ 10 rx) (+ 10 ry)]
-       [draw-pencil-button edition?-atom show-button? id cx cy (+ 10 rx) (+ 10 ry)]
+       ;; [draw-pencil-button edition?-atom show-button? id cx cy (+ 10 rx) (+ 10 ry)]
+       [draw-pencil-button show-button? id cx cy (+ 10 rx) (+ 10 ry)]
        [draw-link-button show-button? id cx cy (+ 10 rx) (+ 10 ry)]]
 
       const/BUBBLE-TYPE
       [:<>
        [draw-validation-button show-button? id cx cy rx ry]
        [draw-delete-button show-button? id cx cy rx ry]
-       [draw-pencil-button edition?-atom show-button? id cx cy rx ry]
+       ;; [draw-pencil-button edition?-atom show-button? id cx cy rx ry]
+       [draw-pencil-button show-button? id cx cy rx ry]
        [draw-link-button show-button? id cx cy rx ry]]
 
       nil)))
 
 (defn draw-bubble [bubble]
-  (let [edition? (reagent/atom false)
-        show-button? (reagent/atom false)
+  (let [show-button? (reagent/atom false)
         ]
     (fn [bubble]
-      (let [{:keys [id type center rx ry initial-state?]} bubble
+      (let [{:keys [id type center rx ry initial-state? edition?]} bubble
             on-save
             (fn [bubble-text]
               ;;TODO: send anevent-queue message instead of calling
               ;; state function directly
               (state/save-text-bubble! id bubble-text const/BUBBLE-DEFAULT-TEXT))
-            on-stop #(reset! edition? false)
             ]
         ;; Throw an exception if one try to draw a nil-bubble
         (if (= type const/NIL-BUBBLE-TYPE)
@@ -430,13 +431,13 @@ Else, drag the current bubble.
 
          [draw-bubble-shape bubble]
 
-         (when (not @edition?)
-           [add-button bubble edition? @show-button?]
+         (when (not edition?)
+           [add-button bubble @show-button?]
            )
 
-         (if @edition?
-           [bubble-input bubble on-save on-stop]
-           [bubble-text edition? initial-state? id]
+         (if edition?
+           [bubble-input bubble on-save]
+           [bubble-text initial-state? id]
            )
          ]))))
 

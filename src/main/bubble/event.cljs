@@ -45,6 +45,11 @@
     :enable-edition
     (let [[id] args]
       (state/enable-edition! id))
+
+    :disable-edition
+    (let [[id] args]
+      (state/disable-edition! id))
+
     )
   (recur (<! event-queue)))
 
