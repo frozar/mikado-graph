@@ -19,6 +19,10 @@
     (let [[bubble-id] args]
       (state/delete-bubble-and-update-link! bubble-id))
 
+    :delete-link
+    (let [[src-id dst-id] args]
+      (state/delete-link! src-id dst-id))
+
     :dragging
     (let [[id cx cy] args]
       (state/move-bubble! id cx cy)

@@ -43,10 +43,6 @@
         (sp/transform [sp/ALL] :id)
         )))
 
-;;TODO: add a unit test
-(defn get-bubble-but-root []
-  (filterv #(not= (:id %) const/ROOT-BUBBLE-ID) (:bubbles @appstate)))
-
 (defn- add-bubble [appstate bubble]
   (update appstate :bubbles conj bubble))
 

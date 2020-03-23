@@ -11,9 +11,6 @@
             )
   )
 
-(defn get-root-bubble []
-  (state/get-bubble const/ROOT-BUBBLE-ID))
-
 (defn draw-pencil-button [bubble rx ry]
   (let [{:keys [id cx cy show-button?]} bubble
         semi-length 15
@@ -68,6 +65,67 @@
              end (* 7 (inc i))]
          ^{:key (str i)} [:line {:x1 start :y1 start :x2 end :y2 end}]))
      ]))
+
+(defn draw-delete-button [bubble rx ry]
+  (let [{:keys [id cx cy show-button?]} bubble
+        semi-length 15
+        min-bound (- 0 semi-length)
+        max-bound semi-length
+        x-offset  (- cx 25)
+        y-offset  (- cy (+ ry max-bound 5))]
+    [:g
+     {:class "button"
+      :stroke "darkred"
+      :stroke-width 5
+      :transform (str "translate(" x-offset "," y-offset ")")
+      :visibility (if show-button? "visible" "hidden")
+      :on-click
+      #(put! event/event-queue [:delete-bubble id])
+      }
+     [:line {:x1 min-bound :y1 min-bound :x2 max-bound :y2 max-bound}]
+     [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound}]])
+  )
+
+(defn draw-validation-button [bubble rx ry]
+  (let [{:keys [id cx cy show-button?]} bubble
+        length 30
+        x-offset cx
+        y-offset (+ cy ry length 10)
+        ]
+    [:path
+     {
+      :class "button"
+      :stroke "darkgreen"
+      :stroke-width 6
+      :transform (str "translate(" x-offset "," y-offset ")")
+      :visibility (if show-button? "visible" "hidden")
+      :pointer-events "bounding-box"
+      :fill "none"
+      :d (str "M " (- 0 (/ length 2)) "," (- 0 (/ length 2)) " L 0,0 L " length "," (- 0 length))
+      :on-click
+      #(put! event/event-queue [:toggle-done-status id])
+      }
+     ])
+  )
+
+(defn add-button [bubble]
+  (let [{:keys [type rx ry]} bubble
+        ]
+    (case type
+      const/ROOT-BUBBLE-TYPE
+      [:<>
+       [draw-validation-button bubble (+ 10 rx) (+ 10 ry)]
+       [draw-pencil-button bubble (+ 10 rx) (+ 10 ry)]
+       [draw-link-button bubble (+ 10 rx) (+ 10 ry)]]
+
+      const/BUBBLE-TYPE
+      [:<>
+       [draw-validation-button bubble rx ry]
+       [draw-delete-button bubble rx ry]
+       [draw-pencil-button bubble rx ry]
+       [draw-link-button bubble rx ry]]
+
+      nil)))
 
 (defn center-textarea [dom-node id cx cy
                        width-atom height-atom top-left-x-atom top-left-y-atom]
@@ -214,34 +272,43 @@
     (reset! y-pos-atom (- y-bubble y-offset))
     ))
 
+(defn prevent-context-menu
+  ([] (prevent-context-menu (fn [])))
+  ([func]
+   (fn [evt]
+     (.preventDefault evt)
+     (func))))
+
 (defn get-bubble-event-handling
-  [bubble-id cx cy]
-  (let [prevent-context-menu
-        (fn [func]
-          (fn [evt]
-            (.preventDefault evt)
-            (func)))]
+  [bubble ry]
+  (let [{:keys [id type cx cy]} bubble
+        [new-cx new-cy] [cx (- cy (* 3 ry ))]]
     {
      :on-mouse-down
      (fn [evt]
+       "If the 'ctrl' is press during a click, build a link.
+       Else, drag the current bubble.
        "
-If the 'ctrl' is press during a click, build a link.
-Else, drag the current bubble.
-"
        (if (.-ctrlKey evt)
          (do
-           ((build-link/build-link-start-fn bubble-id) evt)
+           ((build-link/build-link-start-fn id) evt)
            )
          (do
-           ((drag/dragging-fn bubble-id) evt))
+           ((drag/dragging-fn id) evt))
          ))
 
      :on-context-menu
-     (prevent-context-menu
-      #(put! event/event-queue [:delete-bubble bubble-id]))
+     (if (not= type const/ROOT-BUBBLE-TYPE)
+       (prevent-context-menu
+        #(put! event/event-queue [:delete-bubble id])))
 
      :on-click
-     (build-link/build-link-end-fn bubble-id)
+     (build-link/build-link-end-fn id)
+
+     :on-double-click
+     #(put! event/event-queue
+            [:create-bubble id new-cx new-cy])
+
      }))
 
 (defn bubble-text [bubble]
@@ -272,7 +339,8 @@ Else, drag the current bubble.
               for-counter (atom 0)
               ]
           [:text.label
-           (merge (get-bubble-event-handling id cx cy)
+           ;; give a fake ry value to get-bubble-event-handling
+           (merge (get-bubble-event-handling bubble 42)
                   {:style
                    (merge text-style
                           {
@@ -281,6 +349,7 @@ Else, drag the current bubble.
                            })
                    :y @y-pos
                    :font-size font-size
+                   ;; overwrite the on double click event
                    :on-double-click
                    #(put! event/event-queue [:enable-edition id])
                    })
@@ -294,145 +363,58 @@ Else, drag the current bubble.
                         }
                 tspan-text]))]))})))
 
-(def ellipse-defaults
-  {:stroke "black"
-   :stroke-width 5
-   })
-
-(defn draw-ellipse-shape [bubble-id center-x center-y rx ry
-                          new-center-x new-center-y done?
-                          ]
-  [:ellipse
-   (merge ellipse-defaults
-          (get-bubble-event-handling bubble-id center-x center-y)
-          {:cx center-x
-           :cy center-y
-           :rx rx
-           :ry ry
-           :cursor "grab"
-           :fill (if done? "#6f0" "#f06" )
-
-           :on-double-click
-           #(put! event/event-queue
-                  [:create-bubble bubble-id new-center-x new-center-y])
-
-           ;; :on-click
-           ;; (build-link/build-link-end-fn bubble-id)
-
-           })])
-
-;;TODO: the root bubble must not be deletable
-(defn draw-bubble-shape [bubble]
-  (let [{:keys [id type cx cy rx ry done?]} bubble]
-    (case type
-      const/ROOT-BUBBLE-TYPE
-      [:<>
-       [draw-ellipse-shape
-        id cx cy (+ 10 rx) (+ 10 ry)
-        cx (- cy (* 3 ry)) done?]
-       [draw-ellipse-shape
-        id cx cy rx ry
-        cx (- cy (* 3 ry)) done?]]
-
-      const/BUBBLE-TYPE
-      [draw-ellipse-shape
-       id cx cy rx ry
-       cx (- cy (* 3 ry)) done?]
-
-      nil)))
-
-(defn draw-delete-button [bubble rx ry]
-  (let [{:keys [id cx cy show-button?]} bubble
-        semi-length 15
-        min-bound (- 0 semi-length)
-        max-bound semi-length
-        x-offset  (- cx 25)
-        y-offset  (- cy (+ ry max-bound 5))]
-    [:g
-     {:class "button"
-      :stroke "darkred"
-      :stroke-width 5
-      :transform (str "translate(" x-offset "," y-offset ")")
-      :visibility (if show-button? "visible" "hidden")
-      :on-click
-      #(put! event/event-queue [:delete-bubble id])
-      }
-     [:line {:x1 min-bound :y1 min-bound :x2 max-bound :y2 max-bound}]
-     [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound}]])
-  )
-
-(defn draw-validation-button [bubble rx ry]
-  (let [{:keys [id cx cy show-button?]} bubble
-        length 30
-        x-offset cx
-        y-offset (+ cy ry length 10)
-        ]
-    [:path
-     {
-      :class "button"
-      :stroke "darkgreen"
-      :stroke-width 6
-      :transform (str "translate(" x-offset "," y-offset ")")
-      :visibility (if show-button? "visible" "hidden")
-      :pointer-events "bounding-box"
-      :fill "none"
-      :d (str "M " (- 0 (/ length 2)) "," (- 0 (/ length 2)) " L 0,0 L " length "," (- 0 length))
-      :on-click
-      #(put! event/event-queue [:toggle-done-status id])
-      }
-     ])
-  )
-
-(defn add-button [bubble]
-  (let [{:keys [type rx ry]} bubble
-        ]
-    (case type
-      const/ROOT-BUBBLE-TYPE
-      [:<>
-       [draw-validation-button bubble (+ 10 rx) (+ 10 ry)]
-       [draw-pencil-button bubble (+ 10 rx) (+ 10 ry)]
-       [draw-link-button bubble (+ 10 rx) (+ 10 ry)]]
-
-      const/BUBBLE-TYPE
-      [:<>
-       [draw-validation-button bubble rx ry]
-       [draw-delete-button bubble rx ry]
-       [draw-pencil-button bubble rx ry]
-       [draw-link-button bubble rx ry]]
-
-      nil)))
+(defn draw-ellipse [bubble rx ry]
+  (let [{:keys [id cx cy done?]} bubble]
+    [:ellipse
+     (merge (get-bubble-event-handling bubble ry)
+            {:stroke "black"
+             :stroke-width 5
+             :cx cx
+             :cy cy
+             :rx rx
+             :ry ry
+             :cursor "grab"
+             :fill (if done? "#6f0" "#f06")
+             })]))
 
 (defn draw-bubble [bubble]
-  (let [show-button? (reagent/atom false)
-        ]
-    (fn [bubble]
-      (let [{:keys [id initial-state? edition?]} bubble]
+  (fn [bubble]
+    (let [{:keys [id type rx ry initial-state? edition?]} bubble]
 
-        ^{:key (str id "-group")}
-        [:g
-         {
-          :on-mouse-over
-          (fn []
-            (if (state/get-link-src)
-              (put! event/event-queue [:disable-show-button id])
-              (put! event/event-queue [:enable-show-button id])
-              ))
-          :on-mouse-leave
-          (fn []
+      ^{:key (str id "-group")}
+      [:g
+       {
+        :on-mouse-over
+        (fn []
+          (if (state/get-link-src)
             (put! event/event-queue [:disable-show-button id])
-            )
-          :pointer-events "bounding-box"
-          }
+            (put! event/event-queue [:enable-show-button id])
+            ))
+        :on-mouse-leave
+        (fn []
+          (put! event/event-queue [:disable-show-button id])
+          )
+        :pointer-events "bounding-box"
+        }
 
-         [draw-bubble-shape bubble]
+       (case type
+         const/ROOT-BUBBLE-TYPE
+         [:<>
+          [draw-ellipse bubble (+ 10 rx) (+ 10 ry)]
+          [draw-ellipse bubble rx ry]]
 
-         (if edition?
-           [bubble-input bubble]
-           [:<>
-            [bubble-text bubble]
-            [add-button bubble]]
-           )
-         ]))))
+         const/BUBBLE-TYPE
+         [draw-ellipse bubble rx ry]
+
+         nil)
+
+       (if edition?
+         [bubble-input bubble]
+         [:<>
+          [bubble-text bubble]
+          [add-button bubble]]
+         )
+       ])))
 
 (defn get-link-path [link]
   (let [{:keys [src dst]} link
@@ -446,8 +428,8 @@ Else, drag the current bubble.
         dst-pt-y (:cy dst-b)
         path-str (str "M " src-pt-x "," src-pt-y " L " dst-pt-x "," dst-pt-y)]
     {:key (str src-id "-" dst-id)
-     ;;TODO: send an event-queue message
-     :on-context-menu #(state/delete-link! src-id dst-id)
+     :on-context-menu
+     #(put! event/event-queue [:delete-link src-id dst-id])
      :stroke-width 4
      :stroke "black"
      :fill "none"
@@ -491,9 +473,8 @@ Else, drag the current bubble.
 
    ;; Static part
    (draw-links)
-   [draw-bubble (get-root-bubble)]
    (doall
-    (for [bubble (state/get-bubble-but-root)]
+    (for [bubble (state/get-bubbles)]
       ^{:key (:id bubble)} [draw-bubble bubble]
       )
     )
@@ -526,7 +507,9 @@ Else, drag the current bubble.
          :height "100%"
          :width "100%"
          }
-        :on-context-menu (fn [evt] (.preventDefault evt))
+
+        :on-context-menu
+        (prevent-context-menu)
         }
        [all-bubble]
        ])}))
