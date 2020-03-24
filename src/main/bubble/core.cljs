@@ -11,6 +11,8 @@
             )
   )
 
+;;TODO: refactor to dissociate shape of object and event handler
+
 (defn draw-pencil-button [bubble rx ry]
   (let [{:keys [id cx cy show-button?]} bubble
         semi-length 15
@@ -286,16 +288,9 @@
     {
      :on-mouse-down
      (fn [evt]
-       "If the 'ctrl' is press during a click, build a link.
-       Else, drag the current bubble.
-       "
-       (if (.-ctrlKey evt)
-         (do
-           ((build-link/build-link-start-fn id) evt)
-           )
-         (do
-           ((drag/dragging-fn id) evt))
-         ))
+       ;; It must be a simple click
+       (if (not (.-ctrlKey evt))
+         ((drag/dragging-fn id) evt)))
 
      :on-context-menu
      (if (not= type const/ROOT-BUBBLE-TYPE)
@@ -303,11 +298,18 @@
         #(put! event/event-queue [:delete-bubble id])))
 
      :on-click
-     (build-link/build-link-end-fn id)
+     (fn [evt]
+       "If the 'ctrl' is press during a click, build a link.
+       Else, build a link with the current bubble.
+       "
+       (if (.-ctrlKey evt)
+         ((build-link/build-link-start-fn id) evt)
+         (build-link/build-link-end id)
+         )
+       )
 
      :on-double-click
-     #(put! event/event-queue
-            [:create-bubble id new-cx new-cy])
+     #(put! event/event-queue [:create-bubble id new-cx new-cy])
 
      }))
 

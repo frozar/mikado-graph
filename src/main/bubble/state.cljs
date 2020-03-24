@@ -23,19 +23,19 @@
 ;; Read/Write application state
 
 ;; START: bubble part
-;;TODO: add a unit test
+;;TODO: UT
 (defn get-bubble
   ([id] (get-bubble @appstate id))
   ([appstate id]
    (first (filter #(= (:id %) id) (:bubbles appstate)))))
 
-;;TODO: add a unit test
+;;TODO: UT
 (defn- get-bubbles
   ([] (get-bubbles @appstate))
   ([appstate]
    (:bubbles appstate)))
 
-;;TODO: add a unit test
+;;TODO: UT
 (defn get-list-id
   ([] (get-list-id @appstate))
   ([appstate]
@@ -182,21 +182,21 @@
          #(delete-bubble-and-update-link % bubble-id)))
 ;; END: link part
 
-;;TODO: add a unit test
+;;TODO: UT
 (defn- resize-bubble [appstate bubble-id rx ry]
   (update-bubble appstate bubble-id {:rx rx :ry ry}))
 
 (defn resize-bubble! [bubble-id rx ry]
   (swap! appstate #(resize-bubble % bubble-id rx ry)))
 
-;;TODO: add a unit test
+;;TODO: UT
 (defn- move-bubble [appstate bubble-id cx cy]
   (update-bubble appstate bubble-id {:cx cx :cy cy}))
 
 (defn move-bubble! [bubble-id cx cy]
   (swap! appstate #(move-bubble % bubble-id cx cy)))
 
-;;TODO: add a unit test
+;;TODO: UT
 (defn- save-text-bubble [appstate bubble-id text]
   (update-bubble appstate bubble-id {:text text :initial-state? false}))
 

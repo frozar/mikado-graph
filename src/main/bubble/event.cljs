@@ -8,6 +8,9 @@
 
 (def event-queue (chan))
 
+;;TODO: check if the go-loop is responsible for the systematique
+;;      browser error message at the startup of the application:
+;; Access to XMLHttpRequest at 'http://localhost:9630/worker/files/app/7a50aa0a-d74e-4696-b651-808f6d1335fe/f512b8f0-b468-4f42-9cbf-cb2d2e810024' from origin 'http://localhost:8080' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
 (go-loop [[event & args] (<! event-queue)]
   (case event
 
