@@ -18,6 +18,6 @@ RUN set -ex \
     && apt install -y curl \
     && curl -sL https://deb.nodesource.com/setup_10.x | bash - \
     && apt install -y build-essential nodejs \
-    && npm --version
+    && npm i -g shadow-cljs karma-cli
 
 USER circleci
