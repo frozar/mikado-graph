@@ -1,5 +1,7 @@
 # Mikado graph
 
+[![CircleCI](https://circleci.com/gh/frozar/mikado-graph/tree/master.svg?style=shield)](https://circleci.com/gh/frozar/mikado-graph/tree/master)
+
 This project aims to implement an interactive version of the of
 the mikado graph used by the mikado method.
 
