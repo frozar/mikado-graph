@@ -4,6 +4,7 @@
             [reagent.core :as reagent]
             [com.rpl.specter :as sp]
             )
+  (:require-macros [bubble.macro :as macro])
   )
 
 (defn init-appstate []
@@ -16,9 +17,6 @@
 
 (defonce appstate
   (reagent/atom (init-appstate)))
-
-;;TODO: Write a macro to generete the bang (!) version
-;;      of relevant function
 
 ;; Read/Write application state
 
@@ -65,7 +63,7 @@
   (let [idx (get-list-id appstate)]
     (not= (some #{id} idx) nil)))
 
-(defn update-bubble [appstate bubble-id hashmap]
+(defn- update-bubble [appstate bubble-id hashmap]
   (sp/transform
    [:bubbles
     (sp/srange-dynamic
@@ -88,8 +86,7 @@
      )
    appstate))
 
-(defn update-bubble! [bubble-id hashmap]
-  (swap! appstate #(update-bubble % bubble-id hashmap)))
+(macro/BANG update-bubble)
 ;; END: bubble part
 
 ;; START: link part
@@ -108,8 +105,7 @@
              )
      appstate)))
 
-(defn add-link! [id-src id-dst]
-  (swap! appstate #(add-link % id-src id-dst)))
+(macro/BANG add-link)
 
 (defn add-links
   ([appstate links]
@@ -142,8 +138,7 @@
    appstate
    (fn [link] (not= {:src src-id :dst dst-id} link))))
 
-(defn delete-link! [src-id dst-id]
-  (swap! appstate #(delete-link % src-id dst-id)))
+(macro/BANG delete-link)
 
 (defn- get-links
   ([]
@@ -177,31 +172,26 @@
       (delete-bubble bubble-id)
       (delete-link-to-id-and-update-children-of-id bubble-id)))
 
-(defn delete-bubble-and-update-link! [bubble-id]
-  (swap! appstate
-         #(delete-bubble-and-update-link % bubble-id)))
+(macro/BANG delete-bubble-and-update-link)
 ;; END: link part
 
 ;;TODO: UT
 (defn- resize-bubble [appstate bubble-id rx ry]
   (update-bubble appstate bubble-id {:rx rx :ry ry}))
 
-(defn resize-bubble! [bubble-id rx ry]
-  (swap! appstate #(resize-bubble % bubble-id rx ry)))
+(macro/BANG resize-bubble)
 
 ;;TODO: UT
 (defn- move-bubble [appstate bubble-id cx cy]
   (update-bubble appstate bubble-id {:cx cx :cy cy}))
 
-(defn move-bubble! [bubble-id cx cy]
-  (swap! appstate #(move-bubble % bubble-id cx cy)))
+(macro/BANG move-bubble)
 
 ;;TODO: UT
 (defn- save-text-bubble [appstate bubble-id text]
   (update-bubble appstate bubble-id {:text text :initial-state? false}))
 
-(defn save-text-bubble! [bubble-id text]
-  (swap! appstate #(save-text-bubble % bubble-id text)))
+(macro/BANG save-text-bubble)
 
 (defn gen-id
   "
@@ -232,17 +222,15 @@
      ))
   )
 
-(defn create-bubble-and-link! [parent-bubble-id cx cy]
-  (swap! appstate #(create-bubble-and-link % parent-bubble-id cx cy))
-  )
+(macro/BANG create-bubble-and-link)
+
 
 ;; START: Building link
 ;;TODO: UT
 (defn- set-link-src [appstate id]
   (update appstate :link-src (fn [] id)))
 
-(defn set-link-src! [id]
-  (swap! appstate #(set-link-src % id)))
+(macro/BANG set-link-src)
 
 (defn get-link-src []
   (:link-src @appstate))
@@ -251,15 +239,13 @@
 (defn- reset-link-src [appstate]
   (update appstate :link-src (fn [] nil)))
 
-(defn reset-link-src! []
-  (swap! appstate #(reset-link-src %)))
+(macro/BANG reset-link-src)
 
 ;;TODO: UT
 (defn set-mouse-position [appstate mouse-x mouse-y]
   (update appstate :mouse-position (fn [] [mouse-x mouse-y])))
 
-(defn set-mouse-position! [mouse-x mouse-y]
-  (swap! appstate #(set-mouse-position % mouse-x mouse-y)))
+(macro/BANG set-mouse-position)
 
 (defn get-mouse-position []
   (:mouse-position @appstate))
@@ -268,8 +254,7 @@
 (defn- reset-mouse-position [appstate]
   (update appstate :mouse-position (fn [] nil)))
 
-(defn reset-mouse-position! []
-  (swap! appstate #(reset-mouse-position %)))
+(macro/BANG reset-mouse-position)
 
 ;;TODO: UT
 (defn- reset-build-link [appstate]
@@ -277,8 +262,7 @@
       (reset-link-src)
       (reset-mouse-position)))
 
-(defn reset-build-link! []
-  (swap! appstate #(reset-build-link %)))
+(macro/BANG reset-build-link)
 
 ;;TODO: UT
 (defn- building-link-end [appstate id-dst]
@@ -287,37 +271,33 @@
       (add-link appstate id-src id-dst)
       appstate)))
 
-(defn building-link-end! [id-dst]
-  (swap! appstate #(building-link-end % id-dst)))
+(macro/BANG building-link-end)
 ;; END: Building link
+
 
 ;; START: Edition
 (defn- enable-edition [appstate bubble-id]
   (update-bubble appstate bubble-id {:edition? true}))
 
-(defn enable-edition! [bubble-id]
-  (swap! appstate #(enable-edition % bubble-id)))
-
 (defn- disable-edition [appstate bubble-id]
   (update-bubble appstate bubble-id {:edition? false}))
 
-(defn disable-edition! [bubble-id]
-  (swap! appstate #(disable-edition % bubble-id)))
+(macro/BANG enable-edition)
+(macro/BANG disable-edition)
 ;; END: Edition
+
 
 ;; START: Show button
 (defn- enable-show-button [appstate bubble-id]
   (update-bubble appstate bubble-id {:show-button? true}))
 
-(defn enable-show-button! [bubble-id]
-  (swap! appstate #(enable-show-button % bubble-id)))
-
 (defn- disable-show-button [appstate bubble-id]
   (update-bubble appstate bubble-id {:show-button? false}))
 
-(defn disable-show-button! [bubble-id]
-  (swap! appstate #(disable-show-button % bubble-id)))
+(macro/BANG enable-show-button)
+(macro/BANG disable-show-button)
 ;; END: Show button
+
 
 ;; START: Toggle done
 (defn- toggle-done-status [appstate bubble-id]
@@ -325,6 +305,5 @@
         new-status (-> (:done? bubble) not)]
     (update-bubble appstate bubble-id {:done? new-status})))
 
-(defn toggle-done-status! [bubble-id]
-  (swap! appstate #(toggle-done-status % bubble-id)))
+(macro/BANG toggle-done-status)
 ;; END: Toggle done
