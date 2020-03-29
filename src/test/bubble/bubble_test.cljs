@@ -1,6 +1,6 @@
 (ns bubble.bubble-test
   (:require [bubble.bubble :as b]
-            [bubble.constant :refer (ROOT-BUBBLE-ID BUBBLE-TYPE)]
+            [bubble.constant :refer (BUBBLE-TYPE)]
             [cljs.test :refer (deftest testing is)]
             ))
 

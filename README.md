@@ -34,3 +34,11 @@ M-x "cider-jack-in-clj&cljs"
 
 Once the server is launched, the application is available at
 `http://localhost:8080/`.
+
+## Test
+
+Thes tests are launched through Karma. To compile and launch them:
+```shell
+npm i -g karma-cli
+shadow-cljs watch ci && karma start
+```

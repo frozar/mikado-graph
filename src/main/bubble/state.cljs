@@ -1,13 +1,12 @@
 (ns bubble.state
   (:require [bubble.bubble :as bubble]
-            [bubble.constant :as const]
             [reagent.core :as reagent]
             [com.rpl.specter :as sp]
             )
   (:require-macros [bubble.macro :as macro])
   )
 
-(defn init-appstate []
+(defn- init-appstate []
   {
    :bubbles [bubble/root-bubble]
    :links []
@@ -28,7 +27,7 @@
    (first (filter #(= (:id %) id) (:bubbles appstate)))))
 
 ;;TODO: UT
-(defn- get-bubbles
+(defn get-bubbles
   ([] (get-bubbles @appstate))
   ([appstate]
    (:bubbles appstate)))
@@ -56,10 +55,11 @@
   (fn [bubbles]
     (keep-indexed
      (fn [idx bubble]
-       (if (= (:id bubble) id) idx))
+       (when (= (:id bubble) id) idx))
      bubbles)))
 
-(defn- bubble-id-exist [appstate id]
+;; For test purpose
+(defn bubble-id-exist [appstate id]
   (let [idx (get-list-id appstate)]
     (not= (some #{id} idx) nil)))
 
@@ -140,13 +140,14 @@
 
 (macro/BANG delete-link)
 
-(defn- get-links
+(defn get-links
   ([]
    (get-links @appstate))
   ([appstate]
    (:links appstate)))
 
-(defn- link-exist [appstate src-id dst-id]
+;; For test purpose
+(defn link-exist [appstate src-id dst-id]
   (let [links (get-links appstate)]
     (not= (some #{{:src src-id :dst dst-id}} links) nil)))
 

@@ -22,11 +22,9 @@
   ([bubble-id mouse-x mouse-y]
    (build-link-start bubble-id mouse-x mouse-y (fn [])))
   ([bubble-id mouse-x mouse-y on-start]
-   (do
-     (on-start)
-     (put! event/event-queue [:build-link-start bubble-id mouse-x mouse-y])
-     (events/listen js/window EventType.MOUSEMOVE build-link-move)
-     )))
+   (on-start)
+   (put! event/event-queue [:build-link-start bubble-id mouse-x mouse-y])
+   (events/listen js/window EventType.MOUSEMOVE build-link-move)))
 
 (defn build-link-start-fn [bubble-id]
   (fn [evt]
@@ -44,5 +42,5 @@
        (on-end)))))
 
 (defn build-link-end-fn [bubble-id]
-  (fn [evt]
+  (fn []
     (build-link-end bubble-id)))
