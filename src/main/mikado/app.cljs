@@ -1,6 +1,6 @@
 (ns mikado.app
   (:require [reagent.core :as reagent]
-            [reagent.session :as session]
+            ;; [reagent.session :as session]
             ;; [reitit.frontend :as reitit]
             ;; [clerk.core :as clerk]
             ;; [accountant.core :as accountant]

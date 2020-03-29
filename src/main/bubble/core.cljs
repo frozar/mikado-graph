@@ -13,7 +13,7 @@
 
 ;;TODO: refactor to dissociate shape of object and event handler
 
-(defn draw-pencil-button [bubble rx ry]
+(defn draw-pencil-button [bubble ry]
   (let [{:keys [id cx cy show-button?]} bubble
         semi-length 15
         min-bound (- 0 semi-length)
@@ -46,7 +46,7 @@
     )
   )
 
-(defn draw-link-button [bubble rx ry]
+(defn draw-link-button [bubble ry]
   (let [{:keys [id cx cy show-button?]} bubble
         x-offset (+ cx 60)
         y-offset (- cy (+ ry 5))
@@ -68,7 +68,7 @@
          ^{:key (str i)} [:line {:x1 start :y1 start :x2 end :y2 end}]))
      ]))
 
-(defn draw-delete-button [bubble rx ry]
+(defn draw-delete-button [bubble ry]
   (let [{:keys [id cx cy show-button?]} bubble
         semi-length 15
         min-bound (- 0 semi-length)
@@ -88,7 +88,7 @@
      [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound}]])
   )
 
-(defn draw-validation-button [bubble rx ry]
+(defn draw-validation-button [bubble ry]
   (let [{:keys [id cx cy show-button?]} bubble
         length 30
         x-offset cx
@@ -116,26 +116,25 @@
     (case type
       const/ROOT-BUBBLE-TYPE
       [:<>
-       [draw-validation-button bubble (+ 10 rx) (+ 10 ry)]
-       [draw-pencil-button bubble (+ 10 rx) (+ 10 ry)]
-       [draw-link-button bubble (+ 10 rx) (+ 10 ry)]]
+       [draw-validation-button bubble (+ 10 ry)]
+       [draw-pencil-button bubble (+ 10 ry)]
+       [draw-link-button bubble (+ 10 ry)]]
 
       const/BUBBLE-TYPE
       [:<>
        [draw-validation-button bubble rx ry]
-       [draw-delete-button bubble rx ry]
-       [draw-pencil-button bubble rx ry]
-       [draw-link-button bubble rx ry]]
+       [draw-delete-button bubble ry]
+       [draw-pencil-button bubble ry]
+       [draw-link-button bubble ry]]
 
       nil)))
 
-(defn center-textarea [dom-node id cx cy
-                       width-atom height-atom top-left-x-atom top-left-y-atom]
+(defn center-textarea
   "Center the textarea field against the surrounding bubble"
+  [dom-node id cx cy
+   width-atom height-atom top-left-x-atom top-left-y-atom]
   (let [width (.-width (.getBoundingClientRect dom-node))
         height (.-height (.getBoundingClientRect dom-node))
-        x-offset (/ width 2)
-        y-offset (/ height 2)
         add-50 (fn [v] (+ 50 v))
         ]
     (reset! width-atom width)
@@ -145,8 +144,9 @@
     (state/resize-bubble! id (add-50 (/ width 2)) (add-50 (/ height 2)))
     ))
 
-(defn cursor-to-end-textarea [dom-node current-text initial-state?]
+(defn cursor-to-end-textarea
   "Select the text in the textarea."
+  [dom-node current-text initial-state?]
   (let [text-length (count current-text)]
     (if initial-state?
       (do
@@ -195,8 +195,7 @@
                          width-atom height-atom top-left-x-atom top-left-y-atom))
 
       :reagent-render
-      (fn [bubble
-           width-atom height-atom top-left-x-atom top-left-y-atom]
+      (fn []
         (let [nb-lines (get-nb-lines @current-text)
               default-text (if (= type const/ROOT-BUBBLE-TYPE) const/ROOT-BUBBLE-DEFAULT-TEXT const/BUBBLE-DEFAULT-TEXT)
               default-text-length (count default-text)
@@ -227,10 +226,8 @@
                             ;; 13: enter-keycode
                             ;; 27: escape-keycode
                             (case (.-which evt)
-                              13 (do
-                                   (when (.-ctrlKey evt)
-                                     (save)
-                                     )
+                              13 (when (.-ctrlKey evt)
+                                   (save)
                                    )
                               27 (stop)
                               nil))
@@ -289,19 +286,20 @@
      :on-mouse-down
      (fn [evt]
        ;; It must be a simple click
-       (if (not (.-ctrlKey evt))
+       (when (not (.-ctrlKey evt))
          ((drag/dragging-fn id) evt)))
 
      :on-context-menu
-     (if (not= type const/ROOT-BUBBLE-TYPE)
+     (when (not= type const/ROOT-BUBBLE-TYPE)
        (prevent-context-menu
         #(put! event/event-queue [:delete-bubble id])))
 
      :on-click
-     (fn [evt]
-       "If the 'ctrl' is press during a click, build a link.
-       Else, build a link with the current bubble.
-       "
+     (fn
+       ;; "If the 'ctrl' is press during a click, build a link.
+       ;; Else, build a link with the current bubble.
+       ;; "
+       [evt]
        (if (.-ctrlKey evt)
          ((build-link/build-link-start-fn id) evt)
          (build-link/build-link-end id)
@@ -334,7 +332,7 @@
       :reagent-render
       (fn [bubble]
         (let [font-size 20
-              {:keys [id initial-state? cx cy]} bubble
+              {:keys [id initial-state? cx]} bubble
               text-style (if initial-state?
                            {:font-style "italic" :fill "#555"}
                            {:font-style "normal" :fill "#000"})
@@ -366,7 +364,7 @@
                 tspan-text]))]))})))
 
 (defn draw-ellipse [bubble rx ry]
-  (let [{:keys [id cx cy done?]} bubble]
+  (let [{:keys [cx cy done?]} bubble]
     [:ellipse
      (merge (get-bubble-event-handling bubble ry)
             {:stroke "black"
@@ -379,9 +377,9 @@
              :fill (if done? "#6f0" "#f06")
              })]))
 
-(defn draw-bubble [bubble]
+(defn draw-bubble []
   (fn [bubble]
-    (let [{:keys [id type rx ry initial-state? edition?]} bubble]
+    (let [{:keys [id type rx ry edition?]} bubble]
 
       ^{:key (str id "-group")}
       [:g
@@ -458,7 +456,7 @@
 (defn draw-building-link []
   (let [bubble-src-id (state/get-link-src)
         bubble-src (state/get-bubble bubble-src-id)
-        {:keys [center cx cy]} bubble-src
+        {:keys [cx cy]} bubble-src
         [mouse-x mouse-y] (state/get-mouse-position)
         ]
     [:line {:stroke "black"

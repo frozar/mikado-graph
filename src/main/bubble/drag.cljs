@@ -19,11 +19,10 @@
       (let [[mouse-x mouse-y] (coord/get-svg-coord
                                (.-clientX evt) (.-clientY evt))
             ]
-        (if (and (nil? @init-mouse-x)
+        (when (and (nil? @init-mouse-x)
                  (nil? @init-mouse-y))
-          (do
-            (reset! init-mouse-x mouse-x)
-            (reset! init-mouse-y mouse-y))
+          (reset! init-mouse-x mouse-x)
+          (reset! init-mouse-y mouse-y)
           )
         (put! event/event-queue
               [:dragging
@@ -33,7 +32,7 @@
         ))))
 
 (defn drag-end-fn [drag-move drag-end-atom on-end]
-  (fn [evt]
+  (fn []
     (events/unlisten js/window EventType.MOUSEMOVE drag-move)
     (events/unlisten js/window EventType.MOUSEUP @drag-end-atom)
     (on-end)))
@@ -55,5 +54,5 @@
         (fn [evt]
           (= 0 (.-button evt)))]
     (fn [evt]
-      (if (if-left-click evt)
+      (when (if-left-click evt)
         (dragging bubble-id)))))

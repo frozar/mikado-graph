@@ -79,7 +79,7 @@
 
 (defn window-keydown-evt [evt]
   (let [escape-key-code 27]
-    (if (= escape-key-code (.-keyCode evt))
+    (when (= escape-key-code (.-keyCode evt))
       (put! event-queue [:build-link-exit]))))
 
 (defn window-keydown-evt-fn []
