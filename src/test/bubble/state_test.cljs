@@ -1,9 +1,10 @@
 (ns bubble.state-test
-  (:require [bubble.state :as s]
-            [bubble.bubble :as b]
-            [bubble.constant :refer (ROOT-BUBBLE-ID)]
-            [cljs.test :refer (deftest is)] ;; testing
-            ))
+  (:require
+   [bubble.bubble :as b]
+   [bubble.constant :refer (ROOT-BUBBLE-ID)]
+   [bubble.state :as s]
+   [cljs.test :refer (deftest is)]
+   ))
 
 (deftest init-appstate_basic
   (is

@@ -1,10 +1,12 @@
 (ns bubble.event
-  (:require [goog.events :as events]
-            [bubble.state :as state]
-            [cljs.core.async :refer [chan put! <! go-loop]]
-            )
-  (:import [goog.events EventType]
-           ))
+  (:require
+   [bubble.state :as state]
+   [cljs.core.async :refer [chan put! <! go-loop]]
+   [goog.events :as events]
+   )
+  (:import
+   [goog.events EventType]
+   ))
 
 (def event-queue (chan))
 

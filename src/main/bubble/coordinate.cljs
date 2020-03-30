@@ -1,6 +1,7 @@
 (ns bubble.coordinate
-  (:require [reagent.core :as reagent]
-            ))
+  (:require
+   [reagent.core :as reagent]
+   ))
 
 (defonce svg-origin (reagent/atom nil))
 

@@ -1,5 +1,6 @@
 (ns bubble.bubble
-  (:require [bubble.constant :as const])
+  (:require
+   [bubble.constant :as const])
 )
 
 (def nil-bubble
