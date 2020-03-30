@@ -1,5 +1,6 @@
 (ns bubble.macro
-  (:require [cljs.analyzer :as cljs]))
+  (:require
+   [cljs.analyzer :as cljs]))
 
 (defmacro BANG
   "Take a func-name as input and generate the banged function associated.

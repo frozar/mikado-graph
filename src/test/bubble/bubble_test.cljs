@@ -1,8 +1,9 @@
 (ns bubble.bubble-test
-  (:require [bubble.bubble :as b]
-            [bubble.constant :refer (BUBBLE-TYPE)]
-            [cljs.test :refer (deftest testing is)]
-            ))
+  (:require
+   [bubble.bubble :as b]
+   [bubble.constant :refer (BUBBLE-TYPE)]
+   [cljs.test :refer (deftest testing is)]
+   ))
 
 (deftest create-bubble_basic
   (let [new-bubble (b/create-bubble 20 50 "fake-bubble")

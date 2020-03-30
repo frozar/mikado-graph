@@ -1,9 +1,11 @@
 (ns bubble.state
-  (:require [bubble.bubble :as bubble]
-            [reagent.core :as reagent]
-            [com.rpl.specter :as sp]
-            )
-  (:require-macros [bubble.macro :as macro])
+  (:require
+   [bubble.bubble :as bubble]
+   [com.rpl.specter :as sp]
+   [reagent.core :as reagent]
+   )
+  (:require-macros
+   [bubble.macro :as macro])
   )
 
 (defn- init-appstate []

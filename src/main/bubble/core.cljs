@@ -1,14 +1,15 @@
 (ns bubble.core
-  (:require [reagent.core :as reagent]
-            [clojure.string :as string]
-            [bubble.state :as state]
-            [bubble.constant :as const]
-            [bubble.event :as event]
-            [bubble.drag :as drag]
-            [bubble.coordinate :as coord]
-            [bubble.build-link :as build-link]
-            [cljs.core.async :refer [put!]]
-            )
+  (:require
+   [bubble.build-link :as build-link]
+   [bubble.constant :as const]
+   [bubble.coordinate :as coord]
+   [bubble.drag :as drag]
+   [bubble.event :as event]
+   [bubble.state :as state]
+   [cljs.core.async :refer [put!]]
+   [clojure.string :as string]
+   [reagent.core :as reagent]
+   )
   )
 
 ;;TODO: refactor to dissociate shape of object and event handler

@@ -1,12 +1,14 @@
 (ns bubble.drag
-  (:require [goog.events :as events]
-            [bubble.event :as event]
-            [bubble.state :as state]
-            [bubble.coordinate :as coord]
-            [cljs.core.async :refer [put!]]
-            )
-  (:import [goog.events EventType]
-           )
+  (:require
+   [bubble.coordinate :as coord]
+   [bubble.event :as event]
+   [bubble.state :as state]
+   [cljs.core.async :refer [put!]]
+   [goog.events :as events]
+   )
+  (:import
+   [goog.events EventType]
+   )
   )
 
 (defn drag-move-fn [bubble-id]
