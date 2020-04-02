@@ -130,7 +130,7 @@
 
       nil)))
 
-(defn center-textarea
+(defn- center-textarea
   "Center the textarea field against the surrounding bubble"
   [dom-node id cx cy
    width-atom height-atom top-left-x-atom top-left-y-atom]
@@ -145,9 +145,10 @@
     (state/resize-bubble! id (add-50 (/ width 2)) (add-50 (/ height 2)))
     ))
 
-(defn cursor-to-end-textarea
+(defn- cursor-to-end-textarea
   "Select the text in the textarea."
-  [dom-node current-text initial-state?]
+  [{:keys [initial-state?]}
+   dom-node current-text]
   (let [text-length (count current-text)]
     (if initial-state?
       (do
@@ -156,35 +157,67 @@
       (.setSelectionRange dom-node text-length text-length)))
   )
 
-(defn get-nb-lines [s]
+(defn- get-nb-lines [s]
   (->> s (filter #(= % \newline)) count inc))
 
-(defn custom-textarea [bubble
-                       width-atom height-atom top-left-x-atom top-left-y-atom]
-  (let [{:keys [id cx cy text type initial-state?]} bubble
-        current-text (reagent/atom text)
+
+(defn- get-default-text [{:keys [type]}]
+  (if (= type const/ROOT-BUBBLE-TYPE)
+    const/ROOT-BUBBLE-DEFAULT-TEXT
+    const/BUBBLE-DEFAULT-TEXT))
+
+(defn- get-nb-columns [#_{:keys [type]} bubble current-text]
+  (let [default-text
+        (get-default-text bubble)
+
+        default-text-length (count default-text)
+
+        line-max-length
+        (->> @current-text
+             string/split-lines
+             (map count)
+             (apply max))
+
+        nb-columns
+        (if (= line-max-length 0)
+          default-text-length
+          line-max-length)
+        ]
+    nb-columns
+    )
+  )
+
+(defn bubble-input
+  "Create the input textarea tag to receive text updates."
+  [{:keys [id rx ry cx cy text] :as bubble}]
+  (let [current-text (reagent/atom text)
         dom-node (reagent/atom nil)
         stop #(put! event/event-queue [:disable-edition id])
         save
         (fn []
           (let [input-text (-> @current-text str clojure.string/trim)]
             (if-not (empty? input-text)
-              ;; (on-save text)
               (put! event/event-queue [:save-text id input-text])
               )
-            (stop)))]
+            (stop)))
+
+        width (reagent/atom (* 2 rx))
+        height (reagent/atom (* 2 ry))
+        top-left-x (reagent/atom cx)
+        top-left-y (reagent/atom cy)
+        ]
     (reagent/create-class
      {
-      :display-name "custom-textarea"
+      :display-name "bubble-input"
 
       :component-did-mount
       (fn [this]
-        (reset! dom-node (reagent/dom-node this))
-        ;; Set the focus to the textarea
+        ;; Retrieve the textarea dom node from the foreignObject parent node
+        (reset! dom-node (.-firstChild (reagent/dom-node this)))
         (.focus @dom-node)
         (center-textarea @dom-node id cx cy
-                         width-atom height-atom top-left-x-atom top-left-y-atom)
-        (cursor-to-end-textarea @dom-node @current-text initial-state?)
+                         width height top-left-x top-left-y)
+        (cursor-to-end-textarea bubble @dom-node @current-text)
         (reset! current-text text)
         )
 
@@ -193,18 +226,24 @@
         ;; Set the focus to the textarea
         (.focus @dom-node)
         (center-textarea @dom-node id cx cy
-                         width-atom height-atom top-left-x-atom top-left-y-atom))
+                         width height top-left-x top-left-y)
+        )
 
       :reagent-render
       (fn []
         (let [nb-lines (get-nb-lines @current-text)
-              default-text (if (= type const/ROOT-BUBBLE-TYPE) const/ROOT-BUBBLE-DEFAULT-TEXT const/BUBBLE-DEFAULT-TEXT)
-              default-text-length (count default-text)
-              line-max-length-tmp (->> @current-text string/split-lines (map count) (apply max))
-              line-max-length (if (= line-max-length-tmp 0) default-text-length line-max-length-tmp)]
+              nb-columns (get-nb-columns bubble @current-text)]
+          [:foreignObject
+           {:style
+            {:text-align "center"}
+            :width @width
+            :height @height
+            :x @top-left-x
+            :y @top-left-y
+            }
            [:textarea
             {:style
-             {
+             {:align "center"
               :overflow "hidden"
               :font-size "20px"
               :justify-content "center"
@@ -213,44 +252,29 @@
               :text-align-last "center"
               :resize "none"
               }
-             :otline "none"
+             :outline "none"
              :wrap "off"
-             :placeholder default-text
+             :placeholder (get-default-text bubble) ;default-text
              :rows nb-lines
-             :cols line-max-length
+             :cols nb-columns
              :value @current-text
              :on-blur #(save)
-             :on-change (fn [evt]
+             :on-change
+             (fn [evt]
                           (reset! current-text (.. evt -target -value))
                           )
-             :on-key-down (fn [evt]
-                            ;; 13: enter-keycode
+             :on-key-down
+             (fn [evt]
+               ;; 13: enter-keycode
                             ;; 27: escape-keycode
-                            (case (.-which evt)
-                              13 (when (.-ctrlKey evt)
-                                   (save)
-                                   )
+                            (case (.-keyCode evt)
+                              13 (when (not (.-shiftKey evt))
+                                              (save)
+                                              )
                               27 (stop)
                               nil))
-             }]))})))
-
-(defn bubble-input [bubble]
-  (let [{:keys [cx cy rx ry]} bubble
-        width (reagent/atom (* 2 rx))
-        height (reagent/atom (* 2 ry))
-        top-left-x (reagent/atom cx)
-        top-left-y (reagent/atom cy)
-        ]
-    (fn [bubble]
-      [:foreignObject
-       {:width @width
-        :height @height
-        :x @top-left-x
-        :y @top-left-y
-        }
-       [custom-textarea bubble
-        width height top-left-x top-left-y]
-       ])))
+             }]]))}))
+  )
 
 (defn update-bubble-size [dom-node bubble-id]
   (let [width (.-width (.getBoundingClientRect dom-node))
