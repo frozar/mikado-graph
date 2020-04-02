@@ -1,10 +1,10 @@
-(ns bubble.state-test
+(ns bubble.state-write-test
   (:require
    [bubble.bubble :as b]
    [bubble.constant :refer (ROOT-BUBBLE-ID)]
-   [bubble.state :as s]
+   [bubble.state :as sd]
    [bubble.state-read :as sr]
-   [bubble.state-data :as sd]
+   [bubble.state-write :as sw]
    [cljs.test :refer (deftest is)]
    ))
 
@@ -19,7 +19,7 @@
   (is
    (=
     (-> (#'sd/init-appstate)
-        (#'s/add-bubble (b/create-bubble "fake-bubble" 0 0))
+        (#'sw/add-bubble (b/create-bubble "fake-bubble" 0 0))
         (sr/get-bubble "fake-bubble")
         :id)
     "fake-bubble"
@@ -30,8 +30,8 @@
 (deftest delete-bubble_basic
   (let [new-appstate
         (-> (#'sd/init-appstate)
-            (#'s/add-bubble (b/create-bubble "fake-bubble" 0 0))
-            (#'s/delete-bubble "fake-bubble"))]
+            (#'sw/add-bubble (b/create-bubble "fake-bubble" 0 0))
+            (#'sw/delete-bubble "fake-bubble"))]
     (is
      (vector? (-> new-appstate :bubbles))
      "The 'bubbles' collection remain a vector")
@@ -47,7 +47,7 @@
   (is
    (=
     (-> (#'sd/init-appstate)
-        (#'s/update-bubble ROOT-BUBBLE-ID {:cx -10 :cy -20})
+        (#'sw/update-bubble ROOT-BUBBLE-ID {:cx -10 :cy -20})
         (sr/get-bubble ROOT-BUBBLE-ID))
     (b/update-bubble b/root-bubble {:cx -10 :cy -20}))
    "The root bubble is correctly updated")
@@ -55,11 +55,11 @@
 
 (def appstate-2-bubble
   (-> (#'sd/init-appstate)
-      (#'s/add-bubble (b/create-bubble "bubble-1" 0 0)))
+      (#'sw/add-bubble (b/create-bubble "bubble-1" 0 0)))
   )
 
 (deftest add-link_basic
-  (let [new-appstate (s/add-link appstate-2-bubble ROOT-BUBBLE-ID "bubble-1")]
+  (let [new-appstate (sw/add-link appstate-2-bubble ROOT-BUBBLE-ID "bubble-1")]
     (is
      (not=
       (some #{{:src ROOT-BUBBLE-ID :dst "bubble-1"}} (sr/get-links new-appstate))
@@ -70,8 +70,8 @@
     )
   (let [new-appstate
         (-> appstate-2-bubble
-            (s/add-link ROOT-BUBBLE-ID "bubble-1")
-            (s/add-link ROOT-BUBBLE-ID "bubble-1"))]
+            (sw/add-link ROOT-BUBBLE-ID "bubble-1")
+            (sw/add-link ROOT-BUBBLE-ID "bubble-1"))]
     (is
      (= (count (sr/get-links new-appstate)) 1)
      "A link cannot be duplicated"
@@ -79,7 +79,7 @@
     )
   (let [new-appstate
         (-> appstate-2-bubble
-            (s/add-link ROOT-BUBBLE-ID "inexistant-bubble"))]
+            (sw/add-link ROOT-BUBBLE-ID "inexistant-bubble"))]
     (is
      (= (count (sr/get-links new-appstate)) 0)
      "Cannot add a link not associated with a bubble-id"
@@ -92,7 +92,7 @@
                    {:src ROOT-BUBBLE-ID :dst "inexistant-bubble"}]
         new-appstate
         (-> appstate-2-bubble
-            (s/add-links new-links))]
+            (sw/add-links new-links))]
     (is
      (= (count (sr/get-links new-appstate)) 1)
      "The link 'root' -> 'bubble-1' but not the 'root' -> 'inexistant-bubble'"
@@ -104,7 +104,7 @@
   )
 
 (deftest enable-edition_basic
-  (let [new-appstate (#'s/enable-edition appstate-2-bubble ROOT-BUBBLE-ID)]
+  (let [new-appstate (#'sw/enable-edition appstate-2-bubble ROOT-BUBBLE-ID)]
     (is
      (true? (-> (sr/get-bubble new-appstate ROOT-BUBBLE-ID) :edition?)))
     (is
@@ -113,16 +113,16 @@
 (deftest disable-edition_basic
   (let [new-appstate
         (-> appstate-2-bubble
-            (#'s/enable-edition ROOT-BUBBLE-ID)
-            (#'s/enable-edition "bubble-1")
-            (#'s/disable-edition ROOT-BUBBLE-ID))]
+            (#'sw/enable-edition ROOT-BUBBLE-ID)
+            (#'sw/enable-edition "bubble-1")
+            (#'sw/disable-edition ROOT-BUBBLE-ID))]
     (is
      (false? (-> (sr/get-bubble new-appstate ROOT-BUBBLE-ID) :edition?)))
     (is
      (true? (-> (sr/get-bubble new-appstate "bubble-1") :edition?)))))
 
 (deftest enable-show-button_basic
-  (let [new-appstate (#'s/enable-show-button appstate-2-bubble ROOT-BUBBLE-ID)]
+  (let [new-appstate (#'sw/enable-show-button appstate-2-bubble ROOT-BUBBLE-ID)]
     (is
      (true? (-> (sr/get-bubble new-appstate ROOT-BUBBLE-ID) :show-button?)))
     (is
@@ -131,9 +131,9 @@
 (deftest disable-show-button_basic
   (let [new-appstate
         (-> appstate-2-bubble
-            (#'s/enable-show-button ROOT-BUBBLE-ID)
-            (#'s/enable-show-button "bubble-1")
-            (#'s/disable-show-button ROOT-BUBBLE-ID))]
+            (#'sw/enable-show-button ROOT-BUBBLE-ID)
+            (#'sw/enable-show-button "bubble-1")
+            (#'sw/disable-show-button ROOT-BUBBLE-ID))]
     (is
      (false? (-> (sr/get-bubble new-appstate ROOT-BUBBLE-ID) :show-button?)))
     (is
@@ -142,14 +142,14 @@
 (deftest toggle-done-status_basic
   (let [new-appstate
         (-> appstate-2-bubble
-            (#'s/toggle-done-status ROOT-BUBBLE-ID))]
+            (#'sw/toggle-done-status ROOT-BUBBLE-ID))]
     (is
      (true? (-> (sr/get-bubble new-appstate ROOT-BUBBLE-ID) :done?)))
     )
   (let [new-appstate
         (-> appstate-2-bubble
-            (#'s/toggle-done-status ROOT-BUBBLE-ID)
-            (#'s/toggle-done-status ROOT-BUBBLE-ID))]
+            (#'sw/toggle-done-status ROOT-BUBBLE-ID)
+            (#'sw/toggle-done-status ROOT-BUBBLE-ID))]
     (is
      (false? (-> (sr/get-bubble new-appstate ROOT-BUBBLE-ID) :done?)))
     )
@@ -158,7 +158,7 @@
 (deftest create-bubble-and-link_basic
   (let [new-appstate
         (-> (#'sd/init-appstate)
-            (#'s/create-bubble-and-link ROOT-BUBBLE-ID 50 50 "bubble-1"))
+            (#'sw/create-bubble-and-link ROOT-BUBBLE-ID 50 50 "bubble-1"))
         ]
     (is
      (= (count (sr/get-bubbles new-appstate)) 2)
@@ -187,15 +187,15 @@
 
 (def appstate-3-bubble-3-link
   (-> (#'sd/init-appstate)
-      (#'s/create-bubble-and-link ROOT-BUBBLE-ID 50 50 "bubble-1")
-      (#'s/create-bubble-and-link "bubble-1" 350 350 "bubble-2")
-      (#'s/add-link ROOT-BUBBLE-ID "bubble-2")
+      (#'sw/create-bubble-and-link ROOT-BUBBLE-ID 50 50 "bubble-1")
+      (#'sw/create-bubble-and-link "bubble-1" 350 350 "bubble-2")
+      (#'sw/add-link ROOT-BUBBLE-ID "bubble-2")
       )
   )
 
 (deftest delete-link_basic
   (let [new-appstate
-        (#'s/delete-link
+        (#'sw/delete-link
          appstate-3-bubble-3-link "bubble-1" "bubble-2")
         ]
     (is
@@ -225,18 +225,18 @@
 
 (def appstate-6-bubble-6-link
   (-> (#'sd/init-appstate)
-      (#'s/create-bubble-and-link ROOT-BUBBLE-ID 50 50 "bubble-1")
-      (#'s/create-bubble-and-link ROOT-BUBBLE-ID 150 150 "bubble-2")
-      (#'s/create-bubble-and-link "bubble-1" 350 350 "bubble-3")
-      (s/add-link "bubble-2" "bubble-3")
-      (#'s/create-bubble-and-link "bubble-3" 450 550 "bubble-4")
-      (#'s/create-bubble-and-link "bubble-3" 450 550 "bubble-5")
+      (#'sw/create-bubble-and-link ROOT-BUBBLE-ID 50 50 "bubble-1")
+      (#'sw/create-bubble-and-link ROOT-BUBBLE-ID 150 150 "bubble-2")
+      (#'sw/create-bubble-and-link "bubble-1" 350 350 "bubble-3")
+      (sw/add-link "bubble-2" "bubble-3")
+      (#'sw/create-bubble-and-link "bubble-3" 450 550 "bubble-4")
+      (#'sw/create-bubble-and-link "bubble-3" 450 550 "bubble-5")
       )
   )
 
 (deftest delete-link-involving-bubble_basic
   (let [new-appstate
-        (#'s/delete-link-to-id-and-update-children-of-id
+        (#'sw/delete-link-to-id-and-update-children-of-id
          appstate-6-bubble-6-link "bubble-3")
         ]
     (is
@@ -245,12 +245,12 @@
      )
     (is
      (and
-      (s/bubble-id-exist new-appstate ROOT-BUBBLE-ID)
-      (s/bubble-id-exist new-appstate "bubble-1")
-      (s/bubble-id-exist new-appstate "bubble-2")
-      (s/bubble-id-exist new-appstate "bubble-3")
-      (s/bubble-id-exist new-appstate "bubble-4")
-      (s/bubble-id-exist new-appstate "bubble-5")
+      (sr/bubble-id-exist new-appstate ROOT-BUBBLE-ID)
+      (sr/bubble-id-exist new-appstate "bubble-1")
+      (sr/bubble-id-exist new-appstate "bubble-2")
+      (sr/bubble-id-exist new-appstate "bubble-3")
+      (sr/bubble-id-exist new-appstate "bubble-4")
+      (sr/bubble-id-exist new-appstate "bubble-5")
       )
      "The bubbles id are good"
      )
@@ -274,7 +274,7 @@
 
 (deftest delete-bubble-and-update-link_basic
   (let [new-appstate
-        (#'s/delete-bubble-and-update-link
+        (#'sw/delete-bubble-and-update-link
          appstate-6-bubble-6-link "bubble-3")
         ]
     (is
@@ -283,11 +283,11 @@
      )
     (is
      (and
-      (s/bubble-id-exist new-appstate ROOT-BUBBLE-ID)
-      (s/bubble-id-exist new-appstate "bubble-1")
-      (s/bubble-id-exist new-appstate "bubble-2")
-      (s/bubble-id-exist new-appstate "bubble-4")
-      (s/bubble-id-exist new-appstate "bubble-5")
+      (sr/bubble-id-exist new-appstate ROOT-BUBBLE-ID)
+      (sr/bubble-id-exist new-appstate "bubble-1")
+      (sr/bubble-id-exist new-appstate "bubble-2")
+      (sr/bubble-id-exist new-appstate "bubble-4")
+      (sr/bubble-id-exist new-appstate "bubble-5")
       )
      "The bubbles id are good"
      )

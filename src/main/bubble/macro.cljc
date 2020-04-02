@@ -20,4 +20,4 @@
         (-> (cljs/resolve-var &env func-name) :meta :arglists second first rest)
         ]
     `(defn ~func-name-banged [~@arglists-but-first]
-       (swap! bubble.state-data/appstate #(~func-name % ~@arglists-but-first)))))
+       (swap! bubble.state/appstate #(~func-name % ~@arglists-but-first)))))

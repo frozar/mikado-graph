@@ -1,6 +1,6 @@
 (ns bubble.state-read
   (:require
-   [bubble.state-data :refer [appstate]]
+   [bubble.state :refer [appstate]]
    [com.rpl.specter :as sp]
    ))
 
@@ -23,9 +23,14 @@
    (->> (get-bubbles appstate)
         (sp/transform [sp/ALL] :id)
         )))
+
+(defn bubble-id-exist [appstate id]
+  (let [idx (get-list-id appstate)]
+    (not= (some #{id} idx) nil)))
 ;; END: bubble part
 
 ;; START: link part
+
 (defn get-link-src []
   (:link-src @appstate))
 
