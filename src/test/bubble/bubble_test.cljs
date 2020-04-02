@@ -6,7 +6,7 @@
    ))
 
 (deftest create-bubble_basic
-  (let [new-bubble (b/create-bubble 20 50 "fake-bubble")
+  (let [new-bubble (b/create-bubble "fake-bubble" 20 50)
         {new-id :id
          new-type :type
          new-cx :cx
@@ -23,7 +23,7 @@
       )))
 
 (deftest update-bubble_basic
-  (let [new-bubble (b/create-bubble 20 50 "original-id")
+  (let [new-bubble (b/create-bubble "original-id" 20 50)
         updated-bubble
         (b/update-bubble new-bubble {:id "fake-bubble-again"
                                      :type "fake-type"

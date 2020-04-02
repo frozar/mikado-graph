@@ -2,7 +2,7 @@
   (:require
    [bubble.coordinate :as coord]
    [bubble.event :as event]
-   [bubble.state :as state]
+   [bubble.state-read :as state-read]
    [cljs.core.async :refer [put!]]
    [goog.events :as events]
    )
@@ -12,7 +12,7 @@
   )
 
 (defn drag-move-fn [bubble-id]
-  (let [{:keys [cx cy]} (state/get-bubble bubble-id)
+  (let [{:keys [cx cy]} (state-read/get-bubble bubble-id)
         init-cx cx
         init-cy cy
         init-mouse-x (atom nil)

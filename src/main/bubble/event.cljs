@@ -1,6 +1,6 @@
 (ns bubble.event
   (:require
-   [bubble.state :as state]
+   [bubble.state-write :as state-write]
    [cljs.core.async :refer [chan put! <! go-loop]]
    [goog.events :as events]
    )
@@ -18,67 +18,67 @@
 
     :create-bubble
     (let [[bubble-id new-cx new-cy] args]
-      (state/create-bubble-and-link! bubble-id new-cx new-cy))
+      (state-write/create-bubble-and-link! bubble-id new-cx new-cy))
 
     :delete-bubble
     (let [[bubble-id] args]
-      (state/delete-bubble-and-update-link! bubble-id))
+      (state-write/delete-bubble-and-update-link! bubble-id))
 
     :delete-link
     (let [[src-id dst-id] args]
-      (state/delete-link! src-id dst-id))
+      (state-write/delete-link! src-id dst-id))
 
     :dragging
     (let [[id cx cy] args]
-      (state/move-bubble! id cx cy)
+      (state-write/move-bubble! id cx cy)
       )
 
     :build-link-start
     (let [[id mouse-x mouse-y] args]
-      (state/set-link-src! id)
-      (state/set-mouse-position! mouse-x mouse-y)
+      (state-write/set-link-src! id)
+      (state-write/set-mouse-position! mouse-x mouse-y)
       )
 
     :build-link-move
     (let [[mouse-x mouse-y] args]
-      (state/set-mouse-position! mouse-x mouse-y))
+      (state-write/set-mouse-position! mouse-x mouse-y))
 
     :build-link-end
     (let [[id] args]
-      (state/building-link-end! id)
-      (state/reset-build-link!)
+      (state-write/building-link-end! id)
+      (state-write/reset-build-link!)
       )
 
     :build-link-exit
-    (state/reset-build-link!)
+    (state-write/reset-build-link!)
 
     :enable-edition
     (let [[id] args]
-      (state/enable-edition! id))
+      (state-write/enable-edition! id))
 
     :disable-edition
     (let [[id] args]
-      (state/disable-edition! id))
+      (state-write/disable-edition! id))
 
     :enable-show-button
     (let [[id] args]
-      (state/enable-show-button! id))
+      (state-write/enable-show-button! id))
 
     :disable-show-button
     (let [[id] args]
-      (state/disable-show-button! id))
+      (state-write/disable-show-button! id))
 
     :save-text
     (let [[id text] args]
-      (state/save-text-bubble! id text))
+      (state-write/save-text-bubble! id text))
 
     :toggle-done-status
     (let [[id] args]
-      (state/toggle-done-status! id))
+      (state-write/toggle-done-status! id))
 
     :resize-bubble
-    (let [[id width lenght] args]
-      (state/resize-bubble! id width lenght))
+    (let [[id rx ry] args]
+      (state-write/resize-bubble! id rx ry))
 
     )
   (recur (<! event-queue)))

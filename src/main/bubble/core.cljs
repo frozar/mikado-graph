@@ -5,7 +5,7 @@
    [bubble.coordinate :as coord]
    [bubble.drag :as drag]
    [bubble.event :as event]
-   [bubble.state :as state]
+   [bubble.state-read :as state-read]
    [cljs.core.async :refer [put!]]
    [clojure.string :as string]
    [reagent.core :as reagent]
@@ -132,17 +132,15 @@
 
 (defn- center-textarea
   "Center the textarea field against the surrounding bubble"
-  [dom-node id cx cy
+  [dom-node {:keys [cx cy]}
    width-atom height-atom top-left-x-atom top-left-y-atom]
   (let [width (.-width (.getBoundingClientRect dom-node))
         height (.-height (.getBoundingClientRect dom-node))
-        add-50 (fn [v] (+ 50 v))
         ]
     (reset! width-atom width)
     (reset! height-atom height)
     (reset! top-left-x-atom (- cx (/ width 2)))
     (reset! top-left-y-atom (- cy (/ height 2)))
-    (put! event/event-queue [:resize-bubble id (add-50 (/ width 2)) (add-50 (/ height 2))])
     ))
 
 (defn- cursor-to-end-textarea
@@ -186,6 +184,15 @@
     )
   )
 
+(defn update-bubble-size [dom-node {:keys [id]}]
+  (let [width (.-width (.getBoundingClientRect dom-node))
+        height (.-height (.getBoundingClientRect dom-node))
+        new-rx (-> width (/ 2) (+ 50))
+        new-ry (-> height (/ 2) (+ 50))]
+    (put! event/event-queue [:resize-bubble id new-rx new-ry])
+    )
+  )
+
 (defn bubble-input
   "Create the input textarea tag to receive text updates."
   [{:keys [id rx ry cx cy text] :as bubble}]
@@ -214,8 +221,9 @@
         ;; Retrieve the textarea dom node from the foreignObject parent node
         (reset! dom-node (.-firstChild (reagent/dom-node this)))
         (.focus @dom-node)
-        (center-textarea @dom-node id cx cy
+        (center-textarea @dom-node bubble
                          width height top-left-x top-left-y)
+        (update-bubble-size @dom-node bubble)
         (cursor-to-end-textarea bubble @dom-node @current-text)
         (reset! current-text text)
         )
@@ -224,8 +232,9 @@
       (fn []
         ;; Set the focus to the textarea
         (.focus @dom-node)
-        (center-textarea @dom-node id cx cy
+        (center-textarea @dom-node bubble
                          width height top-left-x top-left-y)
+        (update-bubble-size @dom-node bubble)
         )
 
       :reagent-render
@@ -275,18 +284,9 @@
              }]]))}))
   )
 
-(defn update-bubble-size [dom-node bubble-id]
-  (let [width (.-width (.getBoundingClientRect dom-node))
-        height (.-height (.getBoundingClientRect dom-node))
-        new-rx (-> width (/ 2) (+ 50))
-        new-ry (-> height (/ 2) (+ 50))]
-    (state/resize-bubble! bubble-id new-rx new-ry)
-    )
-  )
-
 (defn update-y-pos [y-pos-atom dom-node bubble-id]
   (let [height (.-height (.getBoundingClientRect dom-node))
-        bubble (state/get-bubble bubble-id)
+        bubble (state-read/get-bubble bubble-id)
         y-bubble (:cy bubble)
         nb-lines (->> bubble :text string/split-lines count)
         height-line (/ height nb-lines)
@@ -346,7 +346,7 @@
       :component-did-mount
       (fn [this]
         (reset! dom-node (reagent/dom-node this))
-        (update-bubble-size @dom-node id)
+        (update-bubble-size @dom-node bubble)
         (update-y-pos y-pos @dom-node id))
 
       :component-did-update
@@ -410,7 +410,7 @@
        {
         :on-mouse-over
         (fn []
-          (if (state/get-link-src)
+          (if (state-read/get-link-src)
             (put! event/event-queue [:disable-show-button id])
             (put! event/event-queue [:enable-show-button id])
             ))
@@ -442,8 +442,8 @@
 
 (defn get-link-path [link]
   (let [{:keys [src dst]} link
-        src-b (state/get-bubble src)
-        dst-b (state/get-bubble dst)
+        src-b (state-read/get-bubble src)
+        dst-b (state-read/get-bubble dst)
         src-id (:id src-b)
         dst-id (:id dst-b)
         src-pt-x (:cx src-b)
@@ -463,7 +463,7 @@
 
 ;;TODO: draw arrow as link, not straight line
 (defn draw-links []
-  (let [links-path (doall (map get-link-path (state/get-links)))]
+  (let [links-path (doall (map get-link-path (state-read/get-links)))]
     (when links-path
       [:g
        (for [path links-path]
@@ -478,10 +478,10 @@
   )
 
 (defn draw-building-link []
-  (let [bubble-src-id (state/get-link-src)
-        bubble-src (state/get-bubble bubble-src-id)
+  (let [bubble-src-id (state-read/get-link-src)
+        bubble-src (state-read/get-bubble bubble-src-id)
         {:keys [cx cy]} bubble-src
-        [mouse-x mouse-y] (state/get-mouse-position)
+        [mouse-x mouse-y] (state-read/get-mouse-position)
         ]
     [:line {:stroke "black"
             :stroke-width 5
@@ -492,13 +492,13 @@
 (defn all-bubble []
   [:g
    ;; Interactive part
-   (when (state/get-link-src)
+   (when (state-read/get-link-src)
      [draw-building-link])
 
    ;; Static part
    (draw-links)
    (doall
-    (for [bubble (state/get-bubbles)]
+    (for [bubble (state-read/get-bubbles)]
       ^{:key (:id bubble)} [draw-bubble bubble]
       )
     )
