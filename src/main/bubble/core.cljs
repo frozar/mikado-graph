@@ -142,7 +142,7 @@
     (reset! height-atom height)
     (reset! top-left-x-atom (- cx (/ width 2)))
     (reset! top-left-y-atom (- cy (/ height 2)))
-    (state/resize-bubble! id (add-50 (/ width 2)) (add-50 (/ height 2)))
+    (put! event/event-queue [:resize-bubble id (add-50 (/ width 2)) (add-50 (/ height 2))])
     ))
 
 (defn- cursor-to-end-textarea
@@ -160,20 +160,19 @@
 (defn- get-nb-lines [s]
   (->> s (filter #(= % \newline)) count inc))
 
-
 (defn- get-default-text [{:keys [type]}]
   (if (= type const/ROOT-BUBBLE-TYPE)
     const/ROOT-BUBBLE-DEFAULT-TEXT
     const/BUBBLE-DEFAULT-TEXT))
 
-(defn- get-nb-columns [#_{:keys [type]} bubble current-text]
+(defn- get-nb-columns [bubble current-text]
   (let [default-text
         (get-default-text bubble)
 
         default-text-length (count default-text)
 
         line-max-length
-        (->> @current-text
+        (->> current-text
              string/split-lines
              (map count)
              (apply max))

@@ -76,6 +76,10 @@
     (let [[id] args]
       (state/toggle-done-status! id))
 
+    :resize-bubble
+    (let [[id width lenght] args]
+      (state/resize-bubble! id width lenght))
+
     )
   (recur (<! event-queue)))
 
