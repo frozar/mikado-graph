@@ -260,18 +260,18 @@
              :on-blur #(save)
              :on-change
              (fn [evt]
-                          (reset! current-text (.. evt -target -value))
-                          )
+               (reset! current-text (.. evt -target -value))
+               )
              :on-key-down
              (fn [evt]
                ;; 13: enter-keycode
-                            ;; 27: escape-keycode
-                            (case (.-keyCode evt)
-                              13 (when (not (.-shiftKey evt))
-                                              (save)
-                                              )
-                              27 (stop)
-                              nil))
+               ;; 27: escape-keycode
+               (case (.-keyCode evt)
+                 13 (when (not (.-shiftKey evt))
+                      (save)
+                      )
+                 27 (stop)
+                 nil))
              }]]))}))
   )
 
