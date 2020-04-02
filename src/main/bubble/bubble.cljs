@@ -26,7 +26,7 @@
           }))
 
 (defn create-bubble
-  [cx cy id]
+  [id cx cy]
   (merge
    nil-bubble
    {:id id

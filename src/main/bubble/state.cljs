@@ -1,44 +1,22 @@
 (ns bubble.state
   (:require
    [bubble.bubble :as bubble]
+   [bubble.state-data :refer [appstate]]
+   [bubble.state-read :as state-read]
    [com.rpl.specter :as sp]
-   [reagent.core :as reagent]
    )
   (:require-macros
    [bubble.macro :as macro])
   )
 
-(defn- init-appstate []
-  {
-   :bubbles [bubble/root-bubble]
-   :links []
-   :link-src nil
-   :mouse-position nil
-   })
-
-(defonce appstate
-  (reagent/atom (init-appstate)))
-
 ;; Read/Write application state
 
 ;; START: bubble part
 ;;TODO: UT
-(defn get-bubble
-  ([id] (get-bubble @appstate id))
-  ([appstate id]
-   (first (filter #(= (:id %) id) (:bubbles appstate)))))
-
-;;TODO: UT
-(defn get-bubbles
-  ([] (get-bubbles @appstate))
-  ([appstate]
-   (:bubbles appstate)))
-
-;;TODO: UT
 (defn get-list-id
   ([] (get-list-id @appstate))
   ([appstate]
-   (->> (get-bubbles appstate)
+   (->> (state-read/get-bubbles appstate)
         (sp/transform [sp/ALL] :id)
         )))
 
@@ -142,22 +120,16 @@
 
 (macro/BANG delete-link)
 
-(defn get-links
-  ([]
-   (get-links @appstate))
-  ([appstate]
-   (:links appstate)))
-
 ;; For test purpose
 (defn link-exist [appstate src-id dst-id]
-  (let [links (get-links appstate)]
+  (let [links (state-read/get-links appstate)]
     (not= (some #{{:src src-id :dst dst-id}} links) nil)))
 
 (defn- delete-link-to-id-and-update-children-of-id [appstate bubble-id]
-  (let [ids-dst (->> (get-links appstate)
+  (let [ids-dst (->> (state-read/get-links appstate)
                      (filterv (fn [link] (= bubble-id (:src link))))
                      (map :dst))
-        ids-src (->> (get-links appstate)
+        ids-src (->> (state-read/get-links appstate)
                      (filterv (fn [link] (= bubble-id (:dst link))))
                      (map :src))
         new-links (vec (for [id-src ids-src
@@ -218,7 +190,7 @@
          (if (some #{id} (get-list-id appstate))
            (gen-id)
            id)
-         new-bubble (bubble/create-bubble cx cy not-duplicated-id)]
+         new-bubble (bubble/create-bubble not-duplicated-id cx cy)]
      (-> appstate
          (add-bubble new-bubble)
          (add-link parent-bubble-id not-duplicated-id))
@@ -235,9 +207,6 @@
 
 (macro/BANG set-link-src)
 
-(defn get-link-src []
-  (:link-src @appstate))
-
 ;;TODO: UT
 (defn- reset-link-src [appstate]
   (update appstate :link-src (fn [] nil)))
@@ -249,9 +218,6 @@
   (update appstate :mouse-position (fn [] [mouse-x mouse-y])))
 
 (macro/BANG set-mouse-position)
-
-(defn get-mouse-position []
-  (:mouse-position @appstate))
 
 ;;TODO: UT
 (defn- reset-mouse-position [appstate]
@@ -269,7 +235,7 @@
 
 ;;TODO: UT
 (defn- building-link-end [appstate id-dst]
-  (let [id-src (get-link-src)]
+  (let [id-src (state-read/get-link-src)]
     (if id-src
       (add-link appstate id-src id-dst)
       appstate)))
@@ -304,7 +270,7 @@
 
 ;; START: Toggle done
 (defn- toggle-done-status [appstate bubble-id]
-  (let [bubble (get-bubble appstate bubble-id)
+  (let [bubble (state-read/get-bubble appstate bubble-id)
         new-status (-> (:done? bubble) not)]
     (update-bubble appstate bubble-id {:done? new-status})))
 

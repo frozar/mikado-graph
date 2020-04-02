@@ -4,7 +4,7 @@
 
 (defmacro BANG
   "Take a func-name as input and generate the banged function associated.
-  Should be used in bubble.state namespace only.
+  Should be used in bubble.state* namespaces only.
 
   For example:
   (bubble.macro/BANG update-bubble)
@@ -20,4 +20,4 @@
         (-> (cljs/resolve-var &env func-name) :meta :arglists second first rest)
         ]
     `(defn ~func-name-banged [~@arglists-but-first]
-       (swap! bubble.state/appstate #(~func-name % ~@arglists-but-first)))))
+       (swap! bubble.state-data/appstate #(~func-name % ~@arglists-but-first)))))

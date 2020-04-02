@@ -5,7 +5,7 @@
    [bubble.coordinate :as coord]
    [bubble.drag :as drag]
    [bubble.event :as event]
-   [bubble.state :as state]
+   [bubble.state-read :as state-read]
    [cljs.core.async :refer [put!]]
    [clojure.string :as string]
    [reagent.core :as reagent]
@@ -286,7 +286,7 @@
 
 (defn update-y-pos [y-pos-atom dom-node bubble-id]
   (let [height (.-height (.getBoundingClientRect dom-node))
-        bubble (state/get-bubble bubble-id)
+        bubble (state-read/get-bubble bubble-id)
         y-bubble (:cy bubble)
         nb-lines (->> bubble :text string/split-lines count)
         height-line (/ height nb-lines)
@@ -410,7 +410,7 @@
        {
         :on-mouse-over
         (fn []
-          (if (state/get-link-src)
+          (if (state-read/get-link-src)
             (put! event/event-queue [:disable-show-button id])
             (put! event/event-queue [:enable-show-button id])
             ))
@@ -442,8 +442,8 @@
 
 (defn get-link-path [link]
   (let [{:keys [src dst]} link
-        src-b (state/get-bubble src)
-        dst-b (state/get-bubble dst)
+        src-b (state-read/get-bubble src)
+        dst-b (state-read/get-bubble dst)
         src-id (:id src-b)
         dst-id (:id dst-b)
         src-pt-x (:cx src-b)
@@ -463,7 +463,7 @@
 
 ;;TODO: draw arrow as link, not straight line
 (defn draw-links []
-  (let [links-path (doall (map get-link-path (state/get-links)))]
+  (let [links-path (doall (map get-link-path (state-read/get-links)))]
     (when links-path
       [:g
        (for [path links-path]
@@ -478,10 +478,10 @@
   )
 
 (defn draw-building-link []
-  (let [bubble-src-id (state/get-link-src)
-        bubble-src (state/get-bubble bubble-src-id)
+  (let [bubble-src-id (state-read/get-link-src)
+        bubble-src (state-read/get-bubble bubble-src-id)
         {:keys [cx cy]} bubble-src
-        [mouse-x mouse-y] (state/get-mouse-position)
+        [mouse-x mouse-y] (state-read/get-mouse-position)
         ]
     [:line {:stroke "black"
             :stroke-width 5
@@ -492,13 +492,13 @@
 (defn all-bubble []
   [:g
    ;; Interactive part
-   (when (state/get-link-src)
+   (when (state-read/get-link-src)
      [draw-building-link])
 
    ;; Static part
    (draw-links)
    (doall
-    (for [bubble (state/get-bubbles)]
+    (for [bubble (state-read/get-bubbles)]
       ^{:key (:id bubble)} [draw-bubble bubble]
       )
     )

@@ -2,7 +2,7 @@
   (:require
    [bubble.coordinate :as coord]
    [bubble.event :as event]
-   [bubble.state :as state]
+   [bubble.state-read :as state-read]
    [cljs.core.async :refer [put!]]
    [goog.events :as events]
    )
@@ -37,7 +37,7 @@
   ([bubble-id]
    (build-link-end bubble-id (fn [])))
   ([bubble-id on-end]
-   (if-not (nil? (state/get-link-src))
+   (if-not (nil? (state-read/get-link-src))
      (do
        (events/unlisten js/window EventType.MOUSEMOVE build-link-move)
        (put! event/event-queue [:build-link-end bubble-id])
