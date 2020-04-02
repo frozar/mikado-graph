@@ -12,14 +12,6 @@
 ;; Read/Write application state
 
 ;; START: bubble part
-;;TODO: UT
-(defn get-list-id
-  ([] (get-list-id @appstate))
-  ([appstate]
-   (->> (state-read/get-bubbles appstate)
-        (sp/transform [sp/ALL] :id)
-        )))
-
 (defn- add-bubble [appstate bubble]
   (update appstate :bubbles conj bubble))
 
@@ -38,9 +30,8 @@
        (when (= (:id bubble) id) idx))
      bubbles)))
 
-;; For test purpose
-(defn bubble-id-exist [appstate id]
-  (let [idx (get-list-id appstate)]
+(defn- bubble-id-exist [appstate id]
+  (let [idx (state-read/get-list-id appstate)]
     (not= (some #{id} idx) nil)))
 
 (defn- update-bubble [appstate bubble-id hashmap]
@@ -121,10 +112,6 @@
 (macro/BANG delete-link)
 
 ;; For test purpose
-(defn link-exist [appstate src-id dst-id]
-  (let [links (state-read/get-links appstate)]
-    (not= (some #{{:src src-id :dst dst-id}} links) nil)))
-
 (defn- delete-link-to-id-and-update-children-of-id [appstate bubble-id]
   (let [ids-dst (->> (state-read/get-links appstate)
                      (filterv (fn [link] (= bubble-id (:src link))))
@@ -168,14 +155,14 @@
 
 (macro/BANG save-text-bubble)
 
-(defn gen-id
+(defn- gen-id
   "
   Generate a string of length 8, e.g.: 'b56d74c5'
   The generated id is not already present in the
   current application state
   "
   ([]
-   (gen-id (get-list-id)))
+   (gen-id (state-read/get-list-id)))
   ([list-id]
    (let [try-id (apply str (repeatedly 8 #(rand-nth "0123456789abcdef")))]
      (if (some #{try-id} list-id)
@@ -187,7 +174,7 @@
    (create-bubble-and-link appstate parent-bubble-id cx cy (gen-id)))
   ([appstate parent-bubble-id cx cy id]
    (let [not-duplicated-id
-         (if (some #{id} (get-list-id appstate))
+         (if (some #{id} (state-read/get-list-id appstate))
            (gen-id)
            id)
          new-bubble (bubble/create-bubble not-duplicated-id cx cy)]

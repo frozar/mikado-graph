@@ -1,0 +1,1 @@
+{:lint-as {bubble.macro/BANG clojure.core/defn}}

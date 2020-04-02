@@ -98,7 +98,7 @@
      "The link 'root' -> 'bubble-1' but not the 'root' -> 'inexistant-bubble'"
      )
     (is
-     (true? (s/link-exist new-appstate ROOT-BUBBLE-ID "bubble-1"))
+     (true? (sr/link-exist new-appstate ROOT-BUBBLE-ID "bubble-1"))
      )
     )
   )
@@ -260,12 +260,12 @@
      )
     (is
      (and
-      (true? (s/link-exist new-appstate ROOT-BUBBLE-ID "bubble-1"))
-      (true? (s/link-exist new-appstate ROOT-BUBBLE-ID "bubble-2"))
-      (true? (s/link-exist new-appstate "bubble-1" "bubble-4"))
-      (true? (s/link-exist new-appstate "bubble-1" "bubble-5"))
-      (true? (s/link-exist new-appstate "bubble-2" "bubble-4"))
-      (true? (s/link-exist new-appstate "bubble-2" "bubble-5"))
+      (true? (sr/link-exist new-appstate ROOT-BUBBLE-ID "bubble-1"))
+      (true? (sr/link-exist new-appstate ROOT-BUBBLE-ID "bubble-2"))
+      (true? (sr/link-exist new-appstate "bubble-1" "bubble-4"))
+      (true? (sr/link-exist new-appstate "bubble-1" "bubble-5"))
+      (true? (sr/link-exist new-appstate "bubble-2" "bubble-4"))
+      (true? (sr/link-exist new-appstate "bubble-2" "bubble-5"))
       )
      "There is a link between 'root' bubble and 'bubble-2'"
      )
@@ -297,12 +297,12 @@
      )
     (is
      (and
-      (true? (s/link-exist new-appstate ROOT-BUBBLE-ID "bubble-1"))
-      (true? (s/link-exist new-appstate ROOT-BUBBLE-ID "bubble-2"))
-      (true? (s/link-exist new-appstate "bubble-1" "bubble-4"))
-      (true? (s/link-exist new-appstate "bubble-1" "bubble-5"))
-      (true? (s/link-exist new-appstate "bubble-2" "bubble-4"))
-      (true? (s/link-exist new-appstate "bubble-2" "bubble-5"))
+      (true? (sr/link-exist new-appstate ROOT-BUBBLE-ID "bubble-1"))
+      (true? (sr/link-exist new-appstate ROOT-BUBBLE-ID "bubble-2"))
+      (true? (sr/link-exist new-appstate "bubble-1" "bubble-4"))
+      (true? (sr/link-exist new-appstate "bubble-1" "bubble-5"))
+      (true? (sr/link-exist new-appstate "bubble-2" "bubble-4"))
+      (true? (sr/link-exist new-appstate "bubble-2" "bubble-5"))
       )
      "There is a link between 'root' bubble and 'bubble-2'"
      )
