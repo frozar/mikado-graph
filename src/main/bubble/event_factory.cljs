@@ -5,7 +5,6 @@
    [bubble.drag :as drag]
    [bubble.state-read :as state-read]
    [bubble.event :as event]
-   ;; [bubble.state-write :as state-write]
    [cljs.core.async :refer [put!]]
    ))
 
