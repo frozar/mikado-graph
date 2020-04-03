@@ -9,3 +9,5 @@
 
 (def ^:const BUBBLE-DEFAULT-TEXT      "New task")
 (def ^:const ROOT-BUBBLE-DEFAULT-TEXT "Main goal")
+
+(def ^:const REDERING-STYLE-SOLID "solid")

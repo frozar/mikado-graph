@@ -47,3 +47,6 @@
 
 (defn get-mouse-position []
   (:mouse-position @appstate))
+
+(defn get-rendering-style []
+  (:rendering-style @appstate))

@@ -1,18 +1,14 @@
 (ns bubble.core
   (:require
-   [bubble.build-link :as build-link]
    [bubble.constant :as const]
    [bubble.coordinate :as coord]
-   [bubble.drag :as drag]
    [bubble.event :as event]
+   [bubble.event-factory :as event-factory]
    [bubble.state-read :as state-read]
    [cljs.core.async :refer [put!]]
    [clojure.string :as string]
    [reagent.core :as reagent]
-   )
-  )
-
-;;TODO: refactor to dissociate shape of object and event handler
+   ))
 
 (defn draw-pencil-button
   [{:keys [cx cy show-button?]} ry
@@ -108,131 +104,27 @@
      ])
   )
 
-(defn prevent-context-menu
-  ([] (prevent-context-menu (fn [])))
-  ([func]
-   (fn [evt]
-     (.preventDefault evt)
-     (func))))
-
-(defn event-property-factory
-  ;; Take a link as input
-  [shape & args]
-
-  (case shape
-    :link
-    (let [[src-id dst-id] args]
-      {:on-context-menu
-       #(put! event/event-queue [:delete-link src-id dst-id])})
-
-    :pencil-button
-    (let [[bubble] args
-          {:keys [id]} bubble]
-      {:on-click
-       (fn []
-         (put! event/event-queue [:enable-edition id]))})
-
-    :link-button
-    (let [[bubble] args
-          {:keys [id]} bubble]
-      {:on-click
-       (build-link/build-link-start-fn id)})
-
-    :delete-button
-    (let [[bubble] args
-          {:keys [id]} bubble]
-      {:on-click
-       #(put! event/event-queue [:delete-bubble id])})
-
-    :validation-button
-    (let [[bubble] args
-          {:keys [id]} bubble]
-      {:pointer-events "bounding-box"
-       :on-click
-       #(put! event/event-queue [:toggle-done-status id])})
-
-    :bubble
-    (let [[bubble] args
-          {:keys [id]} bubble]
-      {:pointer-events "bounding-box"
-       :on-mouse-over
-       (fn []
-         (if (state-read/get-link-src)
-           (put! event/event-queue [:disable-show-button id])
-           (put! event/event-queue [:enable-show-button id])
-           ))
-       :on-mouse-leave
-       (fn []
-         (put! event/event-queue [:disable-show-button id])
-         )})
-
-    :common-text-ellipse
-    (let [[bubble] args
-          {:keys [id]} bubble]
-      {:on-mouse-down
-       (fn [evt]
-         ;; It must be a simple click
-         (when (not (.-ctrlKey evt))
-           ((drag/dragging-fn id) evt)))
-
-       :on-context-menu
-       (when (not= type const/ROOT-BUBBLE-TYPE)
-         (prevent-context-menu
-          #(put! event/event-queue [:delete-bubble id])))
-
-       :on-click
-       (fn
-         ;; "If the 'ctrl' is press during a click, build a link.
-         ;; Else, build a link with the current bubble.
-         ;; "
-         [evt]
-         (if (.-ctrlKey evt)
-           ((build-link/build-link-start-fn id) evt)
-           (build-link/build-link-end id)
-           )
-         )
-       })
-
-    :text
-    (let [[bubble] args
-          {:keys [id]} bubble]
-      (merge
-       (event-property-factory :common-text-ellipse bubble)
-       {:on-double-click
-        #(put! event/event-queue [:enable-edition id])
-        }))
-
-    :ellipse
-    (let [[bubble ry] args
-          {:keys [id cx cy]} bubble]
-      (merge
-       (event-property-factory :common-text-ellipse bubble)
-       {:on-double-click
-        (let [[new-cx new-cy] [cx (- cy (* 3 ry ))]]
-          #(put! event/event-queue [:create-bubble id new-cx new-cy]))
-        }))))
-
 (defn add-button [{:keys [type ry] :as bubble}]
   (case type
     const/ROOT-BUBBLE-TYPE
     [:<>
      [draw-validation-button bubble (+ 10 ry)
-      (event-property-factory :validation-button bubble)]
+      (event-factory/event-property-factory :validation-button bubble)]
      [draw-pencil-button bubble (+ 10 ry)
-      (event-property-factory :pencil-button bubble)]
+      (event-factory/event-property-factory :pencil-button bubble)]
      [draw-link-button bubble (+ 10 ry)
-      (event-property-factory :link-button bubble)]]
+      (event-factory/event-property-factory :link-button bubble)]]
 
     const/BUBBLE-TYPE
     [:<>
      [draw-validation-button bubble ry
-      (event-property-factory :validation-button bubble)]
+      (event-factory/event-property-factory :validation-button bubble)]
      [draw-delete-button bubble ry
-      (event-property-factory :delete-button bubble)]
+      (event-factory/event-property-factory :delete-button bubble)]
      [draw-pencil-button bubble ry
-      (event-property-factory :pencil-button bubble)]
+      (event-factory/event-property-factory :pencil-button bubble)]
      [draw-link-button bubble ry
-      (event-property-factory :link-button bubble)]]
+      (event-factory/event-property-factory :link-button bubble)]]
 
     nil))
 
@@ -401,39 +293,6 @@
     (reset! y-pos-atom (- y-bubble y-offset))
     ))
 
-(defn get-bubble-event-handling
-  [bubble ry]
-  (let [{:keys [id type cx cy]} bubble
-        [new-cx new-cy] [cx (- cy (* 3 ry ))]]
-    {
-     :on-mouse-down
-     (fn [evt]
-       ;; It must be a simple click
-       (when (not (.-ctrlKey evt))
-         ((drag/dragging-fn id) evt)))
-
-     :on-context-menu
-     (when (not= type const/ROOT-BUBBLE-TYPE)
-       (prevent-context-menu
-        #(put! event/event-queue [:delete-bubble id])))
-
-     :on-click
-     (fn
-       ;; "If the 'ctrl' is press during a click, build a link.
-       ;; Else, build a link with the current bubble.
-       ;; "
-       [evt]
-       (if (.-ctrlKey evt)
-         ((build-link/build-link-start-fn id) evt)
-         (build-link/build-link-end id)
-         )
-       )
-
-     :on-double-click
-     #(put! event/event-queue [:create-bubble id new-cx new-cy])
-
-     }))
-
 (defn bubble-text [bubble]
   (let [dom-node (reagent/atom nil)
         {:keys [id cy]} bubble
@@ -462,7 +321,7 @@
               for-counter (atom 0)
               ]
           [:text
-           (merge (event-property-factory :text bubble)
+           (merge (event-factory/event-property-factory :text bubble)
                   {:class "label"
                    :style
                    (merge text-style
@@ -501,19 +360,19 @@
 (defn draw-bubble [{:keys [id type rx ry edition?] :as bubble}]
   ^{:key (str id "-group")}
   [:g
-   (event-property-factory :bubble bubble)
+   (event-factory/event-property-factory :bubble bubble)
 
    (case type
      const/ROOT-BUBBLE-TYPE
      [:<>
       [draw-ellipse bubble (+ 10 rx) (+ 10 ry)
-       (event-property-factory :ellipse bubble (+ 10 ry))]
+       (event-factory/event-property-factory :ellipse bubble (+ 10 ry))]
       [draw-ellipse bubble rx ry
-       (event-property-factory :ellipse bubble ry)]]
+       (event-factory/event-property-factory :ellipse bubble ry)]]
 
      const/BUBBLE-TYPE
      [draw-ellipse bubble rx ry
-      (event-property-factory :ellipse bubble ry)]
+      (event-factory/event-property-factory :ellipse bubble ry)]
 
      nil)
 
@@ -543,6 +402,7 @@
         dst-id (:id dst-b)]
     (str src-id "-" dst-id)))
 
+;;TODO: draw link as arrow, not straight line
 (defn- draw-path
   [src-b dst-b event-property]
   (let [path-str (link->path-str src-b dst-b)
@@ -570,12 +430,11 @@
   [src-b dst-b]
   (let [src-id (:id src-b)
         dst-id (:id dst-b)
-        event-property (event-property-factory :link src-id dst-id)]
+        event-property (event-factory/event-property-factory :link src-id dst-id)]
     [:<>
      [draw-white-shadow-path src-b dst-b event-property]
      [draw-path src-b dst-b event-property]]))
 
-;;TODO: draw arrow as link, not straight line
 (defn- draw-links [links]
   (when links
     [:<>
@@ -585,7 +444,7 @@
               src-b (state-read/get-bubble src)
               dst-b (state-read/get-bubble dst)
               ]
-          ^{:key (str (str link) "-group")}
+          ^{:key (str (link->key-str src-b dst-b) "-group")}
           [:g
            {:class "graph_link"}
            [draw-link src-b dst-b]
@@ -603,16 +462,18 @@
             :x2 mouse-x :y2 mouse-y
             }]))
 
-(defn- draw-graph []
-  [:g
-   ;; Interactive part
-   (when (state-read/get-link-src)
-     [draw-building-link])
+(defn- draw-graph [rendering-style]
+  (case rendering-style
+    const/REDERING-STYLE-SOLID
+    [:g
+     ;; Interactive part
+     (when (state-read/get-link-src)
+       [draw-building-link])
 
-   ;; Static part
-   [draw-links (state-read/get-links)]
-   [draw-bubbles (state-read/get-bubbles)]
-   ])
+     ;; Static part
+     [draw-links (state-read/get-links)]
+     [draw-bubbles (state-read/get-bubbles)]
+     ]))
 
 (defn svg-canvas []
   (reagent/create-class
@@ -643,7 +504,7 @@
          }
 
         :on-context-menu
-        (prevent-context-menu)
+        (event/prevent-context-menu)
         }
-       [draw-graph]
+       [draw-graph (state-read/get-rendering-style)]
        ])}))
