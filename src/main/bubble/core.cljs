@@ -9,10 +9,10 @@
    ))
 
 (defn- draw-graph [rendering-style]
-  (case rendering-style
+  (condp = rendering-style
     const/REDERING-STYLE-SOLID
     [:g
-     {:class "graph"}
+     {:id "graph"}
      ;; Interactive part
      (when (state-read/get-link-src)
        [gui-solid/draw-building-link
@@ -20,7 +20,13 @@
         (state-read/get-mouse-position)])
 
      ;; Static part
-     [gui-solid/draw-links (state-read/get-links)]
+     (let [couples_bubble
+           (map
+            (fn [link]
+              [(-> link :src state-read/get-bubble)
+               (-> link :dst state-read/get-bubble)])
+            (state-read/get-links))]
+       [gui-solid/draw-links couples_bubble])
      [gui-solid/draw-bubbles (state-read/get-bubbles)]
      ]))
 

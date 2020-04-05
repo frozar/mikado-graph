@@ -5,8 +5,7 @@
    [cljs.core.async :refer [put!]]
    [clojure.string :as string]
    [reagent.core :as reagent]
-   )
-  )
+   ))
 
 (defn- center-textarea
   "Center the textarea field against the surrounding bubble"
@@ -65,8 +64,9 @@
 (defn update-bubble-size [dom-node {:keys [id]}]
   (let [width (.-width (.getBoundingClientRect dom-node))
         height (.-height (.getBoundingClientRect dom-node))
-        new-rx (-> width (/ 2) (+ 50))
-        new-ry (-> height (/ 2) (+ 50))]
+        radial-offset 40
+        new-rx (-> width (/ 2) (+ radial-offset))
+        new-ry (-> height (/ 2) (+ radial-offset))]
     (put! event/event-queue [:resize-bubble id new-rx new-ry])
     )
   )

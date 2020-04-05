@@ -1,13 +1,11 @@
 (ns bubble.gui-solid
   (:require
    [bubble.constant :as const]
-   [bubble.gui-common :as gui-common]
    [bubble.event-factory :as event-factory]
-   [bubble.state-read :as state-read]
+   [bubble.gui-common :as gui-common]
    [clojure.string :as string]
    [reagent.core :as reagent]
-   )
-  )
+   ))
 
 (defn draw-building-link [bubble-src [mouse-x mouse-y]]
   (let [{:keys [cx cy]} bubble-src
@@ -60,20 +58,15 @@
      [draw-white-shadow-path src-b dst-b event-property]
      [draw-path src-b dst-b event-property]]))
 
-(defn draw-links [links]
-  (when links
+(defn draw-links [couples_bubble]
+  (when (seq couples_bubble)
     [:<>
      (doall
-      (for [link links]
-        (let [{:keys [src dst]} link
-              src-b (state-read/get-bubble src)
-              dst-b (state-read/get-bubble dst)
-              ]
-          ^{:key (str (link->key-str src-b dst-b) "-group")}
-          [:g
-           {:class "graph_link"}
-           [draw-link src-b dst-b]
-           ])))]))
+      (for [[src-b dst-b] couples_bubble]
+        ^{:key (str (link->key-str src-b dst-b) "-link")}
+        [:g
+         {:class "graph_link"}
+         [draw-link src-b dst-b]]))]))
 
 (defn- draw-pencil-button
   [{:keys [cx cy show-button?]} ry
@@ -170,7 +163,7 @@
   )
 
 (defn- add-button [{:keys [type ry] :as bubble}]
-  (case type
+  (condp = type
     const/ROOT-BUBBLE-TYPE
     [:<>
      [draw-validation-button bubble (+ 10 ry)
@@ -193,67 +186,54 @@
 
     nil))
 
-(defn- update-y-pos [y-pos-atom dom-node bubble-id]
-  (let [height (.-height (.getBoundingClientRect dom-node))
-        bubble (state-read/get-bubble bubble-id)
-        y-bubble (:cy bubble)
-        nb-lines (->> bubble :text string/split-lines count)
-        height-line (/ height nb-lines)
-        y-offset (-> nb-lines dec (* height-line) (/ 2))
+(defn get-text-y [{:keys [cy text]} font-size]
+  (let [nb-lines (-> text string/split-lines count)
+        y-offset (-> nb-lines dec (* font-size) (/ 2))
         ]
-    (reset! y-pos-atom (- y-bubble y-offset))
+    (- cy y-offset)
     ))
 
 (defn- bubble-text
   [bubble
    event-property]
-  (let [dom-node (reagent/atom nil)
-        {:keys [id cy]} bubble
-        y-pos (reagent/atom cy)]
-    (reagent/create-class
-     {
-      :display-name "bubble-text"
+  (reagent/create-class
+   {
+    :display-name "bubble-text"
 
-      :component-did-mount
-      (fn [this]
-        (reset! dom-node (reagent/dom-node this))
-        (gui-common/update-bubble-size @dom-node bubble)
-        (update-y-pos y-pos @dom-node id))
+    :component-did-mount
+    (fn [this]
+      (gui-common/update-bubble-size (reagent/dom-node this) bubble))
 
-      :component-did-update
-      (fn []
-        (update-y-pos y-pos @dom-node id))
-
-      :reagent-render
-      (fn [bubble event-property]
-        (let [font-size 20
-              {:keys [id initial-state? cx]} bubble
-              text-style (if initial-state?
-                           {:font-style "italic" :fill "#333"}
-                           {:font-style "normal" :fill "#000"})
-              for-counter (atom 0)
-              ]
-          [:text
-           (merge event-property
-                  {:class "label"
-                   :style
-                   (merge text-style
-                          {
-                           :text-anchor "middle"
-                           :dominant-baseline "middle"
-                           })
-                   :y @y-pos
-                   :font-size font-size
-                   })
-           (for [tspan-text (->> bubble :text string/split-lines)]
-             (let [id-number @for-counter
-                   tspan-id (str id @for-counter)]
-               (swap! for-counter inc)
-               ^{:key tspan-id}
-               [:tspan {:x cx
-                        :dy (if (= id-number 0) 0 "1.2em")
-                        }
-                tspan-text]))]))})))
+    :reagent-render
+    (fn [bubble event-property]
+      (let [font-size 20
+            {:keys [id initial-state? cx]} bubble
+            text-style (if initial-state?
+                         {:font-style "italic" :fill "#333"}
+                         {:font-style "normal" :fill "#000"})]
+        [:text
+         (merge event-property
+                {:class "label"
+                 :style
+                 (merge text-style
+                        {
+                         :text-anchor "middle"
+                         :dominant-baseline "middle"
+                         })
+                 :y (get-text-y bubble font-size)
+                 :font-size font-size
+                 })
+         (for [[idx tspan-text]
+               (map-indexed
+                (fn [idx text] [idx text])
+                (-> bubble :text string/split-lines))]
+           (let [tspan-id (str id idx)]
+             ^{:key tspan-id}
+             [:tspan
+              {:x cx
+               :dy (if (= idx 0) 0 "1.2em")
+               }
+              tspan-text]))]))}))
 
 (defn- draw-ellipse
   [{:keys [cx cy done?]} rx ry
@@ -278,7 +258,7 @@
    (merge event-property
           {:class "bubble"})
 
-   (case type
+   (condp = type
      const/ROOT-BUBBLE-TYPE
      [:<>
       [draw-ellipse bubble (+ 10 rx) (+ 10 ry)

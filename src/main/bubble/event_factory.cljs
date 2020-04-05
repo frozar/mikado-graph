@@ -57,7 +57,7 @@
 
     :common-text-ellipse
     (let [[bubble] args
-          {:keys [id]} bubble]
+          {:keys [id type]} bubble]
       {:on-mouse-down
        (fn [evt]
          ;; It must be a simple click
