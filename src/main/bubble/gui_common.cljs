@@ -192,13 +192,20 @@
     relative-th0))
 
 (defn- angle-between-bubbles
-  "Compute the angle between the Ox axis and the vector [src-b dst-b]"
+  "Compute the angle between the Ox axis and the vector [center-src-b center-dst-b]"
   [src-b dst-b]
   (let [[vx vy]
         [(- (:cx dst-b) (:cx src-b)) (- (:cy dst-b) (:cy src-b))]]
     (js/Math.atan2 vy vx)))
 
-(defn- border-point
+(defn angle-between-bubble-position
+  "Compute the angle between the Ox axis and the vector [center-src-b pt]"
+  [src-b pt-x pt-y]
+  (let [[vx vy]
+        [(- pt-x (:cx src-b)) (- pt-y (:cy src-b))]]
+    (js/Math.atan2 vy vx)))
+
+(defn border-point
   "Given an incidental segment to the center of a bubble,
   compute the intersection point between the ellipse and the segment."
   [{:keys [rx ry cx cy]} th0 bubble-type]

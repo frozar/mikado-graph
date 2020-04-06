@@ -99,7 +99,6 @@
 
 (defn window-keystroke-evt [evt]
   (let [t-key-code 116]
-    (prn (.-keyCode evt))
     (condp = (.-keyCode evt)
       t-key-code
       (put! event-queue [:toggle-rough-layout])

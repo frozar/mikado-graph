@@ -10,9 +10,10 @@
    ))
 
 (defn draw-building-link [bubble-src [mouse-x mouse-y]]
-  (let [{:keys [cx cy]} bubble-src
+  (let [th0 (gui-common/angle-between-bubble-position bubble-src mouse-x mouse-y)
+        [src-pt-x src-pt-y] (gui-common/border-point bubble-src th0 :source)
         ]
-    (rough/line cx cy mouse-x mouse-y
+    (rough/line src-pt-x src-pt-y mouse-x mouse-y
                 {:rough-option {:stroke "black"
                                 :strokeWidth 2
                                 :roughness 3

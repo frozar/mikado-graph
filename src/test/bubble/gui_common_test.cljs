@@ -47,7 +47,7 @@
       (is
        (=
         (for [i (range 8)]
-          (#'g/border-point src-b (- (* i (/ (* 2 js/Math.PI) 8)) js/Math.PI) :source))
+          (g/border-point src-b (- (* i (/ (* 2 js/Math.PI) 8)) js/Math.PI) :source))
         (list [-2 -3.216245299353273e-16]
               [-0.8944271909999163 -0.8944271909999157]
               [1.2246467991473532e-16 -1]
@@ -60,7 +60,7 @@
       (is
        (=
         (for [i (range 8)]
-          (#'g/border-point dst-b (* i (/ (* 2 js/Math.PI) 8)) :target))
+          (g/border-point dst-b (* i (/ (* 2 js/Math.PI) 8)) :target))
         (list [98 100]
               [99.10557280900008 99.10557280900008]
               [100 99]
@@ -73,7 +73,7 @@
       (is
        (=
         (for [i (range 8)]
-          (#'g/border-point dst-b (- (* i (/ (* 2 js/Math.PI) 8)) js/Math.PI) :target))
+          (g/border-point dst-b (- (* i (/ (* 2 js/Math.PI) 8)) js/Math.PI) :target))
         (list [102 100]
               [100.89442719099992 100.89442719099992]
               [100 101]
