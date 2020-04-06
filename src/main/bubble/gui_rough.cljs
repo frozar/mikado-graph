@@ -59,7 +59,7 @@
          rough-path (rough/path path-str
                                 {:rough-option {:stroke "black"
                                                 :strokeWidth 2
-                                                :roughness 3
+                                                :roughness 2
                                                 :roughnessGain 1
                                                 :seed 0}
                                  :group-option (merge event-property
@@ -68,12 +68,30 @@
        [draw-white-shadow-path rough-path]
        rough-path))))
 
+(defn- draw-arrowhead
+  [src-b dst-b event-property]
+  (let [th0 (gui-common/angle-between-bubbles src-b dst-b)
+        [dst-pt-x dst-pt-y] (gui-common/border-point dst-b th0 :target)
+        deg-th0 (/ (* th0 180) js/Math.PI)
+        ]
+    (rough/path "M -10 -20 L 0 0 L 10 -20 L 0 -5 Z"
+                {:rough-option {:stroke "black"
+                                :strokeWidth 1
+                                }
+                 :group-option (merge event-property
+                                      {:transform
+                                       (str "translate(" dst-pt-x " " dst-pt-y ") "
+                                            "rotate("(+ deg-th0 -90)")")})})))
+
 (defn- draw-link
   [src-b dst-b]
   (let [src-id (:id src-b)
         dst-id (:id dst-b)
         event-property (event-factory/event-property-factory :link src-id dst-id)]
-    [draw-path src-b dst-b event-property]))
+    [:g
+     {:class "arrow"}
+     [draw-path src-b dst-b event-property]
+     [draw-arrowhead src-b dst-b event-property]]))
 
 (defn draw-links [couples_bubble]
   (when (seq couples_bubble)

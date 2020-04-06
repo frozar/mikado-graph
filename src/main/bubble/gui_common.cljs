@@ -191,7 +191,7 @@
          (- js/Math.PI))]
     relative-th0))
 
-(defn- angle-between-bubbles
+(defn angle-between-bubbles
   "Compute the angle between the Ox axis and the vector [center-src-b center-dst-b]"
   [src-b dst-b]
   (let [[vx vy]

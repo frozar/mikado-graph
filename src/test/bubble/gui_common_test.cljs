@@ -27,17 +27,17 @@
     (let [src-b {:cx 0 :cy 0}
           dst-b {:cx 100 :cy 0}]
       (is (=
-           (#'g/angle-between-bubbles src-b dst-b)
+           (g/angle-between-bubbles src-b dst-b)
            0)))
     (let [src-b {:cx 0 :cy 0}
           dst-b {:cx 100 :cy 100}]
       (is (=
-           (#'g/angle-between-bubbles src-b dst-b)
+           (g/angle-between-bubbles src-b dst-b)
            (/ js/Math.PI 4))))
     (let [src-b {:cx 0 :cy 0}
           dst-b {:cx 0 :cy 100}]
       (is (=
-           (#'g/angle-between-bubbles src-b dst-b)
+           (g/angle-between-bubbles src-b dst-b)
            (/ js/Math.PI 2))))))
 
 (deftest border-point_basic
