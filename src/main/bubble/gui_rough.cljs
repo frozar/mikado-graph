@@ -272,8 +272,13 @@
    (condp = type
      const/ROOT-BUBBLE-TYPE
      [:<>
-      [draw-ellipse bubble (+ 10 rx) (+ 10 ry)
-       (event-factory/event-property-factory :ellipse bubble (+ 10 ry))]
+      [draw-ellipse bubble
+       (+ const/ROOT-BUBBLE-OFFSET rx)
+       (+ const/ROOT-BUBBLE-OFFSET  ry)
+       (event-factory/event-property-factory
+        :ellipse
+        bubble
+        (+ const/ROOT-BUBBLE-OFFSET  ry))]
       [draw-ellipse bubble rx ry
        (event-factory/event-property-factory :ellipse bubble ry)]]
 

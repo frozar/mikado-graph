@@ -7,6 +7,8 @@
 (def ^:const ROOT-BUBBLE-TYPE :root-bubble)
 (def ^:const BUBBLE-TYPE      :bubble)
 
+(def ^:const ROOT-BUBBLE-OFFSET 10)
+
 (def ^:const BUBBLE-DEFAULT-TEXT      "New task")
 (def ^:const ROOT-BUBBLE-DEFAULT-TEXT "Main goal")
 

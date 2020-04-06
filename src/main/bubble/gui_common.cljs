@@ -208,19 +208,25 @@
 (defn border-point
   "Given an incidental segment to the center of a bubble,
   compute the intersection point between the ellipse and the segment."
-  [{:keys [rx ry cx cy]} th0 bubble-type]
-  (let [relative-th0 (get-relative-th0 th0 bubble-type)
+  [{:keys [rx ry cx cy type]} th0 bubble-extremity]
+  (let [relative-th0 (get-relative-th0 th0 bubble-extremity)
 
-        t0 (js/Math.atan2 (* rx (js/Math.tan relative-th0)) ry)
+        [effective_rx effective_ry]
+        (if (= type const/ROOT-BUBBLE-TYPE)
+          [(+ rx const/ROOT-BUBBLE-OFFSET) (+ ry const/ROOT-BUBBLE-OFFSET)]
+          [rx ry])
+
+        t0 (js/Math.atan2 (* effective_rx (js/Math.tan relative-th0)) effective_ry)
 
         parametric_input
         (if (or (< (/ js/Math.PI 2) relative-th0)
                 (< relative-th0 (- 0 (/ js/Math.PI 2))))
           (+ t0 js/Math.PI)
-          t0)]
+          t0)
+        ]
     ;; Use the ellipse parametric equation
-    [(+ cx (* rx (js/Math.cos parametric_input)))
-     (+ cy (* ry (js/Math.sin parametric_input)))]))
+    [(+ cx (* effective_rx (js/Math.cos parametric_input)))
+     (+ cy (* effective_ry (js/Math.sin parametric_input)))]))
 
 (defn incidental-border-points-between-bubbles
   "Return points on the border of bubbles which match with the intersection
