@@ -1,24 +1,28 @@
-(ns bubble.gui-solid
+(ns bubble.gui-rough
   (:require
    [bubble.constant :as const]
    [bubble.event-factory :as event-factory]
    [bubble.gui-common :as gui-common]
    [clojure.string :as string]
+   [com.rpl.specter :as sp]
    [reagent.core :as reagent]
+   [roughcljs.core :as rough]
    ))
 
 (defn draw-building-link [bubble-src [mouse-x mouse-y]]
-  (let [{:keys [cx cy]} bubble-src
+  (let [th0 (gui-common/angle-between-bubble-position bubble-src mouse-x mouse-y)
+        [src-pt-x src-pt-y] (gui-common/border-point bubble-src th0 :source)
         ]
-    [:line {:stroke "black"
-            :stroke-width 5
-            :x1 cx :y1 cy
-            :x2 mouse-x :y2 mouse-y
-            }]))
+    (rough/line src-pt-x src-pt-y mouse-x mouse-y
+                {:rough-option {:stroke "black"
+                                :strokeWidth 2
+                                :roughness 3
+                                :roughnessGain 1
+                                :seed 0}})))
 
 (defn- link->path-str [src-b dst-b]
-  (let [[src-pt-x src-pt-y] [(:cx src-b) (:cy src-b)]
-        [dst-pt-x dst-pt-y] [(:cx dst-b) (:cy dst-b)]]
+  (let [[src-pt-x src-pt-y dst-pt-x dst-pt-y]
+        (gui-common/incidental-border-points-between-bubbles src-b dst-b)]
     (str "M " src-pt-x "," src-pt-y " L " dst-pt-x "," dst-pt-y)))
 
 (defn- link->key-str [src-b dst-b]
@@ -26,37 +30,68 @@
         dst-id (:id dst-b)]
     (str src-id "-" dst-id)))
 
-(defn- draw-path
-  [src-b dst-b event-property]
-  (let [path-str (link->path-str src-b dst-b)
-        key-str (link->key-str src-b dst-b)]
-    [:path
-     (merge
-      event-property
-      {:key key-str
-       :stroke-width 4
-       :stroke "black"
-       :fill "none"
-       :d path-str})]))
-
 (defn- draw-white-shadow-path
+  [path-to-shallow]
+  [:<>
+   (->> path-to-shallow
+        (sp/transform
+         [(sp/srange 2 3) sp/ALL (sp/srange 1 2) sp/ALL :style]
+         (fn [hashmap]
+           (let [stroke-width-value (-> (:stroke-width hashmap) js/parseInt)]
+             (assoc hashmap
+                    :stroke "white"
+                    :stroke-width (+ 3 stroke-width-value)))
+           ))
+        (sp/transform
+         [(sp/srange 1 2) sp/ALL]
+         (fn [hashmap]
+           (let [key-value (:key hashmap)]
+             (assoc hashmap
+                    :key (str key-value "-shadow")))
+           )))
+   path-to-shallow])
+
+(defn- draw-path
+  ([src-b dst-b event-property] (draw-path src-b dst-b event-property true))
+  ([src-b dst-b event-property to-shadow?]
+   (let [path-str (link->path-str src-b dst-b)
+         key-str (link->key-str src-b dst-b)
+         rough-path (rough/path path-str
+                                {:rough-option {:stroke "black"
+                                                :strokeWidth 2
+                                                :roughness 2
+                                                :roughnessGain 1
+                                                :seed 0}
+                                 :group-option (merge event-property
+                                                      {:key key-str})})]
+     (if to-shadow?
+       [draw-white-shadow-path rough-path]
+       rough-path))))
+
+(defn- draw-arrowhead
   [src-b dst-b event-property]
-  (let [hashmap (second (draw-path src-b dst-b event-property))]
-    [:path
-     (merge
-      hashmap
-      {:key (str (link->key-str src-b dst-b) "-wider")
-       :stroke-width 20
-       :stroke "white"})]))
+  (let [th0 (gui-common/angle-between-bubbles src-b dst-b)
+        [dst-pt-x dst-pt-y] (gui-common/border-point dst-b th0 :target)
+        deg-th0 (/ (* th0 180) js/Math.PI)
+        ]
+    (rough/path "M -10 -20 L 0 0 L 10 -20 L 0 -5 Z"
+                {:rough-option {:stroke "black"
+                                :strokeWidth 1
+                                }
+                 :group-option (merge event-property
+                                      {:transform
+                                       (str "translate(" dst-pt-x " " dst-pt-y ") "
+                                            "rotate("(+ deg-th0 -90)")")})})))
 
 (defn- draw-link
   [src-b dst-b]
   (let [src-id (:id src-b)
         dst-id (:id dst-b)
         event-property (event-factory/event-property-factory :link src-id dst-id)]
-    [:<>
-     [draw-white-shadow-path src-b dst-b event-property]
-     [draw-path src-b dst-b event-property]]))
+    [:g
+     {:class "arrow"}
+     [draw-path src-b dst-b event-property]
+     [draw-arrowhead src-b dst-b event-property]]))
 
 (defn draw-links [couples_bubble]
   (when (seq couples_bubble)
@@ -112,7 +147,9 @@
              :stroke "darkblue"
              :stroke-width 4
              :transform (str "translate(" x-offset "," y-offset ") scale(1) rotate(-90)")
-             :visibility (if show-button? "visible" "hidden")})
+             :visibility (if show-button? "visible" "hidden")
+             :pointer-events "bounding-box"
+             })
      ;; Draw dash line
      (for [i (map #(* 2 %) (range 3))]
        (let [start (* 7 i)
@@ -204,22 +241,19 @@
 
     :reagent-render
     (fn [bubble event-property]
-      (let [font-size 20
-            {:keys [id initial-state? cx]} bubble
-            text-style (if initial-state?
-                         {:font-style "italic" :fill "#333"}
-                         {:font-style "normal" :fill "#000"})]
+      (let [{:keys [id initial-state? cx]} bubble
+            font-size (if initial-state? 20 24)
+            tspan-style
+            (if initial-state?
+              {:font-size font-size :font-style "italic" :font-weight "bold" :fill "#555"}
+              {:font-size font-size :font-style "normal" :fill "#000"})]
         [:text
          (merge event-property
                 {:class "label"
-                 :style
-                 (merge text-style
-                        {
-                         :text-anchor "middle"
+                 :style {:text-anchor "middle"
                          :dominant-baseline "middle"
-                         })
+                         }
                  :y (get-text-y bubble font-size)
-                 :font-size font-size
                  })
          (for [[idx tspan-text]
                (map-indexed
@@ -227,26 +261,36 @@
                 (-> bubble :text string/split-lines))]
            (let [tspan-id (str id idx)]
              ^{:key tspan-id}
-             [:tspan
-              {:x cx
-               :dy (if (= idx 0) 0 "1.2em")
-               }
-              tspan-text]))]))}))
+             [:<>
+              [:tspan
+               (merge tspan-style
+                      {:x cx :dy (if (= idx 0) 0 "1.2em")
+                       :filter "url(#bg-text)" ;;:fill "black"
+                       })
+               tspan-text]
+              [:tspan
+               (merge tspan-style
+                      {:x cx :dy (if (= idx 0) 0 "1.2em")
+                       ;;:fill "black"
+                       })
+               tspan-text]]))]))}))
 
 (defn- draw-ellipse
-  [{:keys [cx cy done?]} rx ry
+  [{:keys [cx cy done? type]} rx ry
    event-property]
-  [:ellipse
-   (merge event-property
-          {:stroke "black"
-           :stroke-width 5
-           :cx cx
-           :cy cy
-           :rx rx
-           :ry ry
-           :cursor "grab"
-           :fill (if done? "#6f0" "#f06")
-           })])
+  (rough/ellipse
+   cx cy (* 2 rx) (* 2 ry)
+   {:rough-option
+    {:seed 0
+     :strokeWidth 3
+     :fill (if done? const/DONE-COLOR const/PENDING-COLOR)
+     :fillStyle "cross-hatch"
+     :fillWeight 1.5
+     :hachureGap
+     (if (= type const/ROOT-BUBBLE-TYPE)
+       12
+       8)}
+    :group-option event-property}))
 
 (defn- draw-bubble
   [{:keys [id type rx ry edition?] :as bubble}
@@ -259,8 +303,13 @@
    (condp = type
      const/ROOT-BUBBLE-TYPE
      [:<>
-      [draw-ellipse bubble (+ 10 rx) (+ 10 ry)
-       (event-factory/event-property-factory :ellipse bubble (+ 10 ry))]
+      [draw-ellipse bubble
+       (+ const/ROOT-BUBBLE-OFFSET rx)
+       (+ const/ROOT-BUBBLE-OFFSET  ry)
+       (event-factory/event-property-factory
+        :ellipse
+        bubble
+        (+ const/ROOT-BUBBLE-OFFSET  ry))]
       [draw-ellipse bubble rx ry
        (event-factory/event-property-factory :ellipse bubble ry)]]
 
@@ -275,7 +324,7 @@
      [:<>
       [bubble-text bubble
        (event-factory/event-property-factory :text bubble)]
-      [add-button bubble]]
+      #_[add-button bubble]]
      )
    ])
 

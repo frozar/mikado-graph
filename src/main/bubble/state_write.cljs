@@ -1,6 +1,7 @@
 (ns bubble.state-write
   (:require
    [bubble.bubble :as bubble]
+   [bubble.constant :as const]
    [bubble.state :refer [appstate]]
    [bubble.state-read :as state-read]
    [com.rpl.specter :as sp]
@@ -259,3 +260,15 @@
 
 (macro/BANG toggle-done-status)
 ;; END: Toggle done
+
+;; START: Toggle rough aspect
+;;TODO: UT
+(defn- toggle-rough-layout [appstate]
+  (let [new-style
+        (if (= (appstate :rendering-style) const/REDERING-STYLE-SOLID)
+          const/REDERING-STYLE-ROUGH
+          const/REDERING-STYLE-SOLID)]
+    (update appstate :rendering-style (fn [] new-style))))
+
+(macro/BANG toggle-rough-layout)
+;; END: Toggle rough aspect

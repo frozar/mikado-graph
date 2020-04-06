@@ -27,7 +27,8 @@
     :link-button
     (let [[bubble] args
           {:keys [id]} bubble]
-      {:on-click
+      {:pointer-events "bounding-box"
+       :on-click
        (build-link/build-link-start-fn id)})
 
     :delete-button
