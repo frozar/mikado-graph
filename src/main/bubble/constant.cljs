@@ -14,3 +14,6 @@
 
 (def ^:const REDERING-STYLE-SOLID :solid)
 (def ^:const REDERING-STYLE-ROUGH :rough)
+
+(def ^:const PENDING-COLOR "#f06")
+(def ^:const DONE-COLOR "#6f0")

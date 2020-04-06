@@ -241,22 +241,19 @@
 
     :reagent-render
     (fn [bubble event-property]
-      (let [font-size 20
-            {:keys [id initial-state? cx]} bubble
-            text-style (if initial-state?
-                         {:font-style "italic" :fill "#333"}
-                         {:font-style "normal" :fill "#000"})]
+      (let [{:keys [id initial-state? cx]} bubble
+            font-size (if initial-state? 20 24)
+            tspan-style
+            (if initial-state?
+              {:font-size font-size :font-style "italic" :font-weight "bold" :fill "#555"}
+              {:font-size font-size :font-style "normal" :fill "#000"})]
         [:text
          (merge event-property
                 {:class "label"
-                 :style
-                 (merge text-style
-                        {
-                         :text-anchor "middle"
+                 :style {:text-anchor "middle"
                          :dominant-baseline "middle"
-                         })
+                         }
                  :y (get-text-y bubble font-size)
-                 :font-size font-size
                  })
          (for [[idx tspan-text]
                (map-indexed
@@ -264,20 +261,36 @@
                 (-> bubble :text string/split-lines))]
            (let [tspan-id (str id idx)]
              ^{:key tspan-id}
-             [:tspan
-              {:x cx
-               :dy (if (= idx 0) 0 "1.2em")
-               }
-              tspan-text]))]))}))
+             [:<>
+              [:tspan
+               (merge tspan-style
+                      {:x cx :dy (if (= idx 0) 0 "1.2em")
+                       :filter "url(#bg-text)" ;;:fill "black"
+                       })
+               tspan-text]
+              [:tspan
+               (merge tspan-style
+                      {:x cx :dy (if (= idx 0) 0 "1.2em")
+                       ;;:fill "black"
+                       })
+               tspan-text]]))]))}))
 
 (defn- draw-ellipse
-  [{:keys [cx cy done?]} rx ry
+  [{:keys [cx cy done? type]} rx ry
    event-property]
-  (rough/ellipse cx cy (* 2 rx) (* 2 ry)
-                 {:rough-option {:fill (if done? "#6f0" "#f06")
-                                 :fillStyle "hachure"
-                                 :seed 0}
-                  :group-option event-property}))
+  (rough/ellipse
+   cx cy (* 2 rx) (* 2 ry)
+   {:rough-option
+    {:seed 0
+     :strokeWidth 3
+     :fill (if done? const/DONE-COLOR const/PENDING-COLOR)
+     :fillStyle "cross-hatch"
+     :fillWeight 1.5
+     :hachureGap
+     (if (= type const/ROOT-BUBBLE-TYPE)
+       12
+       8)}
+    :group-option event-property}))
 
 (defn- draw-bubble
   [{:keys [id type rx ry edition?] :as bubble}
@@ -311,7 +324,7 @@
      [:<>
       [bubble-text bubble
        (event-factory/event-property-factory :text bubble)]
-      [add-button bubble]]
+      #_[add-button bubble]]
      )
    ])
 

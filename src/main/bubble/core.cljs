@@ -81,5 +81,15 @@
         :on-context-menu
         (event/prevent-context-menu)
         }
+
+       ;; This filter is used in rough display mode: background of text node
+       ;; Documentation: https://stackoverflow.com/questions/15500894/background-color-of-text-in-svg
+       [:defs
+        [:filter
+         {:x 0 :y 0 :width 1 :height 1 :id "bg-text"}
+         [:feFlood {:floodColor "#ffffffee"}]
+         [:feComposite {:in "SourceGraphic" :operator "xor"}]
+         ]]
+
        [draw-graph (state-read/get-rendering-style)]
        ])}))
