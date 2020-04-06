@@ -1,24 +1,27 @@
-(ns bubble.gui-solid
+(ns bubble.gui-rough
   (:require
    [bubble.constant :as const]
    [bubble.event-factory :as event-factory]
    [bubble.gui-common :as gui-common]
    [clojure.string :as string]
+   [com.rpl.specter :as sp]
    [reagent.core :as reagent]
+   [roughcljs.core :as rough]
    ))
 
 (defn draw-building-link [bubble-src [mouse-x mouse-y]]
   (let [{:keys [cx cy]} bubble-src
         ]
-    [:line {:stroke "black"
-            :stroke-width 5
-            :x1 cx :y1 cy
-            :x2 mouse-x :y2 mouse-y
-            }]))
+    (rough/line cx cy mouse-x mouse-y
+                {:rough-option {:stroke "black"
+                                :strokeWidth 2
+                                :roughness 3
+                                :roughnessGain 1
+                                :seed 0}})))
 
 (defn- link->path-str [src-b dst-b]
-  (let [[src-pt-x src-pt-y] [(:cx src-b) (:cy src-b)]
-        [dst-pt-x dst-pt-y] [(:cx dst-b) (:cy dst-b)]]
+  (let [[src-pt-x src-pt-y dst-pt-x dst-pt-y]
+        (gui-common/incidental-border-points-between-bubbles src-b dst-b)]
     (str "M " src-pt-x "," src-pt-y " L " dst-pt-x "," dst-pt-y)))
 
 (defn- link->key-str [src-b dst-b]
@@ -26,37 +29,50 @@
         dst-id (:id dst-b)]
     (str src-id "-" dst-id)))
 
-(defn- draw-path
-  [src-b dst-b event-property]
-  (let [path-str (link->path-str src-b dst-b)
-        key-str (link->key-str src-b dst-b)]
-    [:path
-     (merge
-      event-property
-      {:key key-str
-       :stroke-width 4
-       :stroke "black"
-       :fill "none"
-       :d path-str})]))
-
 (defn- draw-white-shadow-path
-  [src-b dst-b event-property]
-  (let [hashmap (second (draw-path src-b dst-b event-property))]
-    [:path
-     (merge
-      hashmap
-      {:key (str (link->key-str src-b dst-b) "-wider")
-       :stroke-width 20
-       :stroke "white"})]))
+  [path-to-shallow]
+  [:<>
+   (->> path-to-shallow
+        (sp/transform
+         [(sp/srange 2 3) sp/ALL (sp/srange 1 2) sp/ALL :style]
+         (fn [hashmap]
+           (let [stroke-width-value (-> (:stroke-width hashmap) js/parseInt)]
+             (assoc hashmap
+                    :stroke "white"
+                    :stroke-width (+ 3 stroke-width-value)))
+           ))
+        (sp/transform
+         [(sp/srange 1 2) sp/ALL]
+         (fn [hashmap]
+           (let [key-value (:key hashmap)]
+             (assoc hashmap
+                    :key (str key-value "-shadow")))
+           )))
+   path-to-shallow])
+
+(defn- draw-path
+  ([src-b dst-b event-property] (draw-path src-b dst-b event-property true))
+  ([src-b dst-b event-property to-shadow?]
+   (let [path-str (link->path-str src-b dst-b)
+         key-str (link->key-str src-b dst-b)
+         rough-path (rough/path path-str
+                                {:rough-option {:stroke "black"
+                                                :strokeWidth 2
+                                                :roughness 3
+                                                :roughnessGain 1
+                                                :seed 0}
+                                 :group-option (merge event-property
+                                                      {:key key-str})})]
+     (if to-shadow?
+       [draw-white-shadow-path rough-path]
+       rough-path))))
 
 (defn- draw-link
   [src-b dst-b]
   (let [src-id (:id src-b)
         dst-id (:id dst-b)
         event-property (event-factory/event-property-factory :link src-id dst-id)]
-    [:<>
-     [draw-white-shadow-path src-b dst-b event-property]
-     [draw-path src-b dst-b event-property]]))
+    [draw-path src-b dst-b event-property]))
 
 (defn draw-links [couples_bubble]
   (when (seq couples_bubble)
@@ -112,7 +128,9 @@
              :stroke "darkblue"
              :stroke-width 4
              :transform (str "translate(" x-offset "," y-offset ") scale(1) rotate(-90)")
-             :visibility (if show-button? "visible" "hidden")})
+             :visibility (if show-button? "visible" "hidden")
+             :pointer-events "bounding-box"
+             })
      ;; Draw dash line
      (for [i (map #(* 2 %) (range 3))]
        (let [start (* 7 i)
@@ -236,17 +254,11 @@
 (defn- draw-ellipse
   [{:keys [cx cy done?]} rx ry
    event-property]
-  [:ellipse
-   (merge event-property
-          {:stroke "black"
-           :stroke-width 5
-           :cx cx
-           :cy cy
-           :rx rx
-           :ry ry
-           :cursor "grab"
-           :fill (if done? "#6f0" "#f06")
-           })])
+  (rough/ellipse cx cy (* 2 rx) (* 2 ry)
+                 {:rough-option {:fill (if done? "#6f0" "#f06")
+                                 :fillStyle "hachure"
+                                 :seed 0}
+                  :group-option event-property}))
 
 (defn- draw-bubble
   [{:keys [id type rx ry edition?] :as bubble}

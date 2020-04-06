@@ -10,6 +10,7 @@
   [reagent "0.9.1"]
   [reagent-utils "0.3.3"]
   [hiccup "1.0.5"]
+  [frozar/roughcljs "0.2.0"]
   ]
 
  :builds

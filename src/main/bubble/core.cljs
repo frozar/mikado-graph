@@ -4,6 +4,7 @@
    [bubble.coordinate :as coord]
    [bubble.event :as event]
    [bubble.gui-solid :as gui-solid]
+   [bubble.gui-rough :as gui-rough]
    [bubble.state-read :as state-read]
    [reagent.core :as reagent]
    ))
@@ -27,8 +28,27 @@
                (-> link :dst state-read/get-bubble)])
             (state-read/get-links))]
        [gui-solid/draw-links couples_bubble])
-     [gui-solid/draw-bubbles (state-read/get-bubbles)]
-     ]))
+     [gui-solid/draw-bubbles (state-read/get-bubbles)]]
+
+    const/REDERING-STYLE-ROUGH
+    [:g
+     {:id "graph"}
+     ;; Interactive part
+     (when (state-read/get-link-src)
+       [gui-rough/draw-building-link
+        (-> (state-read/get-link-src) state-read/get-bubble)
+        (state-read/get-mouse-position)])
+
+     ;; Static part
+     (let [couples_bubble
+           (map
+            (fn [link]
+              [(-> link :src state-read/get-bubble)
+               (-> link :dst state-read/get-bubble)])
+            (state-read/get-links))]
+       [gui-rough/draw-links couples_bubble])
+     [gui-rough/draw-bubbles (state-read/get-bubbles)]]
+    ))
 
 (defn svg-canvas []
   (reagent/create-class

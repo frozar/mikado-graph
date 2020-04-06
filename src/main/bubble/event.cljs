@@ -77,19 +77,41 @@
     (let [[id rx ry] args]
       (state-write/resize-bubble! id rx ry))
 
+    :toggle-rough-layout
+    (state-write/toggle-rough-layout!)
+
     )
   (recur (<! event-queue)))
 
 (defn window-keydown-evt [evt]
   (let [escape-key-code 27]
-    (when (= escape-key-code (.-keyCode evt))
-      (put! event-queue [:build-link-exit]))))
+    (condp = (.-keyCode evt)
+      escape-key-code
+      (put! event-queue [:build-link-exit])
+      nil
+      )))
 
 (defn window-keydown-evt-fn []
   (events/listen js/window EventType.KEYDOWN window-keydown-evt)
   )
 
 (window-keydown-evt-fn) ;; auto-execution
+
+(defn window-keystroke-evt [evt]
+  (let [t-key-code 116]
+    (prn (.-keyCode evt))
+    (condp = (.-keyCode evt)
+      t-key-code
+      (put! event-queue [:toggle-rough-layout])
+
+      nil
+      )))
+
+(defn window-keystroke-evt-fn []
+  (events/listen js/window EventType.KEYPRESS window-keystroke-evt)
+  )
+
+(window-keystroke-evt-fn) ;; auto-execution
 
 (defn prevent-context-menu
   ([] (prevent-context-menu (fn [])))
