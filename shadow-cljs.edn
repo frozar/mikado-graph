@@ -9,8 +9,11 @@
   [com.rpl/specter "1.1.3"]
   [reagent "0.9.1"]
   [reagent-utils "0.3.3"]
-  [hiccup "1.0.5"]
-  [frozar/roughcljs "0.2.0"]
+  [hiccup "1.0.5"]  ;; TODO: is it really useful?
+  [frozar/roughcljs "0.2.1"]
+
+  ;; dev dependencies
+  [binaryage/devtools "1.0.0"]
   ]
 
  :builds
@@ -22,9 +25,14 @@
 
   :app
   {:target :browser
+   :output-dir "public/js"
+   :asset-path "/js"
+   :modules {:main {:init-fn mikado.app/init!
+                    :preloads [devtools.preload]}}
    :devtools {:http-root "public"
               :http-port 8080
               :autoload true
               :repl-init-ns mikado.app
-              :repl-pprint true}
-   :modules {:main {:init-fn mikado.app/init!}}}}}
+              :repl-pprint true
+              :preloads [devtools.preload]}}
+  }}
