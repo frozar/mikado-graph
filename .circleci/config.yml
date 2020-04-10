@@ -5,6 +5,10 @@
 version: 2
 jobs:
   build:
+    branches:
+      ignore:
+        - hg-pages
+
     docker:
       # specify the version you desire here
       - image: frozar/mikado-graph-ci:latest
