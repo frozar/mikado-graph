@@ -1,49 +1,83 @@
-# Clojure CircleCI 2.0 configuration file
-#
-# Check https://circleci.com/docs/2.0/language-clojure/ for more details
-#
-version: 2
+# Documentation link:
+# https://circleci.com/blog/deploying-documentation-to-github-pages-with-continuous-integration/
+
+version: 2.1
+
+defaults: &defaults
+  working_directory: ~/repo
+  docker:
+    - image: frozar/mikado-graph-ci:latest
+      user: circleci
+  environment:
+    LEIN_ROOT: "true"
+    JVM_OPTS: -Xmx3200m
+
 jobs:
-  build:
-    branches:
-      ignore:
-        - hg-pages
-
-    docker:
-      # specify the version you desire here
-      - image: frozar/mikado-graph-ci:latest
-        user: circleci
-
-      # Specify service dependencies here if necessary
-      # CircleCI maintains a library of pre-built images
-      # documented at https://circleci.com/docs/2.0/circleci-images/
-      # - image: circleci/postgres:9.4
-
-    working_directory: ~/repo
-
-    environment:
-      LEIN_ROOT: "true"
-      # Customize the JVM maximum heap limit
-      JVM_OPTS: -Xmx3200m
+  compile-and-test:
+    <<: *defaults
 
     steps:
       - checkout
 
-      # Download and cache dependencies
       - restore_cache:
           keys:
-            - v1-dependencies-{{ checksum "package.json" }}
-            # fallback to using the latest cache if no exact match is found
-            - v1-dependencies-
+            - v3-dependencies-{{ checksum "shadow-cljs.edn" }}
+            - v3-dependencies-
 
-      - run: npm i
+      - run:
+          name: install dependencies, compile test
+          command: |
+            npm i
+            shadow-cljs compile ci
 
       - save_cache:
           paths:
             - ~/.m2
-          key: v1-dependencies-{{ checksum "package.json" }}
+            - node_modules
+          key: v3-dependencies-{{ checksum "shadow-cljs.edn" }}
 
-      # compile tests!
-      - run: shadow-cljs compile ci
-      # run tests!
-      - run: karma start --single-run
+      - run:
+          name: Run test
+          command: karma start --single-run
+
+  publish-gh-pages:
+    <<: *defaults
+
+    steps:
+      - checkout
+
+      - run:
+          name: git settings, set knwon_hosts, disable jekyll
+          command: |
+            touch public/.nojekyll
+            git config user.email "ci-build@bot.com"
+            git config user.name "ci-build"
+            ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+
+      - add_ssh_keys:
+          fingerprints:
+            - "73:c4:05:07:52:04:27:4a:ab:3e:d2:62:7f:e7:e4:7c"
+
+      - restore_cache:
+          keys:
+            - v3-dependencies-{{ checksum "shadow-cljs.edn" }}
+            - v3-dependencies-
+
+      - run:
+          name: Compilation and publish the 'gh-pages' branch
+          command: |
+            shadow-cljs release app
+            npx gh-pages --dotfiles -f -m "[skip ci]" --dist public/
+
+workflows:
+ version: 2
+ Test_Workflow:
+   jobs:
+     - compile-and-test
+     - publish-gh-pages:
+         filters:
+           branches:
+             only:
+               - master
+         requires:
+           - compile-and-test
