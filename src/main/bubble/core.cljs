@@ -7,6 +7,7 @@
    [bubble.gui-rough :as gui-rough]
    [bubble.state-read :as state-read]
    [reagent.core :as reagent]
+   [reagent.dom :as rdom]
    ))
 
 (defn- draw-graph [rendering-style]
@@ -58,7 +59,7 @@
     :component-did-mount
     (let [dom-node (reagent/atom nil)]
       (fn [this]
-        (reset! dom-node (reagent/dom-node this))
+        (reset! dom-node (rdom/dom-node this))
         (let [svg-bbox-client (.getBoundingClientRect @dom-node)
               svg-origin-x (.-left svg-bbox-client)
               svg-origin-y (.-top svg-bbox-client)]

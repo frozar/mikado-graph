@@ -7,10 +7,11 @@
  :dependencies
  [[org.clojure/core.async "1.0.567"]
   [com.rpl/specter "1.1.3"]
-  [reagent "0.10.0"]
+  ;; [reagent "0.10.0"]
+  [reagent "1.0.0-alpha1"]
   [reagent-utils "0.3.3"]
-  [hiccup "1.0.5"]  ;; TODO: is it really useful?
-  [frozar/roughcljs "0.2.1"]
+  [hiccup "1.0.5"]
+  [frozar/roughcljs "0.2.4"]
 
   ;; dev dependencies
   [binaryage/devtools "1.0.0"]

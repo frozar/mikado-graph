@@ -5,6 +5,7 @@
    [bubble.gui-common :as gui-common]
    [clojure.string :as string]
    [reagent.core :as reagent]
+   [reagent.dom :as rdom]
    ))
 
 (defn draw-building-link [bubble-src [mouse-x mouse-y]]
@@ -200,7 +201,7 @@
 
     :component-did-mount
     (fn [this]
-      (gui-common/update-bubble-size (reagent/dom-node this) bubble))
+      (gui-common/update-bubble-size (rdom/dom-node this) bubble))
 
     :reagent-render
     (fn [bubble event-property]

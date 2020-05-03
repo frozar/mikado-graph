@@ -1,10 +1,10 @@
 (ns mikado.app
-  (:require [reagent.core :as reagent]
-            ;; [reagent.session :as session]
+  (:require ;; [reagent.session :as session]
             ;; [reitit.frontend :as reitit]
             ;; [clerk.core :as clerk]
             ;; [accountant.core :as accountant]
             [bubble.core :as bubble]
+            [reagent.dom :as rdom]
             )
   )
 
@@ -20,7 +20,7 @@
   )
 
 (defn mount-root [component]
-  (reagent/render [component] (.getElementById js/document "app"))
+  (rdom/render [component] (.getElementById js/document "app"))
   )
 
 (defn ^:dev/after-load reload! []

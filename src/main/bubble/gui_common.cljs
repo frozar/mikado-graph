@@ -5,6 +5,7 @@
    [cljs.core.async :refer [put!]]
    [clojure.string :as string]
    [reagent.core :as reagent]
+   [reagent.dom :as rdom]
    ))
 
 (defn- center-textarea
@@ -100,7 +101,7 @@
       :component-did-mount
       (fn [this]
         ;; Retrieve the textarea dom node from the foreignObject parent node
-        (reset! dom-node (.-firstChild (reagent/dom-node this)))
+        (reset! dom-node (.-firstChild (rdom/dom-node this)))
         (.focus @dom-node)
         (center-textarea @dom-node bubble
                          width height top-left-x top-left-y)
