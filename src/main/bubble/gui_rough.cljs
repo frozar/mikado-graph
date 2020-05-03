@@ -6,6 +6,7 @@
    [clojure.string :as string]
    [com.rpl.specter :as sp]
    [reagent.core :as reagent]
+   [reagent.dom :as rdom]
    [roughcljs.core :as rough]
    ))
 
@@ -229,15 +230,13 @@
     ))
 
 (defn- bubble-text
-  [bubble
-   event-property]
+  [bubble event-property]
   (reagent/create-class
-   {
-    :display-name "bubble-text"
+   {:display-name "bubble-text"
 
     :component-did-mount
     (fn [this]
-      (gui-common/update-bubble-size (reagent/dom-node this) bubble))
+      (gui-common/update-bubble-size (rdom/dom-node this) bubble))
 
     :reagent-render
     (fn [bubble event-property]
@@ -251,10 +250,8 @@
          (merge event-property
                 {:class "label"
                  :style {:text-anchor "middle"
-                         :dominant-baseline "middle"
-                         }
-                 :y (get-text-y bubble font-size)
-                 })
+                         :dominant-baseline "middle"}
+                 :y (get-text-y bubble font-size)})
          (for [[idx tspan-text]
                (map-indexed
                 (fn [idx text] [idx text])
@@ -265,14 +262,11 @@
               [:tspan
                (merge tspan-style
                       {:x cx :dy (if (= idx 0) 0 "1.2em")
-                       :filter "url(#bg-text)" ;;:fill "black"
-                       })
+                       :filter "url(#bg-text)"})
                tspan-text]
               [:tspan
                (merge tspan-style
-                      {:x cx :dy (if (= idx 0) 0 "1.2em")
-                       ;;:fill "black"
-                       })
+                      {:x cx :dy (if (= idx 0) 0 "1.2em")})
                tspan-text]]))]))}))
 
 (defn- draw-ellipse
@@ -322,11 +316,7 @@
    (if edition?
      [gui-common/bubble-input bubble]
      [:<>
-      [bubble-text bubble
-       (event-factory/event-property-factory :text bubble)]
-      #_[add-button bubble]]
-     )
-   ])
+      [bubble-text bubble (event-factory/event-property-factory :text bubble)]])])
 
 (defn draw-bubbles [bubbles]
   [:<>
