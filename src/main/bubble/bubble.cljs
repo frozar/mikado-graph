@@ -9,7 +9,6 @@
    :initial-state? true
    :done? false
    :edition? false
-   :show-button? false
    :cx 0
    :cy 0
    :rx 100 :ry 50

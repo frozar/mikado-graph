@@ -3,6 +3,7 @@
    [bubble.constant :as const]
    [bubble.event-factory :as event-factory]
    [bubble.gui-common :as gui-common]
+   [bubble.state-read :as state-read]
    [clojure.string :as string]
    [com.rpl.specter :as sp]
    [reagent.core :as reagent]
@@ -105,7 +106,7 @@
          [draw-link src-b dst-b]]))]))
 
 (defn- draw-pencil-button
-  [{:keys [cx cy show-button?]} ry
+  [{:keys [cx cy]} ry show-button?
    event-properties]
   (let [semi-length 15
         min-bound (- 0 semi-length)
@@ -137,7 +138,7 @@
   )
 
 (defn- draw-link-button
-  [{:keys [cx cy show-button?]} ry
+  [{:keys [cx cy]} ry show-button?
    event-properties]
   (let [x-offset (+ cx 60)
         y-offset (- cy (+ ry 5))
@@ -159,7 +160,7 @@
      ]))
 
 (defn- draw-delete-button
-  [{:keys [cx cy show-button?]} ry
+  [{:keys [cx cy]} ry show-button?
    event-properties]
   (let [semi-length 15
         min-bound (- 0 semi-length)
@@ -179,7 +180,7 @@
   )
 
 (defn- draw-validation-button
-  [{:keys [cx cy show-button?]} ry
+  [{:keys [cx cy]} ry show-button?
    event-properties]
   (let [length 30
         x-offset cx
@@ -198,26 +199,26 @@
      ])
   )
 
-(defn- add-button [{:keys [type ry] :as bubble}]
+(defn- add-button [{:keys [type ry] :as bubble} show-button?]
   (condp = type
     const/ROOT-BUBBLE-TYPE
     [:<>
-     [draw-validation-button bubble (+ 10 ry)
+     [draw-validation-button bubble (+ 10 ry) show-button?
       (event-factory/event-property-factory :validation-button bubble)]
-     [draw-pencil-button bubble (+ 10 ry)
+     [draw-pencil-button bubble (+ 10 ry) show-button?
       (event-factory/event-property-factory :pencil-button bubble)]
-     [draw-link-button bubble (+ 10 ry)
+     [draw-link-button bubble (+ 10 ry) show-button?
       (event-factory/event-property-factory :link-button bubble)]]
 
     const/BUBBLE-TYPE
     [:<>
-     [draw-validation-button bubble ry
+     [draw-validation-button bubble ry show-button?
       (event-factory/event-property-factory :validation-button bubble)]
-     [draw-delete-button bubble ry
+     [draw-delete-button bubble ry show-button?
       (event-factory/event-property-factory :delete-button bubble)]
-     [draw-pencil-button bubble ry
+     [draw-pencil-button bubble ry show-button?
       (event-factory/event-property-factory :pencil-button bubble)]
-     [draw-link-button bubble ry
+     [draw-link-button bubble ry show-button?
       (event-factory/event-property-factory :link-button bubble)]]
 
     nil))
@@ -287,44 +288,50 @@
        8)}
     :group-option event-property}))
 
-(defn- draw-bubble
-  [{:keys [id type rx ry edition?] :as bubble}
-   event-property]
-  ^{:key (str id "-group")}
-  [:g
-   (merge event-property
-          {:class "bubble"})
+(defn- draw-bubble [{:keys [id type rx ry edition?] :as bubble}]
+  (let [show-button? (reagent/atom false)]
+    (fn [{:keys [id type rx ry edition?] :as bubble}]
+      [:g
+       {:class "bubble"
+        :key (str id "-group")
+        :pointer-events "bounding-box"
+        :on-mouse-over
+        (fn []
+          (if (state-read/get-link-src)
+            (reset! show-button? false)
+            (reset! show-button? true)))
+        :on-mouse-leave
+        #(reset! show-button? false)}
 
-   (condp = type
-     const/ROOT-BUBBLE-TYPE
-     [:<>
-      [draw-ellipse bubble
-       (+ const/ROOT-BUBBLE-OFFSET rx)
-       (+ const/ROOT-BUBBLE-OFFSET ry)
-       (event-factory/event-property-factory
-        :ellipse
-        bubble
-        (+ const/ROOT-BUBBLE-OFFSET  ry))]
-      [draw-ellipse bubble rx ry
-       (event-factory/event-property-factory :ellipse bubble ry)]]
+       (condp = type
+         const/ROOT-BUBBLE-TYPE
+         [:<>
+          [draw-ellipse bubble
+           (+ const/ROOT-BUBBLE-OFFSET rx)
+           (+ const/ROOT-BUBBLE-OFFSET ry)
+           (event-factory/event-property-factory
+            :ellipse
+            bubble
+            (+ const/ROOT-BUBBLE-OFFSET  ry))]
+          [draw-ellipse bubble rx ry
+           (event-factory/event-property-factory :ellipse bubble ry)]]
 
-     const/BUBBLE-TYPE
-     [draw-ellipse bubble rx ry
-      (event-factory/event-property-factory :ellipse bubble ry)]
+         const/BUBBLE-TYPE
+         [draw-ellipse bubble rx ry
+          (event-factory/event-property-factory :ellipse bubble ry)]
 
-     nil)
+         nil)
 
-   (if edition?
-     [gui-common/bubble-input bubble]
-     [:<>
-      [bubble-text bubble (event-factory/event-property-factory :text bubble)]])])
+       (if edition?
+         [gui-common/bubble-input bubble]
+         [:<>
+          [bubble-text bubble (event-factory/event-property-factory :text bubble)]])])))
 
 (defn draw-bubbles [bubbles]
   [:<>
    (doall
     (for [[bubble-id bubble] bubbles]
       ^{:key bubble-id}
-      [draw-bubble bubble
-       (event-factory/event-property-factory :bubble bubble)]
+      [draw-bubble bubble]
       )
     )])
