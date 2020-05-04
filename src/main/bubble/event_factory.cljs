@@ -67,7 +67,7 @@
 
        :on-context-menu
        (when (not= type const/ROOT-BUBBLE-TYPE)
-         (event/prevent-context-menu
+         (event/prevent-default
           #(put! event/event-queue [:delete-bubble id])))
 
        :on-click

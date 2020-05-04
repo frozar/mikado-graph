@@ -53,17 +53,14 @@
 
 (defn svg-canvas []
   (reagent/create-class
-   {
-    :display-name "svg-canvas"
+   {:display-name "svg-canvas"
 
     :component-did-mount
-    (let [dom-node (reagent/atom nil)]
-      (fn [this]
-        (reset! dom-node (rdom/dom-node this))
-        (let [svg-bbox-client (.getBoundingClientRect @dom-node)
-              svg-origin-x (.-left svg-bbox-client)
-              svg-origin-y (.-top svg-bbox-client)]
-          (coord/init-svg-origin! svg-origin-x svg-origin-y))))
+    (fn [this]
+      (let [svg-bbox-client (.getBoundingClientRect (rdom/dom-node this))
+            svg-origin-x (.-left svg-bbox-client)
+            svg-origin-y (.-top svg-bbox-client)]
+        (coord/init-svg-origin! svg-origin-x svg-origin-y)))
 
     :reagent-render
     (fn []
@@ -80,7 +77,10 @@
          }
 
         :on-context-menu
-        (event/prevent-context-menu)
+        (event/prevent-default)
+
+        :on-drag-start
+        (event/prevent-default)
         }
 
        ;; This filter is used in rough display mode: background of text node

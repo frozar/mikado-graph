@@ -112,8 +112,8 @@
 
 (window-keystroke-evt-fn) ;; auto-execution
 
-(defn prevent-context-menu
-  ([] (prevent-context-menu (fn [])))
+(defn prevent-default
+  ([] (prevent-default (fn [])))
   ([func]
    (fn [evt]
      (.preventDefault evt)
