@@ -13,10 +13,10 @@
 (defn- which-renderer [rendering-style]
   (condp = rendering-style
     const/REDERING-STYLE-SOLID
-    #_[gui-solid/draw-building-link
+    [gui-solid/draw-building-link
      gui-solid/draw-links
      gui-solid/draw-bubbles]
-    [gui-rough/draw-building-link
+    #_[gui-rough/draw-building-link
      gui-rough/draw-links
      gui-rough/draw-bubbles]
 
