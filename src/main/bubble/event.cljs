@@ -57,14 +57,6 @@
     (let [[id] args]
       (state-write/disable-edition! id))
 
-    :enable-show-button
-    (let [[id] args]
-      (state-write/enable-show-button! id))
-
-    :disable-show-button
-    (let [[id] args]
-      (state-write/disable-show-button! id))
-
     :save-text
     (let [[id text] args]
       (state-write/save-text-bubble! id text))

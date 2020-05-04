@@ -3,7 +3,6 @@
    [bubble.build-link :as build-link]
    [bubble.constant :as const]
    [bubble.drag :as drag]
-   [bubble.state-read :as state-read]
    [bubble.event :as event]
    [cljs.core.async :refer [put!]]
    ))

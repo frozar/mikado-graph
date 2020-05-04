@@ -203,18 +203,6 @@
 ;; END: Edition
 
 
-;; START: Show button
-(defn- enable-show-button [appstate bubble-id]
-  (update-bubble appstate bubble-id {:show-button? true}))
-
-(defn- disable-show-button [appstate bubble-id]
-  (update-bubble appstate bubble-id {:show-button? false}))
-
-(macro/BANG enable-show-button)
-(macro/BANG disable-show-button)
-;; END: Show button
-
-
 ;; START: Toggle done
 (defn- toggle-done-status [appstate bubble-id]
   (let [bubble (state-read/get-bubble appstate bubble-id)

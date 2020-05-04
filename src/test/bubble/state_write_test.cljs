@@ -121,24 +121,6 @@
     (is
      (true? (-> (sr/get-bubble new-appstate "bubble-1") :edition?)))))
 
-(deftest enable-show-button_basic
-  (let [new-appstate (#'sw/enable-show-button appstate-2-bubble ROOT-BUBBLE-ID)]
-    (is
-     (true? (-> (sr/get-bubble new-appstate ROOT-BUBBLE-ID) :show-button?)))
-    (is
-     (false? (-> (sr/get-bubble new-appstate "bubble-1") :show-button?)))))
-
-(deftest disable-show-button_basic
-  (let [new-appstate
-        (-> appstate-2-bubble
-            (#'sw/enable-show-button ROOT-BUBBLE-ID)
-            (#'sw/enable-show-button "bubble-1")
-            (#'sw/disable-show-button ROOT-BUBBLE-ID))]
-    (is
-     (false? (-> (sr/get-bubble new-appstate ROOT-BUBBLE-ID) :show-button?)))
-    (is
-     (true? (-> (sr/get-bubble new-appstate "bubble-1") :show-button?)))))
-
 (deftest toggle-done-status_basic
   (let [new-appstate
         (-> appstate-2-bubble
