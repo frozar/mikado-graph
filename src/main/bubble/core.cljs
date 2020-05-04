@@ -10,33 +10,31 @@
    [reagent.dom :as rdom]
    ))
 
-(defn- draw-graph [rendering-style]
+(defn- which-renderer [rendering-style]
   (condp = rendering-style
     const/REDERING-STYLE-SOLID
-    [:g
-     {:id "graph"}
-     ;; Interactive part
-     (when (state-read/get-link-src)
-       [gui-solid/draw-building-link
-        (-> (state-read/get-link-src) state-read/get-bubble)
-        (state-read/get-mouse-position)])
-
-     ;; Static part
-     (let [couples_bubble
-           (map
-            (fn [link]
-              [(-> link :src state-read/get-bubble)
-               (-> link :dst state-read/get-bubble)])
-            (state-read/get-links))]
-       [gui-solid/draw-links couples_bubble])
-     [gui-solid/draw-bubbles (state-read/get-bubbles)]]
+    [gui-solid/draw-building-link
+     gui-solid/draw-links
+     gui-solid/draw-bubbles]
+    #_[gui-rough/draw-building-link
+     gui-rough/draw-links
+     gui-rough/draw-bubbles]
 
     const/REDERING-STYLE-ROUGH
+    [gui-rough/draw-building-link
+     gui-rough/draw-links
+     gui-rough/draw-bubbles]
+    )
+  )
+
+(defn- draw-graph []
+  (let [[draw-building-link draw-links draw-bubbles]
+        (which-renderer (state-read/get-rendering-style))]
     [:g
      {:id "graph"}
      ;; Interactive part
      (when (state-read/get-link-src)
-       [gui-rough/draw-building-link
+       [draw-building-link
         (-> (state-read/get-link-src) state-read/get-bubble)
         (state-read/get-mouse-position)])
 
@@ -47,23 +45,19 @@
               [(-> link :src state-read/get-bubble)
                (-> link :dst state-read/get-bubble)])
             (state-read/get-links))]
-       [gui-rough/draw-links couples_bubble])
-     [gui-rough/draw-bubbles (state-read/get-bubbles)]]
-    ))
+       [draw-links couples_bubble])
+     [draw-bubbles (state-read/get-bubbles)]]))
 
 (defn svg-canvas []
   (reagent/create-class
-   {
-    :display-name "svg-canvas"
+   {:display-name "svg-canvas"
 
     :component-did-mount
-    (let [dom-node (reagent/atom nil)]
-      (fn [this]
-        (reset! dom-node (rdom/dom-node this))
-        (let [svg-bbox-client (.getBoundingClientRect @dom-node)
-              svg-origin-x (.-left svg-bbox-client)
-              svg-origin-y (.-top svg-bbox-client)]
-          (coord/init-svg-origin! svg-origin-x svg-origin-y))))
+    (fn [this]
+      (let [svg-bbox-client (.getBoundingClientRect (rdom/dom-node this))
+            svg-origin-x (.-left svg-bbox-client)
+            svg-origin-y (.-top svg-bbox-client)]
+        (coord/init-svg-origin! svg-origin-x svg-origin-y)))
 
     :reagent-render
     (fn []
@@ -80,7 +74,10 @@
          }
 
         :on-context-menu
-        (event/prevent-context-menu)
+        (event/prevent-default)
+
+        :on-drag-start
+        (event/prevent-default)
         }
 
        ;; This filter is used in rough display mode: background of text node
@@ -92,5 +89,4 @@
          [:feComposite {:in "SourceGraphic" :operator "xor"}]
          ]]
 
-       [draw-graph (state-read/get-rendering-style)]
-       ])}))
+       [draw-graph]])}))

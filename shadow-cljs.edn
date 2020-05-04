@@ -6,8 +6,6 @@
 
  :dependencies
  [[org.clojure/core.async "1.0.567"]
-  [com.rpl/specter "1.1.3"]
-  ;; [reagent "0.10.0"]
   [reagent "1.0.0-alpha1"]
   [reagent-utils "0.3.3"]
   [hiccup "1.0.5"]

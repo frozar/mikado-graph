@@ -3,7 +3,6 @@
    [bubble.build-link :as build-link]
    [bubble.constant :as const]
    [bubble.drag :as drag]
-   [bubble.state-read :as state-read]
    [bubble.event :as event]
    [cljs.core.async :refer [put!]]
    ))
@@ -44,18 +43,6 @@
        :on-click
        #(put! event/event-queue [:toggle-done-status id])})
 
-    :bubble
-    (let [[bubble] args
-          {:keys [id]} bubble]
-      {:pointer-events "bounding-box"
-       :on-mouse-over
-       (if (state-read/get-link-src)
-         #(put! event/event-queue [:disable-show-button id])
-         #(put! event/event-queue [:enable-show-button id])
-         )
-       :on-mouse-leave
-       #(put! event/event-queue [:disable-show-button id])})
-
     :common-text-ellipse
     (let [[bubble] args
           {:keys [id type]} bubble]
@@ -67,7 +54,7 @@
 
        :on-context-menu
        (when (not= type const/ROOT-BUBBLE-TYPE)
-         (event/prevent-context-menu
+         (event/prevent-default
           #(put! event/event-queue [:delete-bubble id])))
 
        :on-click
