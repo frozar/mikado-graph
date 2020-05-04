@@ -2,9 +2,8 @@
   (:require
    [bubble.bubble :as bubble]
    [bubble.constant :as const]
-   [bubble.state :refer [appstate]]
+   [bubble.state :refer [appstate]] ;; used in BANG macro
    [bubble.state-read :as state-read]
-   [com.rpl.specter :as sp]
    )
   (:require-macros
    [bubble.macro :as macro])
@@ -13,46 +12,14 @@
 ;; Read/Write application state
 
 ;; START: bubble part
-(defn- add-bubble [appstate bubble]
-  (update appstate :bubbles conj bubble))
+(defn- add-bubble [appstate bubble-id bubble]
+  (update appstate :bubbles conj {bubble-id bubble}))
 
 (defn- delete-bubble [appstate bubble-id]
-  (sp/transform
-   [:bubbles]
-   (fn [bubbles]
-     (filterv (fn [bubble] (not= (:id bubble) bubble-id)) bubbles))
-   appstate)
-  )
-
-(defn- get-bubble-idx-by-id [id]
-  (fn [bubbles]
-    (keep-indexed
-     (fn [idx bubble]
-       (when (= (:id bubble) id) idx))
-     bubbles)))
+  (update appstate :bubbles dissoc bubble-id))
 
 (defn- update-bubble [appstate bubble-id hashmap]
-  (sp/transform
-   [:bubbles
-    (sp/srange-dynamic
-     (fn [bubbles]
-       (-> bubbles
-           ((fn [bubbles] ((get-bubble-idx-by-id bubble-id) bubbles)))
-           first)
-       )
-     (fn [bubbles]
-       (-> bubbles
-           ((fn [bubbles] ((get-bubble-idx-by-id bubble-id) bubbles)))
-           first
-           inc)
-       )
-     )
-    sp/ALL
-    ]
-   (fn [bubble]
-     (bubble/update-bubble bubble hashmap)
-     )
-   appstate))
+  (update-in appstate [:bubbles bubble-id] merge hashmap))
 
 (macro/BANG update-bubble)
 ;; END: bubble part
@@ -90,11 +57,7 @@
   )
 
 (defn higher-delete-link [appstate filter-func]
-  (sp/transform
-   [:links]
-   #(filterv filter-func %)
-   appstate)
-  )
+  (update appstate :links #(filterv filter-func %)))
 
 (defn- delete-link-involving-bubble [appstate bubble-id]
   (higher-delete-link
@@ -176,7 +139,7 @@
            id)
          new-bubble (bubble/create-bubble not-duplicated-id cx cy)]
      (-> appstate
-         (add-bubble new-bubble)
+         (add-bubble not-duplicated-id new-bubble)
          (add-link parent-bubble-id not-duplicated-id))
      ))
   )

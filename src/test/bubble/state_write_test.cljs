@@ -1,7 +1,7 @@
 (ns bubble.state-write-test
   (:require
    [bubble.bubble :as b]
-   [bubble.constant :refer (ROOT-BUBBLE-ID)]
+   [bubble.constant :refer [ROOT-BUBBLE-ID]]
    [bubble.state :as sd]
    [bubble.state-read :as sr]
    [bubble.state-write :as sw]
@@ -12,33 +12,33 @@
   (is
    (=
     (-> (#'sd/init-appstate) :bubbles)
-    [b/root-bubble])
+    {ROOT-BUBBLE-ID b/root-bubble})
    "Is the appstate initialised with the root bubble"))
 
 (deftest add-bubble_basic
-  (is
-   (=
-    (-> (#'sd/init-appstate)
-        (#'sw/add-bubble (b/create-bubble "fake-bubble" 0 0))
-        (sr/get-bubble "fake-bubble")
-        :id)
-    "fake-bubble"
-    )
-   "Is a new bubble 'fake-bubble' exist in the appstate")
+  (let [fake-bubble (b/create-bubble "fake-bubble" 0 0)]
+    (is
+     (=
+      (-> (#'sd/init-appstate)
+          (#'sw/add-bubble "fake-bubble" fake-bubble)
+          (sr/get-bubble "fake-bubble"))
+      fake-bubble
+      )
+     "Is a new bubble 'fake-bubble' exist in the appstate"))
   )
 
 (deftest delete-bubble_basic
   (let [new-appstate
         (-> (#'sd/init-appstate)
-            (#'sw/add-bubble (b/create-bubble "fake-bubble" 0 0))
+            (#'sw/add-bubble "fake-bubble" (b/create-bubble "fake-bubble" 0 0))
             (#'sw/delete-bubble "fake-bubble"))]
     (is
-     (vector? (-> new-appstate :bubbles))
-     "The 'bubbles' collection remain a vector")
+     (map? (-> new-appstate :bubbles))
+     "The 'bubbles' collection remain a map")
     (is
      (=
       (-> new-appstate :bubbles)
-      [b/root-bubble])
+      {ROOT-BUBBLE-ID b/root-bubble} #_[b/root-bubble])
      "The only remaining bubble is the root bubble")
     )
   )
@@ -55,7 +55,7 @@
 
 (def appstate-2-bubble
   (-> (#'sd/init-appstate)
-      (#'sw/add-bubble (b/create-bubble "bubble-1" 0 0)))
+      (#'sw/add-bubble "bubble-1" (b/create-bubble "bubble-1" 0 0)))
   )
 
 (deftest add-link_basic

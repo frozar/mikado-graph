@@ -299,7 +299,7 @@
      [:<>
       [draw-ellipse bubble
        (+ const/ROOT-BUBBLE-OFFSET rx)
-       (+ const/ROOT-BUBBLE-OFFSET  ry)
+       (+ const/ROOT-BUBBLE-OFFSET ry)
        (event-factory/event-property-factory
         :ellipse
         bubble
@@ -321,8 +321,8 @@
 (defn draw-bubbles [bubbles]
   [:<>
    (doall
-    (for [bubble bubbles]
-      ^{:key (:id bubble)}
+    (for [[bubble-id bubble] bubbles]
+      ^{:key bubble-id}
       [draw-bubble bubble
        (event-factory/event-property-factory :bubble bubble)]
       )
