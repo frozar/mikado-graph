@@ -10,6 +10,8 @@
 
 (def event-queue (chan))
 
+(def interaction (atom nil))
+
 (go-loop [[event & args] (<! event-queue)]
   (case event
 
@@ -32,6 +34,7 @@
 
     :build-link-start
     (let [[id mouse-x mouse-y] args]
+      (reset! interaction "build-link")
       (state-write/set-link-src! id)
       (state-write/set-mouse-position! mouse-x mouse-y)
       )
@@ -44,18 +47,23 @@
     (let [[id] args]
       (state-write/building-link-end! id)
       (state-write/reset-build-link!)
+      (reset! interaction nil)
       )
 
     :build-link-exit
-    (state-write/reset-build-link!)
+    (do
+      (state-write/reset-build-link!)
+      (reset! interaction nil))
 
     :enable-edition
     (let [[id] args]
+      (reset! interaction "edition")
       (state-write/enable-edition! id))
 
     :disable-edition
     (let [[id] args]
-      (state-write/disable-edition! id))
+      (state-write/disable-edition! id)
+      (reset! interaction nil))
 
     :save-text
     (let [[id text] args]
@@ -75,34 +83,26 @@
     )
   (recur (<! event-queue)))
 
-(defn window-keydown-evt [evt]
-  (let [escape-key-code 27]
-    (condp = (.-keyCode evt)
-      escape-key-code
-      (put! event-queue [:build-link-exit])
-      nil
-      )))
+(defn window-keydown-evt
+  "Configure the press to escape-key to exit interactive edition mode.
+  Currently the only interaction is with the build-link action."
+  [evt]
+  (condp = (.-key evt)
+    "Escape"
+    (put! event-queue [:build-link-exit])
+
+    "t"
+    (when (not= @interaction "edition")
+      (put! event-queue [:toggle-rough-layout]))
+
+    nil
+    ))
 
 (defn window-keydown-evt-fn []
   (events/listen js/window EventType.KEYDOWN window-keydown-evt)
   )
 
 (window-keydown-evt-fn) ;; auto-execution
-
-(defn window-keypress-evt [evt]
-  (let [t-key-code 116]
-    (condp = (.-keyCode evt)
-      t-key-code
-      (put! event-queue [:toggle-rough-layout])
-
-      nil
-      )))
-
-(defn window-keypress-evt-fn []
-  (events/listen js/window EventType.KEYPRESS window-keypress-evt)
-  )
-
-(window-keypress-evt-fn) ;; auto-execution
 
 (defn prevent-default
   ([] (prevent-default (fn [])))
