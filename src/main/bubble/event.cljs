@@ -97,7 +97,7 @@
 
 (window-keydown-evt-fn) ;; auto-execution
 
-(defn window-keystroke-evt [evt]
+(defn window-keypress-evt [evt]
   (let [t-key-code 116]
     (condp = (.-keyCode evt)
       t-key-code
@@ -106,11 +106,11 @@
       nil
       )))
 
-(defn window-keystroke-evt-fn []
-  (events/listen js/window EventType.KEYPRESS window-keystroke-evt)
+(defn window-keypress-evt-fn []
+  (events/listen js/window EventType.KEYPRESS window-keypress-evt)
   )
 
-(window-keystroke-evt-fn) ;; auto-execution
+(window-keypress-evt-fn) ;; auto-execution
 
 (defn prevent-default
   ([] (prevent-default (fn [])))
