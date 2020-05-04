@@ -256,17 +256,18 @@
                (map-indexed
                 (fn [idx text] [idx text])
                 (-> bubble :text string/split-lines))]
-           (let [tspan-id (str id idx)]
+           (let [tspan-id (str id idx)
+                 dy-value (if (= idx 0) 0 "1.2em")]
              ^{:key tspan-id}
              [:<>
               [:tspan
                (merge tspan-style
-                      {:x cx :dy (if (= idx 0) 0 "1.2em")
+                      {:x cx :dy dy-value
                        :filter "url(#bg-text)"})
                tspan-text]
               [:tspan
                (merge tspan-style
-                      {:x cx :dy (if (= idx 0) 0 "1.2em")})
+                      {:x cx :dy dy-value})
                tspan-text]]))]))}))
 
 (defn- draw-ellipse

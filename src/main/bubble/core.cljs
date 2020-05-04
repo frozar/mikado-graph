@@ -92,5 +92,4 @@
          [:feComposite {:in "SourceGraphic" :operator "xor"}]
          ]]
 
-       [draw-graph (state-read/get-rendering-style)]
-       ])}))
+       [draw-graph (state-read/get-rendering-style)]])}))
