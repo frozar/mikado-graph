@@ -19,8 +19,8 @@
             }]))
 
 (defn- link->path-str [src-b dst-b]
-  (let [[src-pt-x src-pt-y] [(:cx src-b) (:cy src-b)]
-        [dst-pt-x dst-pt-y] [(:cx dst-b) (:cy dst-b)]]
+  (let [[src-pt-x src-pt-y dst-pt-x dst-pt-y]
+        (gui-common/incidental-border-points-between-bubbles src-b dst-b)]
     (str "M " src-pt-x "," src-pt-y " L " dst-pt-x "," dst-pt-y)))
 
 (defn- link->key-str [src-b dst-b]
@@ -51,14 +51,34 @@
        :stroke-width 20
        :stroke "white"})]))
 
+(defn- draw-arrowhead
+  [src-b dst-b event-property]
+  (let [th0 (gui-common/angle-between-bubbles src-b dst-b)
+        [dst-pt-x dst-pt-y] (gui-common/border-point dst-b th0 :target)
+        deg-th0 (/ (* th0 180) js/Math.PI)
+        path-str "M -10 -20 L 0 0 L 10 -20 L 0 -5 Z"
+        ]
+    [:path
+     (merge
+      event-property
+      {:stroke "black"
+       :stroke-width 2
+       :fill "none"
+       :d path-str
+       :transform
+       (str "translate(" dst-pt-x " " dst-pt-y ") "
+            "rotate("(+ deg-th0 -90)")")})]))
+
 (defn- draw-link
   [src-b dst-b]
   (let [src-id (:id src-b)
         dst-id (:id dst-b)
         event-property (event-factory/event-property-factory :link src-id dst-id)]
-    [:<>
+    [:g
+     {:class "arrow"}
      [draw-white-shadow-path src-b dst-b event-property]
-     [draw-path src-b dst-b event-property]]))
+     [draw-path src-b dst-b event-property]
+     [draw-arrowhead src-b dst-b event-property]]))
 
 (defn draw-links [couples_bubble]
   (when (seq couples_bubble)

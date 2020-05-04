@@ -5,7 +5,6 @@
    [bubble.gui-common :as gui-common]
    [bubble.state-read :as state-read]
    [clojure.string :as string]
-   [com.rpl.specter :as sp]
    [reagent.core :as reagent]
    [reagent.dom :as rdom]
    [roughcljs.core :as rough]
@@ -35,22 +34,21 @@
 (defn- draw-white-shadow-path
   [path-to-shallow]
   [:<>
-   (->> path-to-shallow
-        (sp/transform
-         [(sp/srange 2 3) sp/ALL (sp/srange 1 2) sp/ALL :style]
-         (fn [hashmap]
-           (let [stroke-width-value (-> (:stroke-width hashmap) js/parseInt)]
-             (assoc hashmap
-                    :stroke "white"
-                    :stroke-width (+ 3 stroke-width-value)))
-           ))
-        (sp/transform
-         [(sp/srange 1 2) sp/ALL]
-         (fn [hashmap]
-           (let [key-value (:key hashmap)]
-             (assoc hashmap
-                    :key (str key-value "-shadow")))
-           )))
+   (-> path-to-shallow
+       (update-in
+        [2 1 :style]
+        (fn [hashmap]
+          (let [stroke-width-value (-> (:stroke-width hashmap) js/parseInt)]
+            (assoc hashmap
+                   :stroke "white"
+                   :stroke-width (+ 3 stroke-width-value)))
+          ))
+       (update-in
+        [1]
+        (fn [hashmap]
+          (let [key-value (:key hashmap)]
+            (assoc hashmap
+                   :key (str key-value "-shadow"))))))
    path-to-shallow])
 
 (defn- draw-path
