@@ -18,11 +18,11 @@
         init-mouse-x (atom nil)
         init-mouse-y (atom nil)]
     (fn [evt]
-      (let [[mouse-x mouse-y] (coord/get-svg-coord
-                               (.-clientX evt) (.-clientY evt))
-            ]
-        (when (and (nil? @init-mouse-x)
-                 (nil? @init-mouse-y))
+      (let [[mouse-x mouse-y]
+            (coord/get-svg-coord
+             (.-clientX evt) (.-clientY evt))]
+        (when (or (nil? @init-mouse-x)
+                  (nil? @init-mouse-y))
           (reset! init-mouse-x mouse-x)
           (reset! init-mouse-y mouse-y)
           )
