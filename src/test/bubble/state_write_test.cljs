@@ -70,6 +70,14 @@
     )
   (let [new-appstate
         (-> appstate-2-bubble
+            (sw/add-link ROOT-BUBBLE-ID ROOT-BUBBLE-ID))]
+    (is
+     (= (count (sr/get-links new-appstate)) 0)
+     "A link must be between 2 distincts bubbles"
+     )
+    )
+  (let [new-appstate
+        (-> appstate-2-bubble
             (sw/add-link ROOT-BUBBLE-ID "bubble-1")
             (sw/add-link ROOT-BUBBLE-ID "bubble-1"))]
     (is
@@ -83,6 +91,15 @@
     (is
      (= (count (sr/get-links new-appstate)) 0)
      "Cannot add a link not associated with a bubble-id"
+     )
+    )
+  (let [new-appstate
+        (-> appstate-2-bubble
+            (sw/add-link ROOT-BUBBLE-ID "bubble-1")
+            (sw/add-link "bubble-1" ROOT-BUBBLE-ID))]
+    (is
+     (= (count (sr/get-links new-appstate)) 1)
+     "Cannot link 2 bubbles in both directions"
      )
     )
   )

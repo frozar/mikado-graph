@@ -1,13 +1,10 @@
 (ns mikado.app
-  (:require ;; [reagent.session :as session]
-            ;; [reitit.frontend :as reitit]
-            ;; [clerk.core :as clerk]
-            ;; [accountant.core :as accountant]
-            [bubble.core :as bubble]
-            [bubble.event :as event]
-            [reagent.dom :as rdom]
-            )
-  )
+  (:require
+   [bubble.camera :as camera]
+   [bubble.core :as bubble]
+   [bubble.event :as event]
+   [reagent.dom :as rdom]
+   ))
 
 ;; TODO: put in place frontend router
 
@@ -22,6 +19,7 @@
   (rdom/render [component] (.getElementById js/document "app"))
   (event/window-keydown-evt-fn)
   (event/window-resize-evt-fn)
+  (camera/mouse-scroll-evt-fn)
   )
 
 (defn ^:dev/after-load reload! []

@@ -2,9 +2,7 @@
   (:require
    [bubble.state-write :as state-write]
    [cljs.core.async :refer [chan put! <! go-loop]]
-   ;; [clojure.string :as string]
    [goog.events :as events]
-   ;; [reagent.core :as reagent]
    )
   (:import
    [goog.events EventType]
