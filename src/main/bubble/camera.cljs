@@ -8,7 +8,7 @@
    [goog.events EventType]
    ))
 
-(def camera
+(defonce camera
   (let [width (.-innerWidth js/window)
         height (.-innerHeight js/window)]
     (reagent/atom
@@ -26,7 +26,7 @@
     (string/join " " [min-x min-y width height])))
 
 (defn mouse-wheel-evt [evt]
-  (let [scale (.pow js/Math 1.01 (/ (..  evt -event_ -wheelDeltaY) 10))]
+  (let [scale (.pow js/Math 1.005 (/ (..  evt -event_ -wheelDeltaY) 10))]
     (swap! camera (fn [cam] (update cam :zoom #(* % scale))))
     )
   )

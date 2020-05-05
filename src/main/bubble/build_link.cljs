@@ -1,5 +1,6 @@
 (ns bubble.build-link
   (:require
+   [bubble.camera :as camera]
    [bubble.coordinate :as coord]
    [bubble.event :as event]
    [bubble.state-read :as state-read]
@@ -12,8 +13,20 @@
   )
 
 (defn get-mouse-position [evt]
-  (coord/get-svg-coord
-   (.-clientX evt) (.-clientY evt)))
+  (let [window-coord [(.-clientX evt) (.-clientY evt)]
+        svg-px (coord/window->svg-canvas-px window-coord)
+        ;; _ (prn "DBG svg-px" svg-px)
+        svg-scaled (map / svg-px [(:zoom @camera/camera) (:zoom @camera/camera)])
+        ;; _ (prn "DBG svg-scaled" svg-scaled)
+
+        mid-plan-px (map / [(:width @camera/camera) (:height @camera/camera)] [2 2])
+        mid-plan-scaled (map / mid-plan-px [(:zoom @camera/camera) (:zoom @camera/camera)])
+
+        pt-update-origin (map + svg-scaled [(:cx @camera/camera) (:cy @camera/camera)])
+        pt-user-coord (map - pt-update-origin mid-plan-scaled)
+        ]
+    pt-user-coord
+    ))
 
 (defn build-link-move [evt]
   (let [[mouse-x mouse-y] (get-mouse-position evt)

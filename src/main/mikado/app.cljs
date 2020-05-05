@@ -9,6 +9,9 @@
 ;; TODO: put in place frontend router
 
 (defn graphe-page []
+  (event/window-keydown-evt-fn)
+  (event/window-resize-evt-fn)
+  (camera/mouse-scroll-evt-fn)
   [bubble/svg-canvas])
 
 (defn current-page []
@@ -16,11 +19,7 @@
   )
 
 (defn mount-root [component]
-  (rdom/render [component] (.getElementById js/document "app"))
-  (event/window-keydown-evt-fn)
-  (event/window-resize-evt-fn)
-  (camera/mouse-scroll-evt-fn)
-  )
+  (rdom/render [component] (.getElementById js/document "app")))
 
 (defn ^:dev/after-load reload! []
   (mount-root graphe-page)

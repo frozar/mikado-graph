@@ -47,6 +47,23 @@
        [draw-links couples_bubble])
      [draw-bubbles (state-read/get-bubbles)]]))
 
+(defn svg-origin []
+  [:circle
+   {:cx 0
+    :cy 0
+    :r 5
+    :fill "black"
+    }])
+
+(defn camera-center []
+  (let [{:keys [cx cy]} @camera/camera]
+    [:circle
+     {:cx cx
+      :cy cy
+      :r 5
+      :fill "red"
+      }]))
+
 (defn svg-canvas []
   (reagent/create-class
    {:display-name "svg-canvas"
@@ -92,19 +109,8 @@
               (fn [evt]
                 (= 0 (.-button evt)))]
           (fn [evt]
-            (let [[mouse-x mouse-y] (coord/get-svg-coord
-                                     (.-clientX evt) (.-clientY evt))
-                  ]
-              (when (if-left-click evt)
-                ;; (prn "DBG mouse-x mouse-y" mouse-x mouse-y)
-                (pan/panning)
-                #_(dragging bubble-id)))))
-        #_(fn [evt]
-            (let [[mouse-x mouse-y] (coord/get-svg-coord
-                                     (.-clientX evt) (.-clientY evt))
-                  ]
-              (prn "DBG mouse-x mouse-y" mouse-x mouse-y))
-            )
+            (when (if-left-click evt)
+              (pan/panning))))
         }
 
        ;; This filter is used in rough display mode: background of text node
@@ -116,4 +122,9 @@
          [:feComposite {:in "SourceGraphic" :operator "xor"}]
          ]]
 
-       [draw-graph]])}))
+       [draw-graph]
+
+       ;; ;; DBG element
+       ;; [svg-origin]
+       ;; [camera-center]
+       ])}))

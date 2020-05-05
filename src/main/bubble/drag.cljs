@@ -1,5 +1,6 @@
 (ns bubble.drag
   (:require
+   [bubble.camera :as camera]
    [bubble.coordinate :as coord]
    [bubble.event :as event]
    [bubble.state-read :as state-read]
@@ -12,9 +13,8 @@
   )
 
 (defn drag-move-fn [bubble-id]
-  (let [{:keys [cx cy]} (state-read/get-bubble bubble-id)
-        init-cx cx
-        init-cy cy
+  (let [{:keys [zoom]} @camera/camera
+        {init-bubble-cx :cx init-bubble-cy :cy} (state-read/get-bubble bubble-id)
         init-mouse-x (atom nil)
         init-mouse-y (atom nil)]
     (fn [evt]
@@ -29,8 +29,8 @@
         (put! event/event-queue
               [:dragging
                bubble-id
-               (+ init-cx (- mouse-x @init-mouse-x))
-               (+ init-cy (- mouse-y @init-mouse-y))])
+               (+ init-bubble-cx (/ (- mouse-x @init-mouse-x) zoom))
+               (+ init-bubble-cy (/ (- mouse-y @init-mouse-y) zoom))])
         ))))
 
 (defn drag-end-fn [drag-move drag-end-atom on-end]
