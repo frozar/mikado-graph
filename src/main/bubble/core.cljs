@@ -77,15 +77,9 @@
 
     :reagent-render
     (fn []
-      ;; (prn "DBG camera" @event/camera)
-      ;; (prn "DBG camera->viewBox" (event/camera->viewBox))
       [:svg
        {:id "svg-canvas"
-        ;; :viewBox (str "0 0 " (:height @event/camera) " " (:width @event/camera))
-        ;; :viewBox "0 0 1000 1000"
         :viewBox (camera/camera->viewBox)
-        ;; :height 700
-        ;; :width 700
         :height (.-innerHeight js/window) ;; (:height @event/camera)
         :width (.-innerWidth js/window) ;; (:width @event/camera)
         :style
