@@ -73,19 +73,28 @@
         pt-svg-px [0 0]]
     (correct-camera-by-translation-fix-point camera camera-wider pt-svg-px)))
 
+;; TODO: put in place the origin animation
+#_(js/setTimeout
+   (fn [] (update-camera! new-camera))
+   (/ 1000 25))
+
+(defn- update-camera! [new-camera]
+  (reset! camera new-camera))
+
 (defn mouse-wheel-evt [evt]
   (let [reduction-speed-factor (if (.-shiftKey evt) 10 5)
         scale (.pow js/Math 1.005 (/ (..  evt -event_ -wheelDeltaY) reduction-speed-factor))
-        win-px [(.-clientX evt) (.-clientY evt)]]
-    (swap! camera
-           apply-zoom scale (coord/win-px->svg-px win-px))))
+        win-px [(.-clientX evt) (.-clientY evt)]
+        new-camera (apply-zoom @camera scale (coord/win-px->svg-px win-px))]
+    (update-camera! new-camera)))
 
-(defn mouse-scroll-evt-fn []
+(defn mouse-wheel-evt-fn []
   (events/listen js/window EventType.WHEEL mouse-wheel-evt))
 
 (defn window-resize-evt []
-  (swap! camera
-         apply-resize (.-innerWidth js/window) (.-innerHeight js/window)))
+  (let [new-camera
+        (apply-resize @camera (.-innerWidth js/window) (.-innerHeight js/window))]
+    (update-camera! new-camera)))
 
 (defn window-resize-evt-fn []
   (events/listen js/window EventType.RESIZE window-resize-evt))
