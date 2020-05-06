@@ -47,29 +47,45 @@
     pt-user-coord
     ))
 
-(defn apply-zoom
-  "Invariant: the svg-user coordinates associated with the input svg-px must match
-  after the camera update"
-  [camera scale pt-svg-px]
-  (let [camera-zoomed (update camera :zoom * scale)
-        pt-before-zoom-svg-user (svg-px->svg-user-coord camera pt-svg-px)
-        pt-after-zoom-svg-user  (svg-px->svg-user-coord camera-zoomed pt-svg-px)
-        vec-trans-svg-user (map - pt-after-zoom-svg-user pt-before-zoom-svg-user)
-        [cx cy] [(:cx camera-zoomed) (:cy camera-zoomed)]
+(defn- correct-camera-by-translation-fix-point [camera-origin camera-modified pt-svg-px]
+  (let [pt-origin-svg-user (svg-px->svg-user-coord camera-origin pt-svg-px)
+        pt-modified-svg-user  (svg-px->svg-user-coord camera-modified pt-svg-px)
+        vec-trans-svg-user (map - pt-modified-svg-user pt-origin-svg-user)
+        {:keys [cx cy]} camera-modified
         [new-cx new-cy] (map - [cx cy] vec-trans-svg-user)
-        camera-zoomed-n-translated (merge camera-zoomed {:cx new-cx :cy new-cy})
-        ]
-    camera-zoomed-n-translated
-    ))
+        camera-corrected (merge camera-modified {:cx new-cx :cy new-cy})]
+    camera-corrected))
+
+(defn- apply-zoom
+  "Invariant: the svg-user coordinates associated with the input svg-px must match
+  after the camera update, in this case after a zoom factor update."
+  [camera scale pt-svg-px]
+  (let [camera-zoomed (update camera :zoom * scale)]
+    (correct-camera-by-translation-fix-point camera camera-zoomed pt-svg-px)))
+
+(defn- apply-resize
+  "Invariant: the svg-user coordinates associated with the input svg-px must match
+  after the camera update, in this case after a width/height scalar update."
+  [camera win-width win-height]
+  (let [camera-origin camera
+        camera-wider (merge camera-origin {:width win-width :height win-height})
+        ;; Take an arbitrary point in the plan as a fix point
+        pt-svg-px [0 0]]
+    (correct-camera-by-translation-fix-point camera camera-wider pt-svg-px)))
 
 (defn mouse-wheel-evt [evt]
   (let [reduction-speed-factor (if (.-shiftKey evt) 10 5)
         scale (.pow js/Math 1.005 (/ (..  evt -event_ -wheelDeltaY) reduction-speed-factor))
         win-px [(.-clientX evt) (.-clientY evt)]]
     (swap! camera
-           apply-zoom scale
-           (coord/win-px->svg-px win-px))
-    ))
+           apply-zoom scale (coord/win-px->svg-px win-px))))
 
 (defn mouse-scroll-evt-fn []
   (events/listen js/window EventType.WHEEL mouse-wheel-evt))
+
+(defn window-resize-evt []
+  (swap! camera
+         apply-resize (.-innerWidth js/window) (.-innerHeight js/window)))
+
+(defn window-resize-evt-fn []
+  (events/listen js/window EventType.RESIZE window-resize-evt))

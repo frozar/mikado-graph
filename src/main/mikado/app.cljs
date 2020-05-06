@@ -14,7 +14,7 @@
 
 (defn graphe-page []
   (event/window-keydown-evt-fn)
-  (event/window-resize-evt-fn)
+  (camera/window-resize-evt-fn)
   (camera/mouse-scroll-evt-fn)
   [bubble/svg-canvas])
 
