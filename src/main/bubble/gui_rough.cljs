@@ -228,6 +228,26 @@
     (- cy y-offset)
     ))
 
+(defn- bubble-text-background-or-foreground
+  [{:keys [id cx cy text] :as bubble} event-property font-size tspan-style]
+  [:text
+   (merge event-property
+          {:class "label"
+           :style {:text-anchor "middle"
+                   :dominant-baseline "middle"}
+           :y (get-text-y bubble font-size)})
+   [:<>
+    (for [[idx tspan-text]
+          (map-indexed (fn [i text] [i text]) (string/split-lines text))]
+      (let [tspan-id (str id cy idx "back")
+            dy-value (if (= idx 0) 0 "1.2em")
+            ]
+        [:tspan
+         (merge tspan-style
+                {:key tspan-id
+                 :x cx :dy dy-value})
+         tspan-text]))]])
+
 (defn- bubble-text
   [bubble event-property]
   (reagent/create-class
@@ -238,36 +258,26 @@
       (gui-common/update-bubble-size (rdom/dom-node this) bubble))
 
     :reagent-render
-    (fn [bubble event-property]
-      (let [{:keys [id initial-state? cx]} bubble
-            font-size (if initial-state? 20 24)
+    (fn [{:keys [initial-state?] :as bubble} event-property]
+      (let [font-size (if initial-state? 20 24)
+
             tspan-style
             (if initial-state?
               {:font-size font-size :font-style "italic" :font-weight "bold" :fill "#555"}
-              {:font-size font-size :font-style "normal" :fill "#000"})]
-        [:text
-         (merge event-property
-                {:class "label"
-                 :style {:text-anchor "middle"
-                         :dominant-baseline "middle"}
-                 :y (get-text-y bubble font-size)})
-         (for [[idx tspan-text]
-               (map-indexed
-                (fn [idx text] [idx text])
-                (-> bubble :text string/split-lines))]
-           (let [tspan-id (str id idx)
-                 dy-value (if (= idx 0) 0 "1.2em")]
-             ^{:key tspan-id}
-             [:<>
-              [:tspan
-               (merge tspan-style
-                      {:x cx :dy dy-value
-                       :filter "url(#bg-text)"})
-               tspan-text]
-              [:tspan
-               (merge tspan-style
-                      {:x cx :dy dy-value})
-               tspan-text]]))]))}))
+              {:font-size font-size :font-style "normal" :fill "#000"})
+
+            tspan-style-background
+            (merge tspan-style {:filter "url(#bg-text)"})
+
+            tspan-style-foreground
+            tspan-style]
+        [:<>
+         (bubble-text-background-or-foreground
+          bubble event-property font-size tspan-style-background)
+         (bubble-text-background-or-foreground
+          bubble event-property font-size tspan-style-foreground)
+         ]
+        ))}))
 
 (defn- draw-ellipse
   [{:keys [cx cy done? type]} rx ry
@@ -278,12 +288,13 @@
     {:seed 0
      :strokeWidth 3
      :fill (if done? const/DONE-COLOR const/PENDING-COLOR)
-     :fillStyle "cross-hatch"
+     :fillStyle "hachure"
      :fillWeight 1.5
+     :hachureAngle 110
      :hachureGap
      (if (= type const/ROOT-BUBBLE-TYPE)
-       12
-       8)}
+       10
+       6)}
     :group-option event-property}))
 
 (defn- draw-bubble [{:keys [id type rx ry edition?] :as bubble}]

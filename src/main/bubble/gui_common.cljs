@@ -1,5 +1,6 @@
 (ns bubble.gui-common
   (:require
+   [bubble.camera :as camera]
    [bubble.constant :as const]
    [bubble.event :as event]
    [cljs.core.async :refer [put!]]
@@ -12,8 +13,9 @@
   "Center the textarea field against the surrounding bubble"
   [dom-node {:keys [cx cy]}
    width-atom height-atom top-left-x-atom top-left-y-atom]
-  (let [width (.-width (.getBoundingClientRect dom-node))
-        height (.-height (.getBoundingClientRect dom-node))
+  (let [{:keys [zoom]} @camera/camera
+        width  (/ (.-width (.getBoundingClientRect dom-node)) zoom)
+        height (/ (.-height (.getBoundingClientRect dom-node)) zoom)
         ]
     (reset! width-atom width)
     (reset! height-atom height)
@@ -63,8 +65,9 @@
   )
 
 (defn update-bubble-size [dom-node {:keys [id]}]
-  (let [width (.-width (.getBoundingClientRect dom-node))
-        height (.-height (.getBoundingClientRect dom-node))
+  (let [{:keys [zoom]} @camera/camera
+        width  (/ (.-width (.getBoundingClientRect dom-node)) zoom)
+        height (/ (.-height (.getBoundingClientRect dom-node)) zoom)
         radial-offset 40
         new-rx (-> width (/ 2) (+ radial-offset))
         new-ry (-> height (/ 2) (+ radial-offset))]
@@ -89,8 +92,9 @@
         current-text (reagent/atom text)
         dom-node (reagent/atom nil)
 
-        width (reagent/atom (* 2 rx))
-        height (reagent/atom (* 2 ry))
+        {:keys [zoom]} @camera/camera
+        width (reagent/atom (/ (* 2 rx) zoom))
+        height (reagent/atom (/ (* 2 ry) zoom))
         top-left-x (reagent/atom cx)
         top-left-y (reagent/atom cy)
         ]
@@ -160,14 +164,15 @@
 
              :on-key-down
              (fn [evt]
-               (let [enter-key-code 13
-                     escape-key-code 27]
-                 (condp = (.-keyCode evt)
-                   enter-key-code (when (not (.-shiftKey evt))
-                        (save (.. evt -target -value))
-                        )
-                   escape-key-code (stop)
-                   nil)))
+               (condp = (.-key evt)
+                 "Enter"
+                 (when (not (.-shiftKey evt))
+                   (save (.. evt -target -value)))
+
+                 "Escape"
+                 (stop)
+
+                 nil))
 
              }]]))})))
 
