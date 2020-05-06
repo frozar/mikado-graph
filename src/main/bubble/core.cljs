@@ -49,20 +49,12 @@
 
 (defn svg-origin []
   [:circle
-   {:cx 0
-    :cy 0
-    :r 5
-    :fill "black"
-    }])
+   {:cx 0 :cy 0 :r 5 :fill "black"}])
 
 (defn camera-center []
   (let [{:keys [cx cy]} @camera/camera]
     [:circle
-     {:cx cx
-      :cy cy
-      :r 5
-      :fill "red"
-      }]))
+     {:cx cx :cy cy :r 5 :fill "red"}]))
 
 (defn svg-canvas []
   (reagent/create-class

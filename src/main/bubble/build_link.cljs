@@ -11,12 +11,11 @@
    )
   )
 
-(defn get-mouse-position [evt]
+(defn get-mouse-svg-user-position [evt]
   (camera/win-px->svg-user-coord @camera/camera [(.-clientX evt) (.-clientY evt)]))
 
 (defn build-link-move [evt]
-  (let [[mouse-x mouse-y] (get-mouse-position evt)
-        ]
+  (let [[mouse-x mouse-y] (get-mouse-svg-user-position evt)]
     (put! event/event-queue [:build-link-move mouse-x mouse-y])))
 
 (defn build-link-start
@@ -29,7 +28,7 @@
 
 (defn build-link-start-fn [bubble-id]
   (fn [evt]
-    (let [[mouse-x mouse-y] (get-mouse-position evt)]
+    (let [[mouse-x mouse-y] (get-mouse-svg-user-position evt)]
       (build-link-start bubble-id mouse-x mouse-y))))
 
 (defn build-link-end

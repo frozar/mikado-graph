@@ -24,11 +24,13 @@
           (reset! init-mouse-x mouse-x)
           (reset! init-mouse-y mouse-y)
           )
-        (put! event/event-queue
-              [:dragging
-               bubble-id
-               (+ init-bubble-cx (/ (- mouse-x @init-mouse-x) zoom))
-               (+ init-bubble-cy (/ (- mouse-y @init-mouse-y) zoom))])
+        (let [scaled-vec-trans-x (/ (- mouse-x @init-mouse-x) zoom)
+              scaled-vec-trans-y (/ (- mouse-y @init-mouse-y) zoom)]
+          (put! event/event-queue
+                [:dragging
+                 bubble-id
+                 (+ init-bubble-cx scaled-vec-trans-x)
+                 (+ init-bubble-cy scaled-vec-trans-y)]))
         ))))
 
 (defn drag-end-fn [drag-move drag-end-atom on-end]

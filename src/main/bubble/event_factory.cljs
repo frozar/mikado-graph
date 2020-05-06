@@ -8,7 +8,8 @@
    ))
 
 (defn event-property-factory
-  ;; Take a link as input
+  "NB.: Many elements have to stop the propagation of the :on-mouse-down event.
+  This is done to avoid the panning of the parent svg canvas."
   [shape & args]
 
   (case shape
