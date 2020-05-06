@@ -37,3 +37,15 @@
   "This function update any key of a bubble, except its id"
   [bubble hashmap]
   (merge bubble (dissoc hashmap :id)))
+
+(defn top-bubble [{:keys [cy ry]}]
+  (- cy ry))
+
+(defn bottom-bubble [{:keys [cy ry]}]
+  (+ cy ry))
+
+(defn left-bubble [{:keys [cx rx]}]
+  (- cx rx))
+
+(defn right-bubble [{:keys [cx rx]}]
+  (+ cx rx))

@@ -1,5 +1,6 @@
 (ns bubble.event
   (:require
+   [bubble.camera :as camera]
    [bubble.state-write :as state-write]
    [cljs.core.async :refer [chan put! <! go-loop]]
    [goog.events :as events]
@@ -94,6 +95,10 @@
     "t"
     (when (not= @interaction "edition")
       (put! event-queue [:toggle-rough-layout]))
+
+    "Home"
+    (when (not= @interaction "edition")
+      (camera/home-evt))
 
     nil
     ))

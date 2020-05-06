@@ -1,6 +1,7 @@
 (ns bubble.state-read
   (:require
    [bubble.state :refer [appstate]]
+   [bubble.bubble :as bubble]
    ))
 
 ;; Read application state
@@ -24,6 +25,33 @@
 (defn bubble-id-exist [appstate id]
   (let [idx (get-list-id appstate)]
     (not= (some #{id} idx) nil)))
+
+(apply max [1 2])
+
+(defn graph-bounding-box-svg-user []
+  (let [globally
+        (fn [bubble-characteristic-fn min-or-max-fn]
+          (->> (get-bubbles)
+               vals
+               (map bubble-characteristic-fn)
+               (apply min-or-max-fn)))]
+    {:left   (globally bubble/left-bubble   min)
+     :right  (globally bubble/right-bubble  max)
+     :top    (globally bubble/top-bubble    min)
+     :bottom (globally bubble/bottom-bubble max)}))
+
+(defn graph-mid-pt []
+  (let [bbox (graph-bounding-box-svg-user)
+        top-left-pt [(:left bbox) (:top bbox)]
+        bottom-right-pt [(:right bbox) (:bottom bbox)]
+        mid-pt (->> (map + top-left-pt bottom-right-pt)
+                    (map (fn [v] (/ v 2))))]
+    mid-pt))
+
+(defn graph-width-height []
+  (let [bbox (graph-bounding-box-svg-user)]
+    {:width  (- (:right bbox) (:left bbox))
+     :height (- (:bottom bbox) (:top bbox))}))
 ;; END: bubble part
 
 ;; START: link part

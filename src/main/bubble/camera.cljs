@@ -1,6 +1,7 @@
 (ns bubble.camera
   (:require
    [bubble.coordinate :as coord]
+   [bubble.state-read :as state-read]
    [clojure.string :as string]
    [reagent.core :as reagent]
    [goog.events :as events]
@@ -98,3 +99,24 @@
 
 (defn window-resize-evt-fn []
   (events/listen js/window EventType.RESIZE window-resize-evt))
+
+(defn target-dimension->zoom
+  "From a target width and height for the camera, compute the zoom associated"
+  [target-dimension]
+  (let [camera-dimension [(@camera :width) (@camera :height)]
+        zooms (map / camera-dimension target-dimension)
+        weakest_zoom (apply min zooms)]
+    weakest_zoom))
+
+(defn home-evt []
+  ;; TODO: animate the transition to the 'Home' standpoint
+  (let [[cx cy] (state-read/graph-mid-pt)
+        {:keys [width height]} (state-read/graph-width-height)
+        border-factor 1.2
+        target-dimension [(* border-factor width) (* border-factor height)]
+        weakest_zoom (target-dimension->zoom target-dimension)
+
+        new-camera
+        (merge @camera {:cx cx :cy cy :zoom weakest_zoom})]
+    (update-camera! new-camera)
+    ))
