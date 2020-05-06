@@ -8,7 +8,8 @@
    ))
 
 (defn event-property-factory
-  ;; Take a link as input
+  "NB.: Many elements have to stop the propagation of the :on-mouse-down event.
+  This is done to avoid the panning of the parent svg canvas."
   [shape & args]
 
   (case shape
@@ -20,28 +21,53 @@
     :pencil-button
     (let [[bubble] args
           {:keys [id]} bubble]
-      {:on-click
-       #(put! event/event-queue [:enable-edition id])})
+      {:pointer-events "bounding-box"
+
+       :on-click
+       #(put! event/event-queue [:enable-edition id])
+
+       :on-mouse-down
+       (fn [evt]
+         ;; Avoid the propagation of the event to the parent canvas
+         (.stopPropagation evt))})
 
     :link-button
     (let [[bubble] args
           {:keys [id]} bubble]
       {:pointer-events "bounding-box"
+
        :on-click
-       (build-link/build-link-start-fn id)})
+       (build-link/build-link-start-fn id)
+
+       :on-mouse-down
+       (fn [evt]
+         ;; Avoid the propagation of the event to the parent canvas
+         (.stopPropagation evt))})
 
     :delete-button
     (let [[bubble] args
           {:keys [id]} bubble]
-      {:on-click
-       #(put! event/event-queue [:delete-bubble id])})
+      {:pointer-events "bounding-box"
+
+       :on-click
+       #(put! event/event-queue [:delete-bubble id])
+
+       :on-mouse-down
+       (fn [evt]
+         ;; Avoid the propagation of the event to the parent canvas
+         (.stopPropagation evt))})
 
     :validation-button
     (let [[bubble] args
           {:keys [id]} bubble]
       {:pointer-events "bounding-box"
        :on-click
-       #(put! event/event-queue [:toggle-done-status id])})
+       #(put! event/event-queue [:toggle-done-status id])
+
+       :on-mouse-down
+       (fn [evt]
+         ;; Avoid the propagation of the event to the parent canvas
+         (.stopPropagation evt))})
 
     :common-text-ellipse
     (let [[bubble] args
@@ -50,7 +76,10 @@
        (fn [evt]
          ;; It must be a simple click
          (when (not (.-ctrlKey evt))
-           ((drag/dragging-fn id) evt)))
+           ((drag/dragging-fn id) evt))
+
+         ;; Avoid the propagation of the event to the parent canvas
+         (.stopPropagation evt))
 
        :on-context-menu
        (when (not= type const/ROOT-BUBBLE-TYPE)

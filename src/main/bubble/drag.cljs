@@ -1,5 +1,6 @@
 (ns bubble.drag
   (:require
+   [bubble.camera :as camera]
    [bubble.coordinate :as coord]
    [bubble.event :as event]
    [bubble.state-read :as state-read]
@@ -8,29 +9,28 @@
    )
   (:import
    [goog.events EventType]
-   )
-  )
+   ))
 
 (defn drag-move-fn [bubble-id]
-  (let [{:keys [cx cy]} (state-read/get-bubble bubble-id)
-        init-cx cx
-        init-cy cy
+  (let [{:keys [zoom]} @camera/camera
+        {init-bubble-cx :cx init-bubble-cy :cy} (state-read/get-bubble bubble-id)
         init-mouse-x (atom nil)
         init-mouse-y (atom nil)]
     (fn [evt]
-      (let [[mouse-x mouse-y] (coord/get-svg-coord
-                               (.-clientX evt) (.-clientY evt))
-            ]
-        (when (and (nil? @init-mouse-x)
-                 (nil? @init-mouse-y))
+      (let [[mouse-x mouse-y]
+            (coord/win-px->svg-px [(.-clientX evt) (.-clientY evt)])]
+        (when (or (nil? @init-mouse-x)
+                  (nil? @init-mouse-y))
           (reset! init-mouse-x mouse-x)
           (reset! init-mouse-y mouse-y)
           )
-        (put! event/event-queue
-              [:dragging
-               bubble-id
-               (+ init-cx (- mouse-x @init-mouse-x))
-               (+ init-cy (- mouse-y @init-mouse-y))])
+        (let [scaled-vec-trans-x (/ (- mouse-x @init-mouse-x) zoom)
+              scaled-vec-trans-y (/ (- mouse-y @init-mouse-y) zoom)]
+          (put! event/event-queue
+                [:dragging
+                 bubble-id
+                 (+ init-bubble-cx scaled-vec-trans-x)
+                 (+ init-bubble-cy scaled-vec-trans-y)]))
         ))))
 
 (defn drag-end-fn [drag-move drag-end-atom on-end]

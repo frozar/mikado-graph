@@ -28,10 +28,13 @@
 (defn add-link
   ([appstate id-src id-dst]
    (add-link appstate {:src id-src :dst id-dst}))
-  ([appstate link]
+  ([appstate {id-src :src id-dst :dst
+              :as link}]
    (if (and
-        (state-read/bubble-id-exist appstate (:src link))
-        (state-read/bubble-id-exist appstate (:dst link)))
+        (not= id-src id-dst)
+        (state-read/bubble-id-exist appstate id-src)
+        (state-read/bubble-id-exist appstate id-dst)
+        (not (state-read/link-exist appstate id-dst id-src)))
      (update appstate
              :links
              (fn [links] (-> (conj links link)
@@ -53,8 +56,7 @@
      (if (empty? links)
        new-appstate
        (recur new-appstate (first links) (rest links)))
-     ))
-  )
+     )))
 
 (defn higher-delete-link [appstate filter-func]
   (update appstate :links #(filterv filter-func %)))

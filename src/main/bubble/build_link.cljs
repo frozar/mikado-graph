@@ -1,6 +1,6 @@
 (ns bubble.build-link
   (:require
-   [bubble.coordinate :as coord]
+   [bubble.camera :as camera]
    [bubble.event :as event]
    [bubble.state-read :as state-read]
    [cljs.core.async :refer [put!]]
@@ -11,13 +11,11 @@
    )
   )
 
-(defn get-mouse-position [evt]
-  (coord/get-svg-coord
-   (.-clientX evt) (.-clientY evt)))
+(defn get-mouse-svg-user-position [evt]
+  (camera/win-px->svg-user-coord @camera/camera [(.-clientX evt) (.-clientY evt)]))
 
 (defn build-link-move [evt]
-  (let [[mouse-x mouse-y] (get-mouse-position evt)
-        ]
+  (let [[mouse-x mouse-y] (get-mouse-svg-user-position evt)]
     (put! event/event-queue [:build-link-move mouse-x mouse-y])))
 
 (defn build-link-start
@@ -30,7 +28,7 @@
 
 (defn build-link-start-fn [bubble-id]
   (fn [evt]
-    (let [[mouse-x mouse-y] (get-mouse-position evt)]
+    (let [[mouse-x mouse-y] (get-mouse-svg-user-position evt)]
       (build-link-start bubble-id mouse-x mouse-y))))
 
 (defn build-link-end

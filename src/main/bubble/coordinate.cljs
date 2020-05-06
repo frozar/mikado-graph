@@ -9,6 +9,8 @@
   (reset! svg-origin [svg-origin-x svg-origin-y])
   )
 
-(defn get-svg-coord
-  [x y]
-  (map - [x y] @svg-origin))
+(defn win-px->svg-px
+  "Change the coordinate system from the window frame to the svg-canvas frame.
+  The coordinate are still in pixel."
+  [pt-in-window-frame]
+  (map - pt-in-window-frame @svg-origin))

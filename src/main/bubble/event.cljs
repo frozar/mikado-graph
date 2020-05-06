@@ -83,7 +83,7 @@
     )
   (recur (<! event-queue)))
 
-(defn window-keydown-evt
+(defn- window-keydown-evt
   "Configure the press to escape-key to exit interactive edition mode.
   Currently the only interaction is with the build-link action."
   [evt]
@@ -102,7 +102,14 @@
   (events/listen js/window EventType.KEYDOWN window-keydown-evt)
   )
 
-(window-keydown-evt-fn) ;; auto-execution
+;; TODO: define the expected behavior of window-resize-evt regarding the svg-canvas
+(defn window-resize-evt []
+  #_(reset! camera {:width (.-innerWidth js/window)
+                  :height (.-innerHeight js/window)}))
+
+(defn window-resize-evt-fn []
+  (events/listen js/window EventType.RESIZE window-resize-evt)
+  )
 
 (defn prevent-default
   ([] (prevent-default (fn [])))
