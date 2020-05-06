@@ -41,7 +41,7 @@
 (defn win-px->svg-user-coord
   "From window pixel position, convert to svg user position."
   [camera win-px]
-  (let [svg-px (coord/window->svg-canvas-px win-px)
+  (let [svg-px (coord/win-px->svg-px win-px)
 
         pt-user-coord (svg-px->svg-user-coord camera svg-px)]
     pt-user-coord
@@ -68,7 +68,7 @@
         win-px [(.-clientX evt) (.-clientY evt)]]
     (swap! camera
            apply-zoom scale
-           (coord/window->svg-canvas-px win-px))
+           (coord/win-px->svg-px win-px))
     ))
 
 (defn mouse-scroll-evt-fn []

@@ -9,8 +9,7 @@
    )
   (:import
    [goog.events EventType]
-   )
-  )
+   ))
 
 (defn drag-move-fn [bubble-id]
   (let [{:keys [zoom]} @camera/camera
@@ -19,8 +18,7 @@
         init-mouse-y (atom nil)]
     (fn [evt]
       (let [[mouse-x mouse-y]
-            (coord/get-svg-coord
-             (.-clientX evt) (.-clientY evt))]
+            (coord/win-px->svg-px [(.-clientX evt) (.-clientY evt)])]
         (when (or (nil? @init-mouse-x)
                   (nil? @init-mouse-y))
           (reset! init-mouse-x mouse-x)

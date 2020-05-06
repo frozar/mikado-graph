@@ -14,7 +14,7 @@
         init-mouse-y (atom nil)]
     (fn [evt]
       (let [[mouse-x mouse-y]
-            (coord/window->svg-canvas-px [(.-clientX evt) (.-clientY evt)])
+            (coord/win-px->svg-px [(.-clientX evt) (.-clientY evt)])
             ]
         (when (or (nil? @init-mouse-x)
                   (nil? @init-mouse-y))
