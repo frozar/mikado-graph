@@ -63,25 +63,23 @@
     :component-did-mount
     (fn [this]
       (let [svg-bbox-client (.getBoundingClientRect (rdom/dom-node this))
-            svg-origin-x (.-left svg-bbox-client)
-            svg-origin-y (.-top svg-bbox-client)]
-        (coord/init-svg-origin! svg-origin-x svg-origin-y)))
+            svg-origin-x-px (.-left svg-bbox-client)
+            svg-origin-y-px (.-top svg-bbox-client)]
+        (coord/init-svg-origin! svg-origin-x-px svg-origin-y-px)))
 
     :reagent-render
     (fn []
       [:svg
        {:id "svg-canvas"
         :viewBox (camera/camera->viewBox)
-        :height (.-innerHeight js/window) ;; (:height @event/camera)
-        :width (.-innerWidth js/window) ;; (:width @event/camera)
+        :height (.-innerHeight js/window)
+        :width (.-innerWidth js/window)
         :style
         {:border "none"
          :background "#f1f1f1"
          :position "fixed"
          :top 0
          :left 0
-         ;; :height "100%"
-         ;; :width "100%"
          }
 
         :on-context-menu

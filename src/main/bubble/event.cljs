@@ -1,5 +1,6 @@
 (ns bubble.event
   (:require
+   [bubble.camera :as camera]
    [bubble.state-write :as state-write]
    [cljs.core.async :refer [chan put! <! go-loop]]
    [goog.events :as events]
@@ -95,20 +96,15 @@
     (when (not= @interaction "edition")
       (put! event-queue [:toggle-rough-layout]))
 
+    "Home"
+    (when (not= @interaction "edition")
+      (camera/home-evt))
+
     nil
     ))
 
 (defn window-keydown-evt-fn []
   (events/listen js/window EventType.KEYDOWN window-keydown-evt)
-  )
-
-;; TODO: define the expected behavior of window-resize-evt regarding the svg-canvas
-(defn window-resize-evt []
-  #_(reset! camera {:width (.-innerWidth js/window)
-                  :height (.-innerHeight js/window)}))
-
-(defn window-resize-evt-fn []
-  (events/listen js/window EventType.RESIZE window-resize-evt)
   )
 
 (defn prevent-default

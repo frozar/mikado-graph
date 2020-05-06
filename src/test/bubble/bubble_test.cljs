@@ -43,3 +43,31 @@
       (is (= update-cy 777)
           "Check type")
     )))
+
+(deftest top-bubble_basic
+  (let [new-bubble (b/create-bubble "original-id" 20 50)
+        updated-bubble
+        (b/update-bubble new-bubble {:ry 20})]
+    (testing "Top bubble"
+      (is (= (b/top-bubble updated-bubble) 30)))))
+
+(deftest bottom-bubble_basic
+  (let [new-bubble (b/create-bubble "original-id" 20 50)
+        updated-bubble
+        (b/update-bubble new-bubble {:ry 20})]
+    (testing "Bottom bubble"
+      (is (= (b/bottom-bubble updated-bubble) 70)))))
+
+(deftest left-bubble_basic
+  (let [new-bubble (b/create-bubble "original-id" 20 50)
+        updated-bubble
+        (b/update-bubble new-bubble {:rx 20})]
+    (testing "Left bubble"
+      (is (= (b/left-bubble updated-bubble) 0)))))
+
+(deftest right-bubble_basic
+  (let [new-bubble (b/create-bubble "original-id" 20 50)
+        updated-bubble
+        (b/update-bubble new-bubble {:rx 20})]
+    (testing "Right bubble"
+      (is (= (b/right-bubble updated-bubble) 40)))))
