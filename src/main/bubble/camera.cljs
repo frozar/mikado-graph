@@ -10,15 +10,101 @@
    [goog.events EventType]
    ))
 
+;; BEGIN camera section
+(defn init-camera
+  ([]
+   (let [width (.-innerWidth js/window)
+         height (.-innerHeight js/window)]
+     (init-camera width height)))
+  ([width height]
+   {:cx (/ width 2.)
+    :cy (/ height 2.)
+    :width width
+    :height height
+    :zoom 1.}))
+
 (defonce camera
-  (let [width (.-innerWidth js/window)
-        height (.-innerHeight js/window)]
-    (reagent/atom
-     {:cx (/ width 2.)
-      :cy (/ height 2.)
-      :width width
-      :height height
-      :zoom 1.})))
+  (reagent/atom (init-camera)))
+
+(defn- vec-camera [src-camera dst-camera]
+  (let [distance-values (map - (vals dst-camera) (vals src-camera))
+        vec-camera (zipmap (keys src-camera) distance-values)]
+    vec-camera))
+
+(defn- subpart-camera [camera set-of-keys]
+  (reduce
+   (fn [hashmap [k v]]
+     (if (some set-of-keys [k])
+       (conj hashmap [k v])
+       hashmap))
+   {}
+   camera))
+
+(def camera-subset #{:cx :cy :zoom})
+
+(defn- div-camera [src-camera divisor]
+  (let [sub-camera (subpart-camera src-camera camera-subset)
+        divided-values (map (fn [v] (/ v divisor)) (vals sub-camera))
+        inc-camera (zipmap (keys sub-camera) divided-values)]
+    inc-camera))
+
+(defn- add-camera [src-camera inc-camera]
+  (let [set-of-keys (into #{} (keys inc-camera))
+        incremented-camera
+        (reduce
+         (fn [hashmap [key value]]
+           (if (some set-of-keys [key])
+             (let [updated-val (+ value (get inc-camera key))]
+               (conj hashmap [key updated-val]))
+             (conj hashmap [key value])
+             ))
+         {}
+         src-camera)]
+    incremented-camera))
+
+
+(defn- camera-linear-interpolation
+  [src-camera dst-camera nb-step]
+  (if (< nb-step 2)
+    []
+    (let [dist-camera (vec-camera src-camera dst-camera)
+          divisor (dec nb-step)
+          inc-camera (div-camera dist-camera divisor)]
+      (take nb-step
+            (iterate (fn [camera] (add-camera camera inc-camera)) src-camera))
+      )))
+
+(declare svg-px->svg-user-coord)
+
+(defn- correct-camera-by-translation-fix-point [camera-origin camera-modified pt-svg-px]
+  (let [pt-origin-svg-user (svg-px->svg-user-coord camera-origin pt-svg-px)
+        pt-modified-svg-user  (svg-px->svg-user-coord camera-modified pt-svg-px)
+        vec-trans-svg-user (map - pt-modified-svg-user pt-origin-svg-user)
+        {:keys [cx cy]} camera-modified
+        [new-cx new-cy] (map - [cx cy] vec-trans-svg-user)
+        camera-corrected (merge camera-modified {:cx new-cx :cy new-cy})]
+    camera-corrected))
+
+(defn- apply-zoom
+  "Invariant: the svg-user coordinates associated with the input svg-px must match
+  after the camera update, in this case after a zoom factor update."
+  [camera scale pt-svg-px]
+  (let [camera-zoomed (update camera :zoom * scale)]
+    (correct-camera-by-translation-fix-point camera camera-zoomed pt-svg-px)))
+
+(defn- apply-resize
+  "Invariant: the svg-user coordinates associated with the input svg-px must match
+  after the camera update, in this case after a width/height scalar update."
+  [camera win-width win-height]
+  (let [camera-origin camera
+        camera-wider (merge camera-origin {:width win-width :height win-height})
+        ;; Take an arbitrary point in the plan as a fix point
+        pt-svg-px [0 0]]
+    (correct-camera-by-translation-fix-point camera camera-wider pt-svg-px)))
+
+(defn- update-camera! [new-camera]
+  (reset! camera new-camera))
+;; END camera section
 
 (defn camera->viewBox []
   (let [width  (/ (:width @camera)  (:zoom @camera))
@@ -48,41 +134,12 @@
     pt-user-coord
     ))
 
-(defn- correct-camera-by-translation-fix-point [camera-origin camera-modified pt-svg-px]
-  (let [pt-origin-svg-user (svg-px->svg-user-coord camera-origin pt-svg-px)
-        pt-modified-svg-user  (svg-px->svg-user-coord camera-modified pt-svg-px)
-        vec-trans-svg-user (map - pt-modified-svg-user pt-origin-svg-user)
-        {:keys [cx cy]} camera-modified
-        [new-cx new-cy] (map - [cx cy] vec-trans-svg-user)
-        camera-corrected (merge camera-modified {:cx new-cx :cy new-cy})]
-    camera-corrected))
-
-(defn- apply-zoom
-  "Invariant: the svg-user coordinates associated with the input svg-px must match
-  after the camera update, in this case after a zoom factor update."
-  [camera scale pt-svg-px]
-  (let [camera-zoomed (update camera :zoom * scale)]
-    (correct-camera-by-translation-fix-point camera camera-zoomed pt-svg-px)))
-
-(defn- apply-resize
-  "Invariant: the svg-user coordinates associated with the input svg-px must match
-  after the camera update, in this case after a width/height scalar update."
-  [camera win-width win-height]
-  (let [camera-origin camera
-        camera-wider (merge camera-origin {:width win-width :height win-height})
-        ;; Take an arbitrary point in the plan as a fix point
-        pt-svg-px [0 0]]
-    (correct-camera-by-translation-fix-point camera camera-wider pt-svg-px)))
-
 ;; TODO: put in place the origin animation
 #_(js/setTimeout
    (fn [] (update-camera! new-camera))
    (/ 1000 25))
 
-(defn- update-camera! [new-camera]
-  (reset! camera new-camera))
-
-(defn mouse-wheel-evt [evt]
+(defn- mouse-wheel-evt [evt]
   (let [reduction-speed-factor (if (.-shiftKey evt) 10 5)
         scale (.pow js/Math 1.005 (/ (..  evt -event_ -wheelDeltaY) reduction-speed-factor))
         win-px [(.-clientX evt) (.-clientY evt)]
@@ -92,7 +149,7 @@
 (defn mouse-wheel-evt-fn []
   (events/listen js/window EventType.WHEEL mouse-wheel-evt))
 
-(defn window-resize-evt []
+(defn- window-resize-evt []
   (let [new-camera
         (apply-resize @camera (.-innerWidth js/window) (.-innerHeight js/window))]
     (update-camera! new-camera)))
@@ -100,7 +157,7 @@
 (defn window-resize-evt-fn []
   (events/listen js/window EventType.RESIZE window-resize-evt))
 
-(defn target-dimension->zoom
+(defn- target-dimension->zoom
   "From a target width and height for the camera, compute the zoom associated"
   [target-dimension]
   (let [camera-dimension [(@camera :width) (@camera :height)]
