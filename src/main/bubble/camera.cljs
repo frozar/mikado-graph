@@ -136,59 +136,74 @@
         pt-svg-px [0 0]]
     (correct-camera-by-translation-fix-point-svg-px camera camera-wider pt-svg-px)))
 
+(take 2 (repeat {:toto 1}))
+
+(defn- camera-linear-interpolation-translation [src-camera dst-camera nb-step]
+  (let [divisor (dec nb-step)
+        {cx0 :cx cy0 :cy} src-camera
+        {cx1 :cx cy1 :cy} dst-camera
+        c0->c1 (map - [cx1 cy1] [cx0 cy0])
+        inc-c0->c1 (map #(/ % divisor) c0->c1)
+        ]
+    (take
+     nb-step
+     (iterate
+      (fn [camera]
+        (let [camera-translated
+              (-> camera
+                  (update :cx + (nth inc-c0->c1 0))
+                  (update :cy + (nth inc-c0->c1 1))
+                  )]
+          camera-translated)
+        )
+      src-camera))
+    )
+  )
+
+(defn- camera-linear-interpolation-homothety [src-camera dst-camera nb-step]
+  (let [divisor (dec nb-step)
+        inc-zoom (/ (- (:zoom dst-camera) (:zoom src-camera)) divisor)
+
+        fix-pt-svg-user (compute-fix-point-svg-user src-camera dst-camera)
+        fix-pt-svg-px (svg-user-coord->svg-px src-camera fix-pt-svg-user)
+        ]
+    (take
+     nb-step
+     (iterate
+      (fn [camera]
+        (let [camera-zoomed
+              (update camera :zoom + inc-zoom)
+
+              next-camera
+              (correct-camera-by-translation-fix-point-svg-px
+               camera
+               camera-zoomed
+               fix-pt-svg-px)
+              ]
+          next-camera)
+        )
+      src-camera))))
+
 (defn- camera-linear-interpolation
   [src-camera dst-camera nb-step]
-  (prn "src-camera" src-camera )
-  (prn "dst-camera" dst-camera)
   (if (< nb-step 2)
     []
-    ;; TODO: here a discussion must be done
-    ;; If the zoom distance between camera is small (no zoom have been done)
-    ;; so a panning of the plane has been done
-    ;; Else a zoom + (maybe) panning has been done
-    (let [divisor (dec nb-step)
-          inc-zoom (/ (- (:zoom dst-camera) (:zoom src-camera)) divisor)
-          _ (prn "inc-zoom" inc-zoom)
+    (cond
+      ;; In case the 2 input cameras are the same
+      (= src-camera dst-camera)
+      (take nb-step (repeat src-camera))
 
-          fix-pt-svg-user (compute-fix-point-svg-user src-camera dst-camera)
-          _ (prn "fix-pt-svg-user" fix-pt-svg-user)
-          ;; fix-pt-svg-user [(:cx dst-camera) (:cy dst-camera)]
-          fix-pt-svg-px (svg-user-coord->svg-px src-camera fix-pt-svg-user)
-          _ (prn "fix-pt-svg-px" fix-pt-svg-px)
+      ;; In case the 2 input cameras are just translation of each other
+      (<
+       (.abs js/Math (- (:zoom src-camera) (:zoom dst-camera)))
+       10e-3)
+      (camera-linear-interpolation-translation src-camera dst-camera nb-step)
 
-          ;; dist-camera (vec-camera src-camera dst-camera)
-          ;; divisor (dec nb-step)
-          ;; inc-camera (div-camera dist-camera divisor)
-          ]
-      (take nb-step
-            (iterate
-             (fn [camera]
-               (let [camera-zoomed
-                     (update camera :zoom + inc-zoom)
-                     _ (prn "camera-zoomed" camera-zoomed)
-
-                     next-camera
-                     (correct-camera-by-translation-fix-point-svg-px
-                      camera
-                      camera-zoomed
-                      fix-pt-svg-px)
-                     _ (prn "next-camera" next-camera)
-                     ]
-                 next-camera)
-               )
-             src-camera))
-      )))
-
-;; (defn- camera-linear-interpolation
-;;   [src-camera dst-camera nb-step]
-;;   (if (< nb-step 2)
-;;     []
-;;     (let [dist-camera (vec-camera src-camera dst-camera)
-;;           divisor (dec nb-step)
-;;           inc-camera (div-camera dist-camera divisor)]
-;;       (take nb-step
-;;             (iterate (fn [camera] (add-camera camera inc-camera)) src-camera))
-;;       )))
+      ;; In case a zoom/unzoom have been done
+      :else
+      (camera-linear-interpolation-homothety src-camera dst-camera nb-step)
+      )
+    ))
 
 (defn- update-camera! [new-camera]
   (reset! camera new-camera))

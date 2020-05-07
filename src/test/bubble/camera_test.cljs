@@ -92,3 +92,15 @@
       10e-4
       ))
     ))
+
+(deftest camera-linear-interpolation-translation_basic
+  (let [src-camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 1}
+        dst-camera {:cx 800 :cy 600 :width 800 :height 600 :zoom 1}
+        nb-step 3]
+    (is
+     (=
+      (#'c/camera-linear-interpolation-translation src-camera dst-camera nb-step)
+      (list {:cx 400, :cy 300, :width 800, :height 600, :zoom 1}
+            {:cx 600, :cy 450, :width 800, :height 600, :zoom 1}
+            {:cx 800, :cy 600, :width 800, :height 600, :zoom 1})
+      ))))
