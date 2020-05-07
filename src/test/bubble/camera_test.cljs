@@ -49,17 +49,17 @@
       {:cx 400 :cy 300}
       ))))
 
-(deftest camera-linear-interpolation_basic
-  (let [src-camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 1}
-        dst-camera {:cx 800 :cy 600 :width 800 :height 600 :zoom 2}
-        nb-step 3]
-    (is
-     (=
-      (#'c/camera-linear-interpolation src-camera dst-camera nb-step)
-      (list {:cx 400, :cy 300, :width 800, :height 600, :zoom 1}
-            {:cx 600, :cy 450, :width 800, :height 600, :zoom 1.5}
-            {:cx 800, :cy 600, :width 800, :height 600, :zoom 2})
-      ))))
+;; (deftest camera-linear-interpolation_basic
+;;   (let [src-camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 1}
+;;         dst-camera {:cx 800 :cy 600 :width 800 :height 600 :zoom 2}
+;;         nb-step 3]
+;;     (is
+;;      (=
+;;       (#'c/camera-linear-interpolation src-camera dst-camera nb-step)
+;;       (list {:cx 400, :cy 300, :width 800, :height 600, :zoom 1}
+;;             {:cx 600, :cy 450, :width 800, :height 600, :zoom 1.5}
+;;             {:cx 800, :cy 600, :width 800, :height 600, :zoom 2})
+;;       ))))
 
 (deftest change-coord-px-user-px_basic
   (let [camera initial-camera
@@ -72,3 +72,23 @@
            (c/svg-user-coord->svg-px camera))
       pt-svg-px
       ))))
+
+(defn- pt-dist
+  [[x0 y0] [x1 y1]]
+  (let [vx (- x1 x0)
+        vy (- y1 y0)]
+    (.sqrt js/Math (+ (* vx vx) (* vy vy)))))
+
+(deftest compute-fix-point-svg-user_basic
+  (let [camera0 {:cx 400, :cy 300, :width 800, :height 600, :zoom 1}
+        camera1 {:cx 800, :cy 600, :width 800, :height 600, :zoom 2}
+        fix-point-svg-user (#'c/compute-fix-point-svg-user camera0 camera1)
+        pt-in-camera0 (c/svg-user-coord->svg-px camera0 fix-point-svg-user)
+        pt-in-camera1 (c/svg-user-coord->svg-px camera1 fix-point-svg-user)
+        ]
+    (is
+     (<
+      (pt-dist pt-in-camera0 pt-in-camera1)
+      10e-4
+      ))
+    ))

@@ -26,6 +26,13 @@
 (defonce camera
   (reagent/atom (init-camera)))
 
+(defn- camera->viewBox [camera]
+  (let [width  (/ (:width camera)  (:zoom camera))
+        height (/ (:height camera) (:zoom camera))
+        min-x (- (:cx camera) (/ width 2.))
+        min-y (- (:cy camera) (/ height 2.))]
+    {:width width :height height :min-x min-x :min-y min-y}))
+
 (defn- vec-camera [src-camera dst-camera]
   (let [distance-values (map - (vals dst-camera) (vals src-camera))
         vec-camera (zipmap (keys src-camera) distance-values)]
@@ -62,18 +69,6 @@
          src-camera)]
     incremented-camera))
 
-
-(defn- camera-linear-interpolation
-  [src-camera dst-camera nb-step]
-  (if (< nb-step 2)
-    []
-    (let [dist-camera (vec-camera src-camera dst-camera)
-          divisor (dec nb-step)
-          inc-camera (div-camera dist-camera divisor)]
-      (take nb-step
-            (iterate (fn [camera] (add-camera camera inc-camera)) src-camera))
-      )))
-
 (declare svg-px->svg-user-coord)
 (declare svg-user-coord->svg-px)
 
@@ -88,36 +83,31 @@
   (map (fn [v] (/ v 2))
        (map + pt0 pt1)))
 
-(def counter (atom 0))
+(defn- get-top-left-corner-svg-user [camera]
+  (let [{:keys [min-x min-y]} (camera->viewBox camera)
+        ;; vector in svg-user space: origin = pt (0, 0) in user space
+        top-left-corner-svg-user [min-x min-y]]
+    top-left-corner-svg-user))
 
 (defn- compute-fix-point-svg-user
-  ([camera0 camera1]
-   (reset! counter 0)
-   (compute-fix-point-svg-user camera0 camera1 10e-5 [0 0]))
-  ([camera0 camera1 eps guess-pt-svg-user]
-   (swap! counter inc)
-   (let [pt-svg-px-0 (svg-user-coord->svg-px camera0 guess-pt-svg-user)
-         pt-svg-px-1 (svg-user-coord->svg-px camera1 guess-pt-svg-user)
-         distance (pt-dist pt-svg-px-0 pt-svg-px-1)
-         _ (prn "pt-svg-px-0" pt-svg-px-0)
-         _ (prn "pt-svg-px-1" pt-svg-px-1)
-         _ (prn "distance" distance)
-         ]
-     (if (or (< distance eps)
-             (< 5 @counter))
-       guess-pt-svg-user
-       (let [mid-pt-svg-px (mid-pt pt-svg-px-0 pt-svg-px-1)
-             ;; the middle svg-user point should be compute in
-             ;; a camera between camera0 and camera1
-             mid-pt-svg-user (svg-px->svg-user-coord camera0 mid-pt-svg-px)]
-         (recur camera0 camera1 eps mid-pt-svg-user)))
-     ))
-  )
-
-;; (comment
-;;   (compute-fix-point-svg-user
-;;    {:cx 400, :cy 300, :width 800, :height 600, :zoom 1}
-;;    {:cx 800, :cy 600, :width 800, :height 600, :zoom 2}))
+  [camera0 camera1]
+  (let [;; deduce from svg-user-coord->svg-px
+        ;; z0 * svg-scaled0 = z1 * svg-scaled1
+        ;; z0 * (pt-svg-user - top-left0) = z1 * (pt-svg-user - top-left1)
+        ;; (z0 - z1) * pt-svg-user = z0 * top-left0 - z1 * top-left1
+        ;; pt-svg-user = (1 / (z0 - z1)) (z0 * top-left0 - z1 * top-left1)
+        zoom0 (:zoom camera0)
+        zoom1 (:zoom camera1)
+        top-left-corner-svg-user0 (get-top-left-corner-svg-user camera0)
+        top-left-corner-svg-user1 (get-top-left-corner-svg-user camera1)
+        zoom-factor (/ 1 (- zoom0 zoom1 ))
+        tmp-pt (map -
+                    (map #(* zoom0 %) top-left-corner-svg-user0)
+                    (map #(* zoom1 %) top-left-corner-svg-user1))
+        fix-pt-svg-user (map #(* zoom-factor %) tmp-pt)
+        ]
+    fix-pt-svg-user
+    ))
 
 (defn- correct-camera-by-translation-fix-point-svg-px
   [camera-origin camera-modified pt-svg-px]
@@ -132,8 +122,8 @@
 (defn- apply-zoom
   "Invariant: the svg-user coordinates associated with the input svg-px must match
   after the camera update, in this case after a zoom factor update."
-  [camera scale pt-svg-px]
-  (let [camera-zoomed (update camera :zoom * scale)]
+  [camera scale-factor pt-svg-px]
+  (let [camera-zoomed (update camera :zoom * scale-factor)]
     (correct-camera-by-translation-fix-point-svg-px camera camera-zoomed pt-svg-px)))
 
 (defn- apply-resize
@@ -146,16 +136,63 @@
         pt-svg-px [0 0]]
     (correct-camera-by-translation-fix-point-svg-px camera camera-wider pt-svg-px)))
 
+(defn- camera-linear-interpolation
+  [src-camera dst-camera nb-step]
+  (prn "src-camera" src-camera )
+  (prn "dst-camera" dst-camera)
+  (if (< nb-step 2)
+    []
+    ;; TODO: here a discussion must be done
+    ;; If the zoom distance between camera is small (no zoom have been done)
+    ;; so a panning of the plane has been done
+    ;; Else a zoom + (maybe) panning has been done
+    (let [divisor (dec nb-step)
+          inc-zoom (/ (- (:zoom dst-camera) (:zoom src-camera)) divisor)
+          _ (prn "inc-zoom" inc-zoom)
+
+          fix-pt-svg-user (compute-fix-point-svg-user src-camera dst-camera)
+          _ (prn "fix-pt-svg-user" fix-pt-svg-user)
+          ;; fix-pt-svg-user [(:cx dst-camera) (:cy dst-camera)]
+          fix-pt-svg-px (svg-user-coord->svg-px src-camera fix-pt-svg-user)
+          _ (prn "fix-pt-svg-px" fix-pt-svg-px)
+
+          ;; dist-camera (vec-camera src-camera dst-camera)
+          ;; divisor (dec nb-step)
+          ;; inc-camera (div-camera dist-camera divisor)
+          ]
+      (take nb-step
+            (iterate
+             (fn [camera]
+               (let [camera-zoomed
+                     (update camera :zoom + inc-zoom)
+                     _ (prn "camera-zoomed" camera-zoomed)
+
+                     next-camera
+                     (correct-camera-by-translation-fix-point-svg-px
+                      camera
+                      camera-zoomed
+                      fix-pt-svg-px)
+                     _ (prn "next-camera" next-camera)
+                     ]
+                 next-camera)
+               )
+             src-camera))
+      )))
+
+;; (defn- camera-linear-interpolation
+;;   [src-camera dst-camera nb-step]
+;;   (if (< nb-step 2)
+;;     []
+;;     (let [dist-camera (vec-camera src-camera dst-camera)
+;;           divisor (dec nb-step)
+;;           inc-camera (div-camera dist-camera divisor)]
+;;       (take nb-step
+;;             (iterate (fn [camera] (add-camera camera inc-camera)) src-camera))
+;;       )))
+
 (defn- update-camera! [new-camera]
   (reset! camera new-camera))
 ;; END camera section
-
-(defn- camera->viewBox [camera]
-  (let [width  (/ (:width camera)  (:zoom camera))
-        height (/ (:height camera) (:zoom camera))
-        min-x (- (:cx camera) (/ width 2.))
-        min-y (- (:cy camera) (/ height 2.))]
-    {:width width :height height :min-x min-x :min-y min-y}))
 
 (defn camera->viewBox-str []
   (let [{width :width
@@ -167,33 +204,31 @@
 
 (defn svg-px->svg-user-coord
   "From svg pixel position, convert to svg user position."
-  [camera svg-px]
+  [camera pt-svg-px]
   (let [;; vector in svg-user space: origin = (top, left) corner  in user space
-        svg-scaled (map / svg-px [(:zoom camera) (:zoom camera)])
+        svg-scaled (map / pt-svg-px [(:zoom camera) (:zoom camera)])
 
-        {:keys [min-x min-y]} (camera->viewBox camera)
         ;; vector in svg-user space: origin = pt (0, 0) in user space
-        top-left-corner-svg-user [min-x min-y]
+        top-left-corner-svg-user (get-top-left-corner-svg-user camera)
 
         ;; change of landmark in svg-user space: origin = pt (0, 0) in user space
-        svg-user-coord (map + svg-scaled top-left-corner-svg-user)
+        pt-svg-user (map + svg-scaled top-left-corner-svg-user)
         ]
-    svg-user-coord))
+    pt-svg-user))
 
 (defn svg-user-coord->svg-px
   "From svg user position, convert to svg pixel position."
-  [camera svg-user-coord]
-  (let [{:keys [min-x min-y]} (camera->viewBox camera)
-        ;; vector in svg-user space: origin = pt (0, 0) in user space
-        top-left-corner-svg-user [min-x min-y]
+  [camera pt-svg-user]
+  (let [;; vector in svg-user space: origin = pt (0, 0) in user space
+        top-left-corner-svg-user (get-top-left-corner-svg-user camera)
 
         ;; change of landmark in svg-user space: origin = (top, left) corner in user space
-        svg-scaled (map - svg-user-coord top-left-corner-svg-user)
+        svg-scaled (map - pt-svg-user top-left-corner-svg-user)
 
         ;; vector in svg-px space: origin = (top, left) corner in window frame space
-        svg-px (map * svg-scaled [(:zoom camera) (:zoom camera)])
+        pt-svg-px (map * svg-scaled [(:zoom camera) (:zoom camera)])
         ]
-    svg-px))
+    pt-svg-px))
 
 (defn win-px->svg-user-coord
   "From window pixel position, convert to svg user position."
