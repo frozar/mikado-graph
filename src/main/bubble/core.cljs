@@ -71,7 +71,7 @@
     (fn []
       [:svg
        {:id "svg-canvas"
-        :viewBox (camera/camera->viewBox)
+        :viewBox (camera/camera->viewBox-str)
         :height (.-innerHeight js/window)
         :width (.-innerWidth js/window)
         :style
@@ -108,7 +108,7 @@
 
        [draw-graph]
 
-       ;; ;; DBG element
-       ;; [svg-origin]
-       ;; [camera-center]
+       ;; DBG element
+       [svg-origin]
+       [camera-center]
        ])}))

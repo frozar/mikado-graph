@@ -76,9 +76,10 @@
 
 (declare svg-px->svg-user-coord)
 
-(defn- correct-camera-by-translation-fix-point [camera-origin camera-modified pt-svg-px]
-  (let [pt-origin-svg-user (svg-px->svg-user-coord camera-origin pt-svg-px)
-        pt-modified-svg-user  (svg-px->svg-user-coord camera-modified pt-svg-px)
+(defn- correct-camera-by-translation-fix-point-svg-px
+  [camera-origin camera-modified pt-svg-px]
+  (let [pt-origin-svg-user   (svg-px->svg-user-coord camera-origin pt-svg-px)
+        pt-modified-svg-user (svg-px->svg-user-coord camera-modified pt-svg-px)
         vec-trans-svg-user (map - pt-modified-svg-user pt-origin-svg-user)
         {:keys [cx cy]} camera-modified
         [new-cx new-cy] (map - [cx cy] vec-trans-svg-user)
@@ -90,7 +91,7 @@
   after the camera update, in this case after a zoom factor update."
   [camera scale pt-svg-px]
   (let [camera-zoomed (update camera :zoom * scale)]
-    (correct-camera-by-translation-fix-point camera camera-zoomed pt-svg-px)))
+    (correct-camera-by-translation-fix-point-svg-px camera camera-zoomed pt-svg-px)))
 
 (defn- apply-resize
   "Invariant: the svg-user coordinates associated with the input svg-px must match
@@ -100,29 +101,40 @@
         camera-wider (merge camera-origin {:width win-width :height win-height})
         ;; Take an arbitrary point in the plan as a fix point
         pt-svg-px [0 0]]
-    (correct-camera-by-translation-fix-point camera camera-wider pt-svg-px)))
+    (correct-camera-by-translation-fix-point-svg-px camera camera-wider pt-svg-px)))
 
 (defn- update-camera! [new-camera]
   (reset! camera new-camera))
 ;; END camera section
 
-(defn camera->viewBox []
-  (let [width  (/ (:width @camera)  (:zoom @camera))
-        height (/ (:height @camera) (:zoom @camera))
-        min-x (- (:cx @camera) (/ width 2.))
-        min-y (- (:cy @camera) (/ height 2.))]
+(defn- camera->viewBox [camera]
+  (let [width  (/ (:width camera)  (:zoom camera))
+        height (/ (:height camera) (:zoom camera))
+        min-x (- (:cx camera) (/ width 2.))
+        min-y (- (:cy camera) (/ height 2.))]
+    {:width width :height height :min-x min-x :min-y min-y}))
+
+(defn camera->viewBox-str []
+  (let [{width :width
+         height :height
+         min-x :min-x
+         min-y :min-y}
+        (camera->viewBox @camera)]
     (string/join " " [min-x min-y width height])))
 
 (defn svg-px->svg-user-coord
   "From svg pixel position, convert to svg user position."
   [camera svg-px]
-  (let [svg-scaled (map / svg-px [(:zoom camera) (:zoom camera)])
+  (let [;; vector in svg-user space: origin = (top, left) corner
+        svg-scaled (map / svg-px [(:zoom camera) (:zoom camera)])
 
-        mid-plan-px (map / [(:width camera) (:height camera)] [2 2])
-        mid-plan-scaled (map / mid-plan-px [(:zoom camera) (:zoom camera)])
+        {:keys [min-x min-y]} (camera->viewBox camera)
+        ;; vector in svg-user space: origin = pt (0, 0) in user space
+        top-left-corner-svg-user [min-x min-y]
 
-        pt-update-origin (map + svg-scaled [(:cx camera) (:cy camera)])
-        pt-user-coord (map - pt-update-origin mid-plan-scaled)]
+        ;; change of landmark in svg-user space: origin = pt (0, 0) in user space
+        pt-user-coord (map + svg-scaled top-left-corner-svg-user)
+        ]
     pt-user-coord))
 
 (defn win-px->svg-user-coord
