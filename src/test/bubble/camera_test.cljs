@@ -61,11 +61,13 @@
             {:cx 800, :cy 600, :width 800, :height 600, :zoom 2})
       ))))
 
-;; (let [camera0 {:cx 400, :cy 300, :width 800, :height 600, :zoom 1}
-;;       camera1 {:cx 600, :cy 450, :width 800, :height 600, :zoom 1.5}
-;;       camera2 {:cx 800, :cy 600, :width 800, :height 600, :zoom 2}
-;;       pt-mid-screen [400 300]]
-;;   (prn "0" (c/svg-px->svg-user-coord camera0 pt-mid-screen))
-;;   (prn "1" (c/svg-px->svg-user-coord camera1 pt-mid-screen))
-;;   (prn "2" (c/svg-px->svg-user-coord camera2 pt-mid-screen))
-;;   )
+(deftest change-coord-px-user-px_basic
+  (let [camera initial-camera
+        pt-svg-px [42 24]]
+    (is
+     (=
+      (->> pt-svg-px
+           (c/svg-px->svg-user-coord camera)
+           (c/svg-user-coord->svg-px camera))
+      pt-svg-px
+      ))))

@@ -125,7 +125,7 @@
 (defn svg-px->svg-user-coord
   "From svg pixel position, convert to svg user position."
   [camera svg-px]
-  (let [;; vector in svg-user space: origin = (top, left) corner
+  (let [;; vector in svg-user space: origin = (top, left) corner  in user space
         svg-scaled (map / svg-px [(:zoom camera) (:zoom camera)])
 
         {:keys [min-x min-y]} (camera->viewBox camera)
@@ -133,9 +133,24 @@
         top-left-corner-svg-user [min-x min-y]
 
         ;; change of landmark in svg-user space: origin = pt (0, 0) in user space
-        pt-user-coord (map + svg-scaled top-left-corner-svg-user)
+        svg-user-coord (map + svg-scaled top-left-corner-svg-user)
         ]
-    pt-user-coord))
+    svg-user-coord))
+
+(defn svg-user-coord->svg-px
+  "From svg user position, convert to svg pixel position."
+  [camera svg-user-coord]
+  (let [{:keys [min-x min-y]} (camera->viewBox camera)
+        ;; vector in svg-user space: origin = pt (0, 0) in user space
+        top-left-corner-svg-user [min-x min-y]
+
+        ;; change of landmark in svg-user space: origin = (top, left) corner in user space
+        svg-scaled (map - svg-user-coord top-left-corner-svg-user)
+
+        ;; vector in svg-px space: origin = (top, left) corner in window frame space
+        svg-px (map * svg-scaled [(:zoom camera) (:zoom camera)])
+        ]
+    svg-px))
 
 (defn win-px->svg-user-coord
   "From window pixel position, convert to svg user position."
