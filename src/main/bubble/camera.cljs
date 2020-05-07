@@ -134,11 +134,6 @@
     pt-user-coord
     ))
 
-;; TODO: put in place the origin animation
-#_(js/setTimeout
-   (fn [] (update-camera! new-camera))
-   (/ 1000 25))
-
 (defn- mouse-wheel-evt [evt]
   (let [reduction-speed-factor (if (.-shiftKey evt) 10 5)
         scale (.pow js/Math 1.005 (/ (..  evt -event_ -wheelDeltaY) reduction-speed-factor))
@@ -149,6 +144,9 @@
 (defn mouse-wheel-evt-fn []
   (events/listen js/window EventType.WHEEL mouse-wheel-evt))
 
+(defn mouse-wheel-evt-off []
+  (events/unlisten js/window EventType.WHEEL mouse-wheel-evt))
+
 (defn- window-resize-evt []
   (let [new-camera
         (apply-resize @camera (.-innerWidth js/window) (.-innerHeight js/window))]
@@ -156,6 +154,25 @@
 
 (defn window-resize-evt-fn []
   (events/listen js/window EventType.RESIZE window-resize-evt))
+
+(defn window-resize-evt-off []
+  (events/unlisten js/window EventType.RESIZE window-resize-evt))
+
+(defn animate-camera-transition
+  "duration: in second"
+  ([src-camera dst-camera duration]
+   (animate-camera-transition src-camera dst-camera duration 30))
+  ([src-camera dst-camera duration fps]
+   (let [nb-step (* duration fps)
+         list-camera (camera-linear-interpolation src-camera dst-camera nb-step)
+         ;; the time between camera: in millisecond
+         time-step (/ 1000 fps)]
+     (doall
+      (for [idx (range nb-step)]
+        (js/setTimeout
+         (fn [] (update-camera! (nth list-camera idx)))
+         (* time-step idx))))
+     )))
 
 (defn- target-dimension->zoom
   "From a target width and height for the camera, compute the zoom associated"
@@ -175,5 +192,6 @@
 
         new-camera
         (merge @camera {:cx cx :cy cy :zoom weakest_zoom})]
-    (update-camera! new-camera)
+    ;; (update-camera! new-camera)
+    (animate-camera-transition @camera new-camera 1 60)
     ))

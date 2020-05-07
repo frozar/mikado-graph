@@ -107,6 +107,10 @@
   (events/listen js/window EventType.KEYDOWN window-keydown-evt)
   )
 
+(defn window-keydown-evt-off []
+  (events/unlisten js/window EventType.KEYDOWN window-keydown-evt)
+  )
+
 (defn prevent-default
   ([] (prevent-default (fn [])))
   ([func]
