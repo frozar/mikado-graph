@@ -75,6 +75,49 @@
       )))
 
 (declare svg-px->svg-user-coord)
+(declare svg-user-coord->svg-px)
+
+(defn- pt-dist
+  [[x0 y0] [x1 y1]]
+  (let [vx (- x1 x0)
+        vy (- y1 y0)]
+    (.sqrt js/Math (+ (* vx vx) (* vy vy)))))
+
+(defn- mid-pt
+  [pt0 pt1]
+  (map (fn [v] (/ v 2))
+       (map + pt0 pt1)))
+
+(def counter (atom 0))
+
+(defn- compute-fix-point-svg-user
+  ([camera0 camera1]
+   (reset! counter 0)
+   (compute-fix-point-svg-user camera0 camera1 10e-5 [0 0]))
+  ([camera0 camera1 eps guess-pt-svg-user]
+   (swap! counter inc)
+   (let [pt-svg-px-0 (svg-user-coord->svg-px camera0 guess-pt-svg-user)
+         pt-svg-px-1 (svg-user-coord->svg-px camera1 guess-pt-svg-user)
+         distance (pt-dist pt-svg-px-0 pt-svg-px-1)
+         _ (prn "pt-svg-px-0" pt-svg-px-0)
+         _ (prn "pt-svg-px-1" pt-svg-px-1)
+         _ (prn "distance" distance)
+         ]
+     (if (or (< distance eps)
+             (< 5 @counter))
+       guess-pt-svg-user
+       (let [mid-pt-svg-px (mid-pt pt-svg-px-0 pt-svg-px-1)
+             ;; the middle svg-user point should be compute in
+             ;; a camera between camera0 and camera1
+             mid-pt-svg-user (svg-px->svg-user-coord camera0 mid-pt-svg-px)]
+         (recur camera0 camera1 eps mid-pt-svg-user)))
+     ))
+  )
+
+;; (comment
+;;   (compute-fix-point-svg-user
+;;    {:cx 400, :cy 300, :width 800, :height 600, :zoom 1}
+;;    {:cx 800, :cy 600, :width 800, :height 600, :zoom 2}))
 
 (defn- correct-camera-by-translation-fix-point-svg-px
   [camera-origin camera-modified pt-svg-px]
@@ -210,7 +253,6 @@
     weakest_zoom))
 
 (defn home-evt []
-  ;; TODO: animate the transition to the 'Home' standpoint
   (let [[cx cy] (state-read/graph-mid-pt)
         {:keys [width height]} (state-read/graph-width-height)
         border-factor 1.2
@@ -219,6 +261,5 @@
 
         new-camera
         (merge @camera {:cx cx :cy cy :zoom weakest_zoom})]
-    ;; (update-camera! new-camera)
     (animate-camera-transition @camera new-camera 1 60)
     ))

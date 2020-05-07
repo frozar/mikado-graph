@@ -63,6 +63,7 @@
 
 (deftest change-coord-px-user-px_basic
   (let [camera initial-camera
+        ;; take an arbitrary point
         pt-svg-px [42 24]]
     (is
      (=
