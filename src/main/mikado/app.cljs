@@ -25,6 +25,12 @@
 (defn mount-root [component]
   (rdom/render [component] (.getElementById js/document "app")))
 
+(defn ^:dev/before-load unlisten-global-event []
+  (event/window-keydown-evt-off)
+  (camera/window-resize-evt-off)
+  (camera/mouse-wheel-evt-off)
+  )
+
 (defn ^:dev/after-load reload! []
   (mount-root graphe-page)
   )
