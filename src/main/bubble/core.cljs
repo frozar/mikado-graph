@@ -108,7 +108,7 @@
 
        [draw-graph]
 
-       ;; DBG element
-       [svg-origin]
-       [camera-center]
+       ;; ;; DBG element
+       ;; [svg-origin]
+       ;; [camera-center]
        ])}))
