@@ -33,55 +33,8 @@
         min-y (- (:cy camera) (/ height 2.))]
     {:width width :height height :min-x min-x :min-y min-y}))
 
-(defn- vec-camera [src-camera dst-camera]
-  (let [distance-values (map - (vals dst-camera) (vals src-camera))
-        vec-camera (zipmap (keys src-camera) distance-values)]
-    vec-camera))
-
-(defn- subpart-camera [camera set-of-keys]
-  (reduce
-   (fn [hashmap [k v]]
-     (if (some set-of-keys [k])
-       (conj hashmap [k v])
-       hashmap))
-   {}
-   camera))
-
-(def camera-subset #{:cx :cy :zoom})
-
-(defn- div-camera [src-camera divisor]
-  (let [sub-camera (subpart-camera src-camera camera-subset)
-        divided-values (map (fn [v] (/ v divisor)) (vals sub-camera))
-        inc-camera (zipmap (keys sub-camera) divided-values)]
-    inc-camera))
-
-(defn- add-camera [src-camera inc-camera]
-  (let [set-of-keys (into #{} (keys inc-camera))
-        incremented-camera
-        (reduce
-         (fn [hashmap [key value]]
-           (if (some set-of-keys [key])
-             (let [updated-val (+ value (get inc-camera key))]
-               (conj hashmap [key updated-val]))
-             (conj hashmap [key value])
-             ))
-         {}
-         src-camera)]
-    incremented-camera))
-
 (declare svg-px->svg-user-coord)
 (declare svg-user-coord->svg-px)
-
-(defn- pt-dist
-  [[x0 y0] [x1 y1]]
-  (let [vx (- x1 x0)
-        vy (- y1 y0)]
-    (.sqrt js/Math (+ (* vx vx) (* vy vy)))))
-
-(defn- mid-pt
-  [pt0 pt1]
-  (map (fn [v] (/ v 2))
-       (map + pt0 pt1)))
 
 (defn- get-top-left-corner-svg-user [camera]
   (let [{:keys [min-x min-y]} (camera->viewBox camera)
@@ -100,7 +53,7 @@
         zoom1 (:zoom camera1)
         top-left-corner-svg-user0 (get-top-left-corner-svg-user camera0)
         top-left-corner-svg-user1 (get-top-left-corner-svg-user camera1)
-        zoom-factor (/ 1 (- zoom0 zoom1 ))
+        zoom-factor (/ 1 (- zoom0 zoom1))
         tmp-pt (map -
                     (map #(* zoom0 %) top-left-corner-svg-user0)
                     (map #(* zoom1 %) top-left-corner-svg-user1))
@@ -137,65 +90,10 @@
     (correct-camera-by-translation-fix-point-svg-px camera camera-wider pt-svg-px)))
 
 ;; BEGIN CAMERA INTERPOLATION
-(defn- camera-linear-interpolation-translation [src-camera dst-camera nb-step]
-  (let [divisor (dec nb-step)
-        {cx0 :cx cy0 :cy} src-camera
-        {cx1 :cx cy1 :cy} dst-camera
-        c0->c1 (map - [cx1 cy1] [cx0 cy0])
-        inc-c0->c1 (map #(/ % divisor) c0->c1)
-        ]
-    (take
-     nb-step
-     (iterate
-      (fn [camera]
-        (let [camera-translated
-              (-> camera
-                  (update :cx + (nth inc-c0->c1 0))
-                  (update :cy + (nth inc-c0->c1 1))
-                  )]
-          camera-translated)
-        )
-      src-camera))
-    )
-  )
-
-(defn- camera-linear-interpolation-homothety [src-camera dst-camera nb-step]
-  (let [divisor (dec nb-step)
-        inc-zoom (/ (- (:zoom dst-camera) (:zoom src-camera)) divisor)
-
-        fix-pt-svg-user (compute-fix-point-svg-user src-camera dst-camera)
-        fix-pt-svg-px (svg-user-coord->svg-px src-camera fix-pt-svg-user)
-        ]
-    (take
-     nb-step
-     (iterate
-      (fn [camera]
-        (let [camera-zoomed
-              (update camera :zoom + inc-zoom)
-
-              next-camera
-              (correct-camera-by-translation-fix-point-svg-px
-               camera
-               camera-zoomed
-               fix-pt-svg-px)
-              ]
-          next-camera)
-        )
-      src-camera))))
-
-(defn- camera-linear-interpolation
-  [src-camera dst-camera nb-step]
-  (cond
-    ;; In case the 2 input cameras are just translation of each other
-    (<
-     (.abs js/Math (- (:zoom src-camera) (:zoom dst-camera)))
-     10e-3)
-    (camera-linear-interpolation-translation src-camera dst-camera nb-step)
-
-    ;; In case a zoom/unzoom have been done
-    :else
-    (camera-linear-interpolation-homothety src-camera dst-camera nb-step)
-    ))
+(defn- compute-linear-steps [dist nb-step]
+  (for [idx (range 0 nb-step)]
+    (* dist
+       (/ idx (dec nb-step)))))
 
 (defn- compute-log-steps [dist nb-step]
   (for [idx (range 1 (inc nb-step))]
@@ -205,26 +103,40 @@
 (defn- sign [number]
   (if (pos? number) + -))
 
-(defn- range-log [start end nb-step]
+(defn- higher-range
+  "interpolation-type: [:linear|:log]"
+  [start end nb-step interpolation-type]
   (let [dist (.abs js/Math (- end start))
-        log-steps (compute-log-steps dist nb-step)
+        compute-steps-fn
+        (condp = interpolation-type
+          :linear compute-linear-steps
+          :log    compute-log-steps
+          )
+        log-steps (compute-steps-fn dist nb-step)
         sign-operator (sign (- end start))
         signed-log-steps (map #(sign-operator %) log-steps)]
     (for [step signed-log-steps]
       (+ start step))
     ))
 
-(comment
-  (range-log 0 10 4)
-  (range-log 0 -10 4)
+(defn- range-math
+  ([start end nb-step] (range-math start end nb-step :linear))
+  ([start end nb-step interpolation-type]
+   (condp = interpolation-type
+     :linear
+     (higher-range start end nb-step :linear)
+
+     :log
+     (higher-range start end nb-step :log)
+     ))
   )
 
-(defn- camera-logarithmic-interpolation-translation [src-camera dst-camera nb-step]
+(defn- camera-interpolation-translation [src-camera dst-camera nb-step interpolation-type]
   (let [{cx0 :cx cy0 :cy} src-camera
         {cx1 :cx cy1 :cy} dst-camera
 
-        cameras-center-x (range-log cx0 cx1 nb-step)
-        cameras-center-y (range-log cy0 cy1 nb-step)
+        cameras-center-x (range-math cx0 cx1 nb-step interpolation-type)
+        cameras-center-y (range-math cy0 cy1 nb-step interpolation-type)
 
         cameras-center
         (->> (interleave cameras-center-x cameras-center-y)
@@ -237,20 +149,12 @@
     )
   )
 
-(comment
-  (let [src-camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 1}
-        dst-camera {:cx 800 :cy 600 :width 800 :height 600 :zoom 1}
-        nb-step 3]
-    (camera-logarithmic-interpolation-translation src-camera dst-camera nb-step)
-    )
-  )
-
-(defn- camera-logarithmic-interpolation-homothety [src-camera dst-camera nb-step]
+(defn- camera-interpolation-homothety [src-camera dst-camera nb-step interpolation-type]
   (let [zoom0 (:zoom src-camera)
         zoom1 (:zoom dst-camera)
 
         cameras-zoom
-        (->> (range-log zoom0 zoom1 nb-step)
+        (->> (range-math zoom0 zoom1 nb-step interpolation-type)
              (map (fn [v] {:zoom v}))
              (drop 1))
 
@@ -273,30 +177,21 @@
         ]
     (map first list-camera-zoomed)))
 
-(comment
-  (let [src-camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 1}
-        dst-camera {:cx 800 :cy 600 :width 800 :height 600 :zoom 2}
-        nb-step 3]
-    (camera-logarithmic-interpolation-homothety src-camera dst-camera nb-step)
-    )
-  )
+(defn- camera-interpolation*
+  [src-camera dst-camera nb-step interpolation-type]
+  (let [dist-zoom (.abs js/Math (- (:zoom src-camera) (:zoom dst-camera)))]
+    (cond
+      ;; In case the 2 input cameras are just translation of each other
+      (< dist-zoom 10e-3)
+      (camera-interpolation-translation src-camera dst-camera nb-step interpolation-type)
 
-(defn- camera-logarithmic-interpolation
-  [src-camera dst-camera nb-step]
-  (cond
-    ;; In case the 2 input cameras are just translation of each other
-    (<
-     (.abs js/Math (- (:zoom src-camera) (:zoom dst-camera)))
-     10e-3)
-    (camera-logarithmic-interpolation-translation src-camera dst-camera nb-step)
-
-    ;; In case a zoom/unzoom have been done
-    :else
-    (camera-logarithmic-interpolation-homothety src-camera dst-camera nb-step)
-    ))
+      ;; In case a zoom/unzoom have been done
+      :else
+      (camera-interpolation-homothety src-camera dst-camera nb-step interpolation-type)
+      )))
 
 (defn- camera-interpolation
-  [interpolation-type src-camera dst-camera nb-step]
+  [src-camera dst-camera nb-step interpolation-type]
   (if (< nb-step 2)
     []
     (cond
@@ -306,13 +201,8 @@
 
       ;; In case a zoom/unzoom have been done
       :else
-      (condp = interpolation-type
-        :linear
-        (camera-linear-interpolation src-camera dst-camera nb-step)
-
-        :logarithmic
-        (camera-logarithmic-interpolation src-camera dst-camera nb-step)
-        ))))
+      (camera-interpolation* src-camera dst-camera nb-step interpolation-type)
+      )))
 ;; END CAMERA INTERPOLATION
 
 (defn- update-camera! [new-camera]
@@ -394,8 +284,8 @@
    (animate-camera-transition src-camera dst-camera duration 30))
   ([src-camera dst-camera duration fps]
    (let [nb-step (* duration fps)
-         list-camera (camera-interpolation :logarithmic src-camera dst-camera nb-step)
-         ;; the time between camera: in millisecond
+         list-camera (camera-interpolation src-camera dst-camera nb-step :log)
+         ;; the time between camera (time-step): in millisecond
          time-step (/ 1000 fps)]
      (doall
       (for [idx (range nb-step)]

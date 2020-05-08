@@ -12,55 +12,6 @@
     initial-camera
     {:cx 400 :cy 300 :width 800 :height 600 :zoom 1})))
 
-(deftest vec-camera_basic
-  (let [src-camera initial-camera
-        dst-camera (merge src-camera {:cx 800})]
-    (is
-     (=
-      (#'c/vec-camera src-camera dst-camera)
-      {:cx 400 :cy 0 :width 0 :height 0 :zoom 0}
-      ))))
-
-(deftest add-camera_basic
-  (let [src-camera initial-camera
-        inc-camera
-        {:cx 1 :cy 0 :zoom 0}]
-    (is
-     (=
-      (#'c/add-camera src-camera inc-camera)
-      {:cx 401 :cy 300 :width 800 :height 600 :zoom 1}
-      ))))
-
-(deftest div-camera_basic
-  (let [src-camera initial-camera
-        divisor 2]
-    (is
-     (=
-      (#'c/div-camera src-camera divisor)
-      {:cx 200 :cy 150 :zoom 0.5}
-      ))))
-
-(deftest subpart-camera_basic
-  (let [src-camera initial-camera
-        set-of-keys #{:cx :cy}]
-    (is
-     (=
-      (#'c/subpart-camera src-camera set-of-keys)
-      {:cx 400 :cy 300}
-      ))))
-
-;; (deftest camera-linear-interpolation_basic
-;;   (let [src-camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 1}
-;;         dst-camera {:cx 800 :cy 600 :width 800 :height 600 :zoom 2}
-;;         nb-step 3]
-;;     (is
-;;      (=
-;;       (#'c/camera-linear-interpolation src-camera dst-camera nb-step)
-;;       (list {:cx 400, :cy 300, :width 800, :height 600, :zoom 1}
-;;             {:cx 600, :cy 450, :width 800, :height 600, :zoom 1.5}
-;;             {:cx 800, :cy 600, :width 800, :height 600, :zoom 2})
-;;       ))))
-
 (deftest change-coord-px-user-px_basic
   (let [camera initial-camera
         ;; take an arbitrary point
@@ -93,14 +44,74 @@
       ))
     ))
 
+(deftest range-linear_basic
+  (is
+   (=
+    (#'c/range-math 0 10 5 :linear)
+    (list 0 2.5 5 7.5 10)
+    ))
+  (is
+   (=
+    (#'c/range-math 0 -10 5 :linear)
+    (list 0 -2.5 -5 -7.5 -10)
+    )))
+
+(deftest range-log_basic
+  (is
+   (=
+    (#'c/range-math 0 10 4 :log)
+    (list 0 5 7.92481250360578 10)
+    ))
+  (is
+   (=
+    (#'c/range-math 0 -10 4 :log)
+    (list 0 -5 -7.92481250360578 -10)
+    )))
+
 (deftest camera-linear-interpolation-translation_basic
   (let [src-camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 1}
         dst-camera {:cx 800 :cy 600 :width 800 :height 600 :zoom 1}
         nb-step 3]
     (is
      (=
-      (#'c/camera-linear-interpolation-translation src-camera dst-camera nb-step)
+      (#'c/camera-interpolation-translation src-camera dst-camera nb-step :linear)
       (list {:cx 400, :cy 300, :width 800, :height 600, :zoom 1}
             {:cx 600, :cy 450, :width 800, :height 600, :zoom 1}
             {:cx 800, :cy 600, :width 800, :height 600, :zoom 1})
+      ))))
+
+(deftest camera-linear-interpolation-homothety_basic
+  (let [src-camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 1}
+        dst-camera {:cx 800 :cy 600 :width 800 :height 600 :zoom 2}
+        nb-step 3]
+    (is
+     (=
+      (#'c/camera-interpolation-homothety src-camera dst-camera nb-step :linear)
+      (list {:cx 400, :cy 300, :width 800, :height 600, :zoom 1}
+            {:cx 666.6666666666667, :cy 500, :width 800, :height 600, :zoom 1.5}
+            {:cx 800, :cy 600, :width 800, :height 600, :zoom 2})
+      ))))
+
+(deftest camera-log-interpolation-translation_basic
+  (let [src-camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 1}
+        dst-camera {:cx 800 :cy 600 :width 800 :height 600 :zoom 1}
+        nb-step 3]
+    (is
+     (=
+      (#'c/camera-interpolation-translation src-camera dst-camera nb-step :log)
+      (list {:cx 400, :cy 300, :width 800, :height 600, :zoom 1}
+            {:cx 652.371901428583, :cy 489.27892607143724, :width 800, :height 600, :zoom 1}
+            {:cx 800, :cy 600, :width 800, :height 600, :zoom 1})
+      ))))
+
+(deftest camera-log-interpolation-homothety_basic
+  (let [src-camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 1}
+        dst-camera {:cx 800 :cy 600 :width 800 :height 600 :zoom 2}
+        nb-step 3]
+    (is
+     (=
+      (#'c/camera-interpolation-homothety src-camera dst-camera nb-step :log)
+      (list {:cx 400, :cy 300, :width 800, :height 600, :zoom 1}
+            {:cx 709.4822457876334, :cy 532.1116843407249, :width 800, :height 600, :zoom 1.6309297535714575}
+            {:cx 799.9999999999999,, :cy 600, :width 800, :height 600, :zoom 2})
       ))))
