@@ -5,6 +5,7 @@
    [clojure.string :as string]
    [reagent.core :as reagent]
    [goog.events :as events]
+   [debux.cs.core :refer-macros [clog clogn dbg dbgn break]]
    )
   (:import
    [goog.events EventType]
@@ -220,6 +221,8 @@
       (camera-interpolation* src-camera dst-camera nb-step interpolation-type)
       )))
 ;; END CAMERA INTERPOLATION
+(defn update-camera [hashmap]
+  (merge @camera hashmap))
 
 (defn scale-dist [dist]
   (let [zoom (:zoom @camera)]
@@ -233,14 +236,46 @@
         ]
     (* 100 (/ bubble-bbox-area viewBox-area))))
 
-(defn update-camera [hashmap]
-  (merge @camera hashmap))
+(defn in-zoom-limit?
+  "Check the arbitrary limit of zoom in/out"
+  [camera]
+  (and (< 0.05 (area-ratio-min-bubble<->viewBox camera))
+       (< (area-ratio-min-bubble<->viewBox camera) 50)))
+
+(defn- bbox-area [{left :left right :right top :top bottom :bottom}]
+  (let [width (- right left)
+        height (- bottom top)]
+    (if (or (neg? width) (neg? height))
+      0
+      (* width height))))
+
+(defn in-pan-limit?
+  "Check if the graph is still enough in the displayed viewBox"
+  [camera]
+  (let [{width :width
+         height :height
+         view-left :min-x view-top :min-y
+         } (camera->viewBox camera)
+        [view-right view-bottom] (map + [view-left view-top] [width height])
+        {graph-left :left graph-right :right
+         graph-top :top graph-bottom :bottom} (state-read/graph-bbox)
+
+        intersection-bbox
+        {:left (max view-left graph-left)
+         :right (min view-right graph-right)
+         :top (max view-top graph-top)
+         :bottom (min view-bottom graph-bottom)}
+
+        intersection-bbox-area (bbox-area intersection-bbox)
+
+        area-ratio (* 100 (/ intersection-bbox-area (state-read/graph-bbox-area)))]
+    (<= 30 area-ratio)
+    ))
 
 (defn set-camera! [new-camera]
-  ;; Limit the zoom in/out
   ;; TODO: smooth the transition
-  (when (and (< 0.05 (area-ratio-min-bubble<->viewBox new-camera))
-             (< (area-ratio-min-bubble<->viewBox new-camera) 50))
+  (when (and (in-zoom-limit? new-camera)
+             (in-pan-limit? new-camera))
     (reset! camera new-camera))
   )
 ;; END camera section
