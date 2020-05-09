@@ -210,18 +210,21 @@
       )))
 ;; END CAMERA INTERPOLATION
 
-(defn area-ratio-graph<->viewBox
-  "Return the pourcentage of the graph area over the viewBox area."
-  []
-  (let [graph-area (state-read/graph-bbox-area)
-        _ (prn "graph-area" graph-area)
-        viewBox-area (camera-viewBox-area @camera)
-        _ (prn "viewBox-area" viewBox-area)]
-    (* 100 (/ graph-area viewBox-area))))
+(defn area-ratio-min-bubble<->viewBox
+  "Return the pourcentage of the smallest bubble over the viewBox area."
+  [camera]
+  (let [bubble-bbox-area (state-read/graph-min-bubble-bbox-area)
+        viewBox-area (camera-viewBox-area camera)
+        ]
+    (* 100 (/ bubble-bbox-area viewBox-area))))
 
 (defn update-camera! [new-camera]
-  (prn "ratio" (area-ratio-graph<->viewBox))
-  (reset! camera new-camera))
+  ;; Limit the zoom in/out
+  ;; TODO: smooth the transition
+  (when (and (< 0.05 (area-ratio-min-bubble<->viewBox new-camera))
+             (< (area-ratio-min-bubble<->viewBox new-camera) 50))
+    (reset! camera new-camera))
+  )
 ;; END camera section
 
 (defn camera->viewBox-str []

@@ -2,6 +2,7 @@
   (:require
    [bubble.state :refer [appstate]]
    [bubble.bubble :as bubble]
+   [debux.cs.core :refer-macros [clog clogn dbg dbgn break]]
    ))
 
 ;; Read application state
@@ -51,6 +52,12 @@
   (let [{width :width
          height :height} (graph-bbox-dimension)]
     (* width height)))
+
+(defn graph-min-bubble-bbox-area []
+  (->> (get-bubbles)
+       vals
+       (map #(bubble/bbox-area-bubble %))
+       (apply min)))
 
 (defn graph-mid-pt []
   (let [bbox (graph-bbox)
