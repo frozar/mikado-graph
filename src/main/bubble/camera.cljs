@@ -345,8 +345,10 @@
 
 (defn animate-camera-transition
   "duration: in second"
+  ([dst-camera duration]
+   (animate-camera-transition @camera dst-camera duration 60))
   ([src-camera dst-camera duration]
-   (animate-camera-transition src-camera dst-camera duration 30))
+   (animate-camera-transition src-camera dst-camera duration 60))
   ([src-camera dst-camera duration fps]
    (let [nb-step (* duration fps)
          list-camera (camera-interpolation src-camera dst-camera nb-step :log)
