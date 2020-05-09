@@ -71,3 +71,10 @@
         (b/update-bubble new-bubble {:rx 20})]
     (testing "Right bubble"
       (is (= (b/right-bubble updated-bubble) 40)))))
+
+(deftest bbox-area-bubble_basic
+  (let [new-bubble
+        (-> (b/create-bubble "original-id" 0 0)
+            (merge {:rx 100 :ry 100}))]
+    (testing "Area bbox bubble"
+      (is (= (b/bbox-area-bubble new-bubble) 40000)))))

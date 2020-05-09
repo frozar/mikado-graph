@@ -33,6 +33,11 @@
         min-y (- (:cy camera) (/ height 2.))]
     {:width width :height height :min-x min-x :min-y min-y}))
 
+(defn camera-viewBox-area [camera]
+  (let [{width :width
+         height :height} (camera->viewBox camera)]
+    (* width height)))
+
 (declare svg-px->svg-user-coord)
 (declare svg-user-coord->svg-px)
 
@@ -205,7 +210,17 @@
       )))
 ;; END CAMERA INTERPOLATION
 
-(defn- update-camera! [new-camera]
+(defn area-ratio-graph<->viewBox
+  "Return the pourcentage of the graph area over the viewBox area."
+  []
+  (let [graph-area (state-read/graph-bbox-area)
+        _ (prn "graph-area" graph-area)
+        viewBox-area (camera-viewBox-area @camera)
+        _ (prn "viewBox-area" viewBox-area)]
+    (* 100 (/ graph-area viewBox-area))))
+
+(defn update-camera! [new-camera]
+  (prn "ratio" (area-ratio-graph<->viewBox))
   (reset! camera new-camera))
 ;; END camera section
 
@@ -305,7 +320,7 @@
 (defn home-evt []
   (let [[cx cy] (state-read/graph-mid-pt)
         {:keys [width height]} (state-read/graph-width-height)
-        border-factor 1.2
+        border-factor 1.3
         target-dimension [(* border-factor width) (* border-factor height)]
         weakest_zoom (target-dimension->zoom target-dimension)
 

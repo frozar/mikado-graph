@@ -21,11 +21,19 @@
           (reset! init-mouse-x mouse-x)
           (reset! init-mouse-y mouse-y))
 
-        (swap! camera/camera
-               merge
-               {:cx (- init-cam-cx (/ (- mouse-x @init-mouse-x) zoom))
-                :cy (- init-cam-cy (/ (- mouse-y @init-mouse-y) zoom))
-                })))))
+        ;; (swap! camera/camera
+        ;;        merge
+        ;;        {:cx (- init-cam-cx (/ (- mouse-x @init-mouse-x) zoom))
+        ;;         :cy (- init-cam-cy (/ (- mouse-y @init-mouse-y) zoom))
+        ;;         })
+        (let [new-camera
+              (merge @camera/camera
+                     {:cx (- init-cam-cx (/ (- mouse-x @init-mouse-x) zoom))
+                      :cy (- init-cam-cy (/ (- mouse-y @init-mouse-y) zoom))
+                      })]
+          (camera/update-camera! new-camera)
+          )
+        ))))
 
 (defn pan-end-fn [pan-move pan-end-atom on-end]
   (fn []

@@ -214,8 +214,7 @@
     ))
 
 (defn- bubble-text
-  [bubble
-   event-property]
+  [bubble event-property]
   (reagent/create-class
    {:display-name "bubble-text"
 
@@ -224,21 +223,20 @@
       (gui-common/update-bubble-size (rdom/dom-node this) bubble))
 
     :reagent-render
-    (fn [bubble event-property]
-      (let [font-size 20
-            {:keys [id initial-state? cx]} bubble
-            text-style (if initial-state?
-                         {:font-style "italic" :fill "#333"}
-                         {:font-style "normal" :fill "#000"})]
+    (fn [{:keys [id initial-state? cx] :as bubble} event-property]
+      (let [font-size (if initial-state? 20 24)
+
+            text-style
+            (if initial-state?
+              {:font-size font-size :font-style "italic" :font-weight "bold" :fill "#555"}
+              {:font-size font-size :font-style "normal" :fill "#000"})]
         [:text
          (merge event-property
                 {:class "label"
                  :style
                  (merge text-style
-                        {
-                         :text-anchor "middle"
-                         :dominant-baseline "middle"
-                         })
+                        {:text-anchor "middle"
+                         :dominant-baseline "middle"})
                  :y (get-text-y bubble font-size)
                  :font-size font-size
                  })
