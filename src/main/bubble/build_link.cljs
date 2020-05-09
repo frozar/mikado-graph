@@ -12,7 +12,7 @@
   )
 
 (defn get-mouse-svg-user-position [evt]
-  (camera/win-px->svg-user-coord @camera/camera [(.-clientX evt) (.-clientY evt)]))
+  (camera/win-px->svg-user-coord [(.-clientX evt) (.-clientY evt)]))
 
 (defn build-link-move [evt]
   (let [[mouse-x mouse-y] (get-mouse-svg-user-position evt)]

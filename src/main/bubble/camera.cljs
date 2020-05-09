@@ -26,12 +26,23 @@
 (defonce camera
   (reagent/atom (init-camera)))
 
+(defn state []
+  (dissoc @camera :zoom))
+
 (defn- camera->viewBox [camera]
   (let [width  (/ (:width camera)  (:zoom camera))
         height (/ (:height camera) (:zoom camera))
         min-x (- (:cx camera) (/ width 2.))
         min-y (- (:cy camera) (/ height 2.))]
     {:width width :height height :min-x min-x :min-y min-y}))
+
+(defn camera->viewBox-str []
+  (let [{width :width
+         height :height
+         min-x :min-x
+         min-y :min-y}
+        (camera->viewBox @camera)]
+    (string/join " " [min-x min-y width height])))
 
 (defn camera-viewBox-area [camera]
   (let [{width :width
@@ -210,6 +221,10 @@
       )))
 ;; END CAMERA INTERPOLATION
 
+(defn scale-dist [dist]
+  (let [zoom (:zoom @camera)]
+    (/ dist zoom)))
+
 (defn area-ratio-min-bubble<->viewBox
   "Return the pourcentage of the smallest bubble over the viewBox area."
   [camera]
@@ -218,7 +233,10 @@
         ]
     (* 100 (/ bubble-bbox-area viewBox-area))))
 
-(defn update-camera! [new-camera]
+(defn update-camera [hashmap]
+  (merge @camera hashmap))
+
+(defn set-camera! [new-camera]
   ;; Limit the zoom in/out
   ;; TODO: smooth the transition
   (when (and (< 0.05 (area-ratio-min-bubble<->viewBox new-camera))
@@ -226,14 +244,6 @@
     (reset! camera new-camera))
   )
 ;; END camera section
-
-(defn camera->viewBox-str []
-  (let [{width :width
-         height :height
-         min-x :min-x
-         min-y :min-y}
-        (camera->viewBox @camera)]
-    (string/join " " [min-x min-y width height])))
 
 (defn svg-px->svg-user-coord
   "From svg pixel position, convert to svg user position."
@@ -265,19 +275,20 @@
 
 (defn win-px->svg-user-coord
   "From window pixel position, convert to svg user position."
-  [camera win-px]
-  (let [svg-px (coord/win-px->svg-px win-px)
+  ([pt-win-px] (win-px->svg-user-coord @camera pt-win-px))
+  ([camera pt-win-px]
+   (let [svg-px (coord/win-px->svg-px pt-win-px)
 
-        pt-user-coord (svg-px->svg-user-coord camera svg-px)]
-    pt-user-coord
-    ))
+         pt-user-coord (svg-px->svg-user-coord camera svg-px)]
+     pt-user-coord
+     )))
 
 (defn- mouse-wheel-evt [evt]
   (let [reduction-speed-factor (if (.-shiftKey evt) 10 5)
         scale (.pow js/Math 1.005 (/ (..  evt -event_ -wheelDeltaY) reduction-speed-factor))
         win-px [(.-clientX evt) (.-clientY evt)]
         new-camera (apply-zoom @camera scale (coord/win-px->svg-px win-px))]
-    (update-camera! new-camera)))
+    (set-camera! new-camera)))
 
 (defn mouse-wheel-evt-fn []
   (events/listen js/window EventType.WHEEL mouse-wheel-evt))
@@ -288,7 +299,7 @@
 (defn- window-resize-evt []
   (let [new-camera
         (apply-resize @camera (.-innerWidth js/window) (.-innerHeight js/window))]
-    (update-camera! new-camera)))
+    (set-camera! new-camera)))
 
 (defn window-resize-evt-fn []
   (events/listen js/window EventType.RESIZE window-resize-evt))
@@ -308,7 +319,7 @@
      (doall
       (for [idx (range nb-step)]
         (js/setTimeout
-         (fn [] (update-camera! (nth list-camera idx)))
+         (fn [] (set-camera! (nth list-camera idx)))
          (* time-step idx))))
      )))
 

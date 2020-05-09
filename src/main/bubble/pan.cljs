@@ -9,7 +9,7 @@
    ))
 
 (defn pan-move-fn []
-  (let [{init-cam-cx :cx init-cam-cy :cy zoom :zoom} @camera/camera
+  (let [{init-cam-cx :cx init-cam-cy :cy} (camera/state)
         init-mouse-x (atom nil)
         init-mouse-y (atom nil)]
     (fn [evt]
@@ -21,17 +21,12 @@
           (reset! init-mouse-x mouse-x)
           (reset! init-mouse-y mouse-y))
 
-        ;; (swap! camera/camera
-        ;;        merge
-        ;;        {:cx (- init-cam-cx (/ (- mouse-x @init-mouse-x) zoom))
-        ;;         :cy (- init-cam-cy (/ (- mouse-y @init-mouse-y) zoom))
-        ;;         })
         (let [new-camera
-              (merge @camera/camera
-                     {:cx (- init-cam-cx (/ (- mouse-x @init-mouse-x) zoom))
-                      :cy (- init-cam-cy (/ (- mouse-y @init-mouse-y) zoom))
-                      })]
-          (camera/update-camera! new-camera)
+              (camera/update-camera
+               {:cx (- init-cam-cx (camera/scale-dist (- mouse-x @init-mouse-x)))
+                :cy (- init-cam-cy (camera/scale-dist (- mouse-y @init-mouse-y)))
+                })]
+          (camera/set-camera! new-camera)
           )
         ))))
 

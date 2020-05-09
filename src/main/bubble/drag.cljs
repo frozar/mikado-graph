@@ -12,8 +12,7 @@
    ))
 
 (defn drag-move-fn [bubble-id]
-  (let [{:keys [zoom]} @camera/camera
-        {init-bubble-cx :cx init-bubble-cy :cy} (state-read/get-bubble bubble-id)
+  (let [{init-bubble-cx :cx init-bubble-cy :cy} (state-read/get-bubble bubble-id)
         init-mouse-x (atom nil)
         init-mouse-y (atom nil)]
     (fn [evt]
@@ -24,8 +23,8 @@
           (reset! init-mouse-x mouse-x)
           (reset! init-mouse-y mouse-y)
           )
-        (let [scaled-vec-trans-x (/ (- mouse-x @init-mouse-x) zoom)
-              scaled-vec-trans-y (/ (- mouse-y @init-mouse-y) zoom)]
+        (let [scaled-vec-trans-x (camera/scale-dist (- mouse-x @init-mouse-x))
+              scaled-vec-trans-y (camera/scale-dist (- mouse-y @init-mouse-y))]
           (put! event/event-queue
                 [:dragging
                  bubble-id
