@@ -172,7 +172,7 @@
 
         cameras-zoom
         (->> (range-math zoom0 zoom1 nb-step interpolation-type)
-             (map (fn [v] {:zoom v}))
+             (map (fn [zoom-value] {:zoom zoom-value}))
              (drop 1))
 
         fix-pt-svg-user (compute-fix-point-svg-user src-camera dst-camera)
@@ -275,8 +275,7 @@
 
 (defn set-camera! [new-camera]
   ;; TODO: smooth the transition
-  (let [is-in-zoom-limit (in-zoom-limit? new-camera)
-        is-in-pan-limit (in-pan-limit? new-camera 30)]
+  (let [is-in-zoom-limit (in-zoom-limit? new-camera)]
     (when (and is-in-zoom-limit
                #_is-in-pan-limit)
       (reset! camera new-camera))))

@@ -10,21 +10,21 @@
 
 (defn pan-move-fn []
   (let [{init-cam-cx :cx init-cam-cy :cy} (camera/state)
-        init-mouse-x (atom nil)
-        init-mouse-y (atom nil)]
+        init-mouse-x-svg-px (atom nil)
+        init-mouse-y-svg-px (atom nil)]
     (fn [evt]
-      (let [[mouse-x mouse-y]
+      (let [[mouse-x-svg-px mouse-y-svg-px]
             (coord/win-px->svg-px [(.-clientX evt) (.-clientY evt)])
             ]
-        (when (or (nil? @init-mouse-x)
-                  (nil? @init-mouse-y))
-          (reset! init-mouse-x mouse-x)
-          (reset! init-mouse-y mouse-y))
+        (when (or (nil? @init-mouse-x-svg-px)
+                  (nil? @init-mouse-y-svg-px))
+          (reset! init-mouse-x-svg-px mouse-x-svg-px)
+          (reset! init-mouse-y-svg-px mouse-y-svg-px))
 
         (let [new-camera
               (camera/update-camera
-               {:cx (- init-cam-cx (camera/scale-dist (- mouse-x @init-mouse-x)))
-                :cy (- init-cam-cy (camera/scale-dist (- mouse-y @init-mouse-y)))
+               {:cx (- init-cam-cx (camera/scale-dist (- mouse-x-svg-px @init-mouse-x-svg-px)))
+                :cy (- init-cam-cy (camera/scale-dist (- mouse-y-svg-px @init-mouse-y-svg-px)))
                 })]
           (camera/set-camera! new-camera)
           )
