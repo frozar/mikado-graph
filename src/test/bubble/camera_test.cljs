@@ -54,18 +54,28 @@
    (=
     (#'c/range-math 0 -10 5 :linear)
     (list 0 -2.5 -5 -7.5 -10)
+    ))
+  (is
+   (=
+    (#'c/range-math 0 1 5 :linear)
+    (list 0 0.25 0.5 0.75 1)
     )))
 
 (deftest range-log_basic
   (is
    (=
     (#'c/range-math 0 10 4 :log)
-    (list 0 5 7.92481250360578 10)
+    (list 0 6.020599913279623 8.450980400142567 10)
     ))
   (is
    (=
     (#'c/range-math 0 -10 4 :log)
-    (list 0 -5 -7.92481250360578 -10)
+    (list 0 -6.020599913279623 -8.450980400142567 -10)
+    ))
+  (is
+   (=
+    (#'c/range-math 0 20 4 :log)
+    (list 0 12.041199826559247 16.901960800285135 20)
     )))
 
 (deftest camera-linear-interpolation-translation_basic
@@ -100,7 +110,7 @@
      (=
       (#'c/camera-interpolation-translation src-camera dst-camera nb-step :log)
       (list {:cx 400, :cy 300, :width 800, :height 600, :zoom 1}
-            {:cx 652.371901428583, :cy 489.27892607143724, :width 800, :height 600, :zoom 1}
+            {:cx 696.1450757976975,, :cy 522.1088068482732, :width 800, :height 600, :zoom 1}
             {:cx 800, :cy 600, :width 800, :height 600, :zoom 1})
       ))))
 
@@ -112,6 +122,6 @@
      (=
       (#'c/camera-interpolation-homothety src-camera dst-camera nb-step :log)
       (list {:cx 400, :cy 300, :width 800, :height 600, :zoom 1}
-            {:cx 709.4822457876334, :cy 532.1116843407249, :width 800, :height 600, :zoom 1.6309297535714575}
-            {:cx 799.9999999999999,, :cy 600, :width 800, :height 600, :zoom 2})
+            {:cx 740.3257005972225, :cy 555.244275447917, :width 800, :height 600, :zoom 1.7403626894942437}
+	    {:cx 800, :cy 600, :width 800, :height 600, :zoom 2})
       ))))
