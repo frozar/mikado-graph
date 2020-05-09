@@ -236,7 +236,7 @@
         ]
     (* 100 (/ bubble-bbox-area viewBox-area))))
 
-(defn in-zoom-limit?
+(defn- in-zoom-limit?
   "Check the arbitrary limit of zoom in/out"
   [camera]
   (and (< 0.05 (area-ratio-min-bubble<->viewBox camera))
@@ -250,34 +250,36 @@
       (* width height))))
 
 (defn in-pan-limit?
-  "Check if the graph is still enough in the displayed viewBox"
-  [camera]
-  (let [{width :width
-         height :height
-         view-left :min-x view-top :min-y
-         } (camera->viewBox camera)
-        [view-right view-bottom] (map + [view-left view-top] [width height])
-        {graph-left :left graph-right :right
-         graph-top :top graph-bottom :bottom} (state-read/graph-bbox)
+  "Check if the graph is still enough in the displayed viewBox. Typically,
+  if less than 30% of the graph is displayed, return false."
+  ([] (in-pan-limit? 30))
+  ([minimal-ratio] (in-pan-limit? @camera minimal-ratio))
+  ([camera minimal-ratio]
+   (let [{width :width height :height
+          view-left :min-x view-top :min-y} (camera->viewBox camera)
+         [view-right view-bottom] (map + [view-left view-top] [width height])
+         {graph-left :left graph-right :right
+          graph-top :top graph-bottom :bottom} (state-read/graph-bbox)
 
-        intersection-bbox
-        {:left (max view-left graph-left)
-         :right (min view-right graph-right)
-         :top (max view-top graph-top)
-         :bottom (min view-bottom graph-bottom)}
+         intersection-bbox
+         {:left (max view-left graph-left)
+          :right (min view-right graph-right)
+          :top (max view-top graph-top)
+          :bottom (min view-bottom graph-bottom)}
 
-        intersection-bbox-area (bbox-area intersection-bbox)
+         intersection-bbox-area (bbox-area intersection-bbox)
 
-        area-ratio (* 100 (/ intersection-bbox-area (state-read/graph-bbox-area)))]
-    (<= 30 area-ratio)
-    ))
+         area-ratio (* 100 (/ intersection-bbox-area (state-read/graph-bbox-area)))]
+     (< minimal-ratio area-ratio)
+     )))
 
 (defn set-camera! [new-camera]
   ;; TODO: smooth the transition
-  (when (and (in-zoom-limit? new-camera)
-             (in-pan-limit? new-camera))
-    (reset! camera new-camera))
-  )
+  (let [is-in-zoom-limit (in-zoom-limit? new-camera)
+        is-in-pan-limit (in-pan-limit? new-camera 30)]
+    (when (and is-in-zoom-limit
+               #_is-in-pan-limit)
+      (reset! camera new-camera))))
 ;; END camera section
 
 (defn svg-px->svg-user-coord

@@ -36,8 +36,16 @@
     (events/unlisten js/window EventType.MOUSEUP @pan-end-atom)
     (on-end)))
 
+(defn should-center
+  "If the graph is not more visible, call the home event to 'center'
+  the view around the graph."
+  []
+  ;; 10e-3: an arbitrary small value
+  (when (not (camera/in-pan-limit? 10e-3))
+    (camera/home-evt)))
+
 (defn panning
-  ([] (panning (fn []) (fn [])))
+  ([] (panning (fn []) should-center))
   ([on-start on-end]
    (let [pan-move (pan-move-fn)
          pan-end-atom (atom nil)
