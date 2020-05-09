@@ -96,9 +96,9 @@
        (/ idx (dec nb-step)))))
 
 (defn- compute-log-steps [dist nb-step]
-  (for [idx (range 1 (inc nb-step))]
+  (for [idx (map inc (compute-linear-steps 9 nb-step))]
     (* dist
-       (/ (.log js/Math idx) (.log js/Math nb-step)))))
+       (/ (.log js/Math idx) (.log js/Math 10)))))
 
 (defn- sign [number]
   (if (pos? number) + -))
