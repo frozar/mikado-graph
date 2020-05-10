@@ -117,6 +117,14 @@
     (* dist
        (/ (.log js/Math idx) (.log js/Math 10)))))
 
+(defn- compute-reverse-gaussian-steps [dist nb-step]
+  (for [idx (range 0 nb-step)]
+    (let [x (/ idx (dec nb-step))]
+      (* dist
+         (-
+          1
+          (.exp js/Math (/ (- (* x x)) 0.11)))))))
+
 (defn- sign [number]
   (if (pos? number) + -))
 
@@ -128,6 +136,7 @@
         (condp = interpolation-type
           :linear compute-linear-steps
           :log    compute-log-steps
+          :reverse-gaussian compute-reverse-gaussian-steps
           )
         log-steps (compute-steps-fn dist nb-step)
         sign-operator (sign (- end start))
@@ -139,13 +148,7 @@
 (defn- range-math
   ([start end nb-step] (range-math start end nb-step :linear))
   ([start end nb-step interpolation-type]
-   (condp = interpolation-type
-     :linear
-     (higher-range start end nb-step :linear)
-
-     :log
-     (higher-range start end nb-step :log)
-     ))
+   (higher-range start end nb-step interpolation-type))
   )
 
 (defn- camera-interpolation-translation [src-camera dst-camera nb-step interpolation-type]

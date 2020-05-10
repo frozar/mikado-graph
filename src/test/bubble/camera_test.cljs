@@ -78,6 +78,22 @@
     (list 0 12.041199826559247 16.901960800285135 20)
     )))
 
+(deftest range-reverse-gaussian_basic
+  (is
+   (=
+    (#'c/range-math 0 10 10 :reverse-gaussian)
+    (list 0
+	  1.0616442880866572
+	  3.61691635372837
+	  6.35817808366385
+	  8.339946278945918
+	  9.395437997636988
+	  9.824096362380532
+	  9.959109345557367
+	  9.992405685648272
+	  9.998873144194922)
+    )))
+
 (deftest camera-linear-interpolation-translation_basic
   (let [src-camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 1}
         dst-camera {:cx 800 :cy 600 :width 800 :height 600 :zoom 1}
