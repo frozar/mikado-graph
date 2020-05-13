@@ -405,6 +405,32 @@
     (animate-camera-transition @camera target-camera animation-duration animation-fps)
     ))
 
+(defn move-solver [m alpha k h [xn xn']]
+  (let [x''
+        (+
+         (- (* (/ alpha m) xn'))
+         (- (* (/ k m) xn)))
+        xnp1' (+ xn' (* h x''))
+        xnp1 (+ xn (* h xnp1'))
+        ]
+    [xnp1 xnp1']))
+
+(comment
+  ;; alpha = 2  * k : quickest reponse
+  (move-solver 1 2 1 (/ 1 60) [5 0])
+  ((partial move-solver 1 2 1 (/ 1 60)) [5 0])
+
+  (take
+   180
+   (iterate
+    (partial move-solver 0.05 2 1 (/ 1 60))
+    [5 0]))
+
+  (map (fn [x0 x1] [x0 x1]) [:x0 :y0] [:x0' :y0'])
+  )
+
+;; TODO: use move-solver to compute the camera motion for panning
+
 (defn- vec-svg-user->svg-px
   [camera src-svg-user dst-svg-user]
   (let [src-svg-px (svg-user->svg-px camera src-svg-user)
@@ -451,6 +477,8 @@
     new-camera
     ))
 
+;; TODO: save the mouse pointer velocity in an atom
+
 (def initial-camera (atom nil))
 (def initial-mouse-pos-svg-px (atom nil))
 (def current-setInterval-id (atom nil))
@@ -482,6 +510,7 @@
           (js/setInterval move-camera! (/ 1000 60) mouse-pos-svg-px)))
 
 ;; BEGIN CAMERA EVENT QUEUE
+;; TODO: launch launch-setInterval from start
 (defn pan-start [mouse-pos-win-px]
   (let [mouse-pos-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
     (reset! initial-camera @camera)
