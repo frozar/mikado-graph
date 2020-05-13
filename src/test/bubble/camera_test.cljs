@@ -1,5 +1,6 @@
 (ns bubble.camera-test
   (:require
+   [bubble.coordinate :as coord]
    [bubble.camera :as c]
    [cljs.test :refer (deftest is)]
    ))
@@ -19,8 +20,8 @@
     (is
      (=
       (->> pt-svg-px
-           (c/svg-px->svg-user-coord camera)
-           (c/svg-user-coord->svg-px camera))
+           (c/svg-px->svg-user camera)
+           (c/svg-user->svg-px camera))
       pt-svg-px
       ))))
 
@@ -34,8 +35,8 @@
   (let [camera0 {:cx 400, :cy 300, :width 800, :height 600, :zoom 1}
         camera1 {:cx 800, :cy 600, :width 800, :height 600, :zoom 2}
         fix-point-svg-user (#'c/compute-fix-point-svg-user camera0 camera1)
-        pt-in-camera0 (c/svg-user-coord->svg-px camera0 fix-point-svg-user)
-        pt-in-camera1 (c/svg-user-coord->svg-px camera1 fix-point-svg-user)
+        pt-in-camera0 (c/svg-user->svg-px camera0 fix-point-svg-user)
+        pt-in-camera1 (c/svg-user->svg-px camera1 fix-point-svg-user)
         ]
     (is
      (<
@@ -141,3 +142,80 @@
             {:cx 740.3257005972225, :cy 555.244275447917, :width 800, :height 600, :zoom 1.7403626894942437}
 	    {:cx 800, :cy 600, :width 800, :height 600, :zoom 2})
       ))))
+
+;; (defn done []
+;;   (prn "after  @c/camera" @c/camera)
+;;   (is (= 1 1)))
+
+;; (defn sleep [msec]
+;;   (let [deadline (+ msec (.getTime (js/Date.)))]
+;;     (while (> deadline (.getTime (js/Date.))))))
+
+(deftest vec-svg-user->svg-px_basic
+  (let [camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 1}
+        src-svg-user [400 300]
+        dst-svg-user [500 300]]
+    (is
+     (=
+      (#'c/vec-svg-user->svg-px camera src-svg-user dst-svg-user)
+      [100 0]))))
+
+(deftest vec-svg-user->svg-px_zoomed
+  (let [camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 2}
+        src-svg-user [400 300]
+        dst-svg-user [500 300]]
+    (is
+     (=
+      (#'c/vec-svg-user->svg-px camera src-svg-user dst-svg-user)
+      [200 0]))))
+
+;; (deftest move-camera_basic
+;;   (let [initial-timestamp 0
+;;         current-time 5000
+;;         initial-camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 1}
+;;         initial-mouse-pos-svg-px [500 300]
+;;         dst-mouse-pos-svg-px [600 300]
+;;         current-camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 1}
+;;         ]
+
+;;     (is
+;;      (=
+;;       (#'c/move-camera initial-timestamp current-time
+;;                        initial-camera initial-mouse-pos-svg-px dst-mouse-pos-svg-px
+;;                        current-camera)
+;;       {:cx 500 :cy 300 :width 800 :height 600 :zoom 1}))
+;;     ))
+
+;; (deftest move-camera_already-moved
+;;   (let [initial-timestamp 0
+;;         current-time 5000
+;;         initial-camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 1}
+;;         initial-mouse-pos-svg-px [500 300]
+;;         dst-mouse-pos-svg-px [500 400]
+;;         current-camera {:cx 500 :cy 300 :width 800 :height 600 :zoom 1}
+;;         ]
+
+;;     (is
+;;      (=
+;;       (#'c/move-camera initial-timestamp current-time
+;;                        initial-camera initial-mouse-pos-svg-px dst-mouse-pos-svg-px
+;;                        current-camera)
+;;       {:cx 400 :cy 400 :width 800 :height 600 :zoom 1}))
+;;     ))
+
+;; (deftest move-camera_already-moved-zoomed
+;;   (let [initial-timestamp 0
+;;         current-time 5000
+;;         initial-camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 2}
+;;         initial-mouse-pos-svg-px [500 300]
+;;         dst-mouse-pos-svg-px [500 400]
+;;         current-camera {:cx 600 :cy 300 :width 800 :height 600 :zoom 2}
+;;         ]
+
+;;     (is
+;;      (=
+;;       (#'c/move-camera initial-timestamp current-time
+;;                        initial-camera initial-mouse-pos-svg-px dst-mouse-pos-svg-px
+;;                        current-camera)
+;;       {:cx 400 :cy 350 :width 800 :height 600 :zoom 2}))
+;;     ))

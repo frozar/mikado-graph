@@ -5,6 +5,7 @@
    [clojure.string :as string]
    [reagent.core :as reagent]
    [goog.events :as events]
+   [cljs.core.async :refer [chan put! take! <! go go-loop close! timeout]]
    [debux.cs.core :refer-macros [clog clogn dbg dbgn break]]
    )
   (:import
@@ -50,8 +51,8 @@
          height :height} (camera->viewBox camera)]
     (* width height)))
 
-(declare svg-px->svg-user-coord)
-(declare svg-user-coord->svg-px)
+(declare svg-px->svg-user)
+(declare svg-user->svg-px)
 
 (defn- get-top-left-corner-svg-user [camera]
   (let [{:keys [min-x min-y]} (camera->viewBox camera)
@@ -61,7 +62,7 @@
 
 (defn- compute-fix-point-svg-user
   [camera0 camera1]
-  (let [;; deduce from svg-user-coord->svg-px
+  (let [;; deduce from svg-user->svg-px
         ;; z0 * svg-scaled0 = z1 * svg-scaled1
         ;; z0 * (pt-svg-user - top-left0) = z1 * (pt-svg-user - top-left1)
         ;; (z0 - z1) * pt-svg-user = z0 * top-left0 - z1 * top-left1
@@ -81,8 +82,8 @@
 
 (defn- correct-camera-by-translation-fix-point-svg-px
   [camera-origin camera-modified pt-svg-px]
-  (let [pt-origin-svg-user   (svg-px->svg-user-coord camera-origin pt-svg-px)
-        pt-modified-svg-user (svg-px->svg-user-coord camera-modified pt-svg-px)
+  (let [pt-origin-svg-user   (svg-px->svg-user camera-origin pt-svg-px)
+        pt-modified-svg-user (svg-px->svg-user camera-modified pt-svg-px)
         vec-trans-svg-user (map - pt-modified-svg-user pt-origin-svg-user)
         {:keys [cx cy]} camera-modified
         [new-cx new-cy] (map - [cx cy] vec-trans-svg-user)
@@ -117,13 +118,23 @@
     (* dist
        (/ (.log js/Math idx) (.log js/Math 10)))))
 
+(defn- reverse-gaussian
+  "Typical value:
+  tau: 0.11"
+  [K tau t]
+  (* K
+     (-
+      1
+      (.exp js/Math (/ (- (* t t)) tau)))))
+
+(comment
+  (for [t (compute-linear-steps 1 60)]
+    [t (reverse-gaussian 1 0.4 t)]))
+
 (defn- compute-reverse-gaussian-steps [dist nb-step]
   (for [idx (range 0 nb-step)]
-    (let [x (/ idx (dec nb-step))]
-      (* dist
-         (-
-          1
-          (.exp js/Math (/ (- (* x x)) 0.11)))))))
+    (let [t (/ idx (dec nb-step))]
+      (reverse-gaussian dist 0.11 t))))
 
 (defn- sign [number]
   (if (pos? number) + -))
@@ -179,7 +190,7 @@
              (drop 1))
 
         fix-pt-svg-user (compute-fix-point-svg-user src-camera dst-camera)
-        fix-pt-svg-px   (svg-user-coord->svg-px src-camera fix-pt-svg-user)
+        fix-pt-svg-px   (svg-user->svg-px src-camera fix-pt-svg-user)
 
         list-camera-zoomed
         (take
@@ -224,12 +235,18 @@
       (camera-interpolation* src-camera dst-camera nb-step interpolation-type)
       )))
 ;; END CAMERA INTERPOLATION
-(defn update-camera [hashmap]
-  (merge @camera hashmap))
+(defn update-camera
+  ([hashmap]
+   (update-camera @camera hashmap))
+  ([camera hashmap]
+   (merge camera hashmap)))
 
-(defn scale-dist [dist]
-  (let [zoom (:zoom @camera)]
-    (/ dist zoom)))
+(defn scale-dist
+  ([dist]
+   (scale-dist @camera dist))
+  ([camera dist]
+   (let [zoom (:zoom camera)]
+     (/ dist zoom))))
 
 (defn area-ratio-min-bubble<->viewBox
   "Return the pourcentage of the smallest bubble over the viewBox area."
@@ -284,7 +301,7 @@
       (reset! camera new-camera))))
 ;; END camera section
 
-(defn svg-px->svg-user-coord
+(defn svg-px->svg-user
   "From svg pixel position, convert to svg user position."
   [camera pt-svg-px]
   (let [;; vector in svg-user space: origin = (top, left) corner  in user space
@@ -298,7 +315,7 @@
         ]
     pt-svg-user))
 
-(defn svg-user-coord->svg-px
+(defn svg-user->svg-px
   "From svg user position, convert to svg pixel position."
   [camera pt-svg-user]
   (let [;; vector in svg-user space: origin = pt (0, 0) in user space
@@ -312,15 +329,18 @@
         ]
     pt-svg-px))
 
-(defn win-px->svg-user-coord
+(defn win-px->svg-user
   "From window pixel position, convert to svg user position."
-  ([pt-win-px] (win-px->svg-user-coord @camera pt-win-px))
+  ([pt-win-px] (win-px->svg-user @camera pt-win-px))
   ([camera pt-win-px]
    (let [svg-px (coord/win-px->svg-px pt-win-px)
 
-         pt-user-coord (svg-px->svg-user-coord camera svg-px)]
+         pt-user-coord (svg-px->svg-user camera svg-px)]
      pt-user-coord
      )))
+
+(win-px->svg-user {:cx 504, :cy 472, :width 1008, :height 944, :zoom 1} [831 403])
+(win-px->svg-user [831 403])
 
 (defn- mouse-wheel-evt [evt]
   (let [reduction-speed-factor (if (.-shiftKey evt) 10 5)
@@ -384,3 +404,117 @@
         animation-fps 60]
     (animate-camera-transition @camera target-camera animation-duration animation-fps)
     ))
+
+(defn- vec-svg-user->svg-px
+  [camera src-svg-user dst-svg-user]
+  (let [src-svg-px (svg-user->svg-px camera src-svg-user)
+        dst-svg-px (svg-user->svg-px camera dst-svg-user)
+        vec-svg-px (map - dst-svg-px src-svg-px)
+        ]
+    vec-svg-px))
+
+(defn- move-camera
+  [initial-timestamp current-time
+   initial-camera initial-mouse-pos-svg-px dst-mouse-pos-svg-px
+   current-camera]
+  (let [target-translation-vec-svg-px
+        ;; (map - dst-mouse-pos-svg-px initial-mouse-pos-svg-px)
+        (map - initial-mouse-pos-svg-px dst-mouse-pos-svg-px)
+        ;; _ (prn "target-translation-vec-svg-px" target-translation-vec-svg-px)
+
+        {cx0-svg-user :cx cy0-svg-user :cy} initial-camera
+        {cx1-svg-user :cx cy1-svg-user :cy} current-camera
+        ;; _ (prn "[cx0-svg-user cy0-svg-user]" [cx0-svg-user cy0-svg-user])
+        ;; _ (prn "[cx1-svg-user cy1-svg-user]" [cx1-svg-user cy1-svg-user])
+
+        current-translation-vec-svg-px
+        (vec-svg-user->svg-px
+         initial-camera [cx0-svg-user cy0-svg-user] [cx1-svg-user cy1-svg-user])
+        ;; _ (prn "current-translation-vec-svg-px" current-translation-vec-svg-px)
+
+        adjusted-translation-vec-svg-px
+        (map - target-translation-vec-svg-px current-translation-vec-svg-px)
+        ;; _ (prn "adjusted-translation-vec-svg-px" adjusted-translation-vec-svg-px)
+
+        adjusted-translation-vec-svg-user
+        (map #(scale-dist initial-camera %) adjusted-translation-vec-svg-px)
+
+
+        t (/ (- current-time initial-timestamp) 1000)
+
+        [step-cx step-cy]
+        (map #(reverse-gaussian % 3 t) adjusted-translation-vec-svg-user)
+
+        [new-cx new-cy] (map + [cx1-svg-user cy1-svg-user] [step-cx step-cy])
+        new-camera (update-camera current-camera {:cx new-cx :cy new-cy})
+        ]
+    new-camera
+    ))
+
+(def initial-camera (atom nil))
+(def initial-mouse-pos-svg-px (atom nil))
+(def current-setInterval-id (atom nil))
+(def initial-timestamp (atom nil))
+
+(defn- current-time []
+  (.now js/Date))
+
+(defn- move-camera!
+  ([dst-mouse-pos-svg-px] (move-camera! dst-mouse-pos-svg-px (current-time)))
+  ([dst-mouse-pos-svg-px current-t]
+   (let [new-camera
+         (move-camera @initial-timestamp current-t
+                      @initial-camera @initial-mouse-pos-svg-px dst-mouse-pos-svg-px
+                      @camera)]
+     (set-camera! new-camera))))
+
+(defn- kill-setInterval []
+  (when @current-setInterval-id
+    (js/clearInterval @current-setInterval-id))
+  (reset! current-setInterval-id nil)
+  )
+
+(defn- launch-setInterval [mouse-pos-svg-px]
+  (kill-setInterval)
+  ;; (reset! initial-camera @camera)
+  ;; (reset! initial-timestamp (current-time))
+  (reset! current-setInterval-id
+          (js/setInterval move-camera! (/ 1000 60) mouse-pos-svg-px)))
+
+;; BEGIN CAMERA EVENT QUEUE
+(defn pan-start [mouse-pos-win-px]
+  (let [mouse-pos-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
+    (reset! initial-camera @camera)
+    (reset! initial-mouse-pos-svg-px mouse-pos-svg-px)
+    (reset! initial-timestamp (current-time)))
+  )
+
+(defn pan-move [mouse-pos-win-px]
+  (let [dst-mouse-pos-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
+    (launch-setInterval dst-mouse-pos-svg-px))
+  )
+
+(defn pan-stop []
+  (kill-setInterval)
+  (reset! initial-camera nil)
+  (reset! initial-mouse-pos-svg-px nil)
+  (reset! initial-timestamp nil)
+  (reset! current-setInterval-id nil))
+
+(def event-queue (chan))
+(go-loop [[event & args] (<! event-queue)]
+  (case event
+    :pan-start
+    (let [[mouse-pos-win-px] args]
+      (pan-start mouse-pos-win-px))
+
+    :pan-move
+    (let [[mouse-pos-win-px] args]
+      (pan-move mouse-pos-win-px))
+
+    :pan-stop
+    (pan-stop)
+
+    )
+  (recur (<! event-queue)))
+;; END CAMERA EVENT QUEUE

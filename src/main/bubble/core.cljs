@@ -95,7 +95,7 @@
                   (= 0 (.-button evt)))]
             (fn [evt]
               (when (if-left-click evt)
-                (pan/panning))))
+                (pan/panning evt))))
           }
 
          ;; This filter is used in rough display mode: background of text node
