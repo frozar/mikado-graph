@@ -405,7 +405,7 @@
     (animate-camera-transition @camera target-camera animation-duration animation-fps)
     ))
 
-(defn move-solver [m alpha k h [xn xn']]
+(defn motion-solver [m alpha k h [xn xn']]
   (let [x''
         (+
          (- (* (/ alpha m) xn'))
@@ -416,85 +416,71 @@
     [xnp1 xnp1']))
 
 (comment
-  ;; alpha = 2  * k : quickest reponse
-  (move-solver 1 2 1 (/ 1 60) [5 0])
-  ((partial move-solver 1 2 1 (/ 1 60)) [5 0])
+  (motion-solver 1 2 1 (/ 1 60) [5 0])
+  ((partial motion-solver 1 2 1 (/ 1 60)) [5 0])
 
   (take
    180
    (iterate
-    (partial move-solver 0.05 2 1 (/ 1 60))
+    (partial motion-solver 0.05 2 1 (/ 1 60))
     [5 0]))
 
   (map (fn [x0 x1] [x0 x1]) [:x0 :y0] [:x0' :y0'])
   )
 
-;; TODO: use move-solver to compute the camera motion for panning
-
-(defn- vec-svg-user->svg-px
-  [camera src-svg-user dst-svg-user]
-  (let [src-svg-px (svg-user->svg-px camera src-svg-user)
-        dst-svg-px (svg-user->svg-px camera dst-svg-user)
-        vec-svg-px (map - dst-svg-px src-svg-px)
-        ]
-    vec-svg-px))
-
 (defn- move-camera
-  [initial-timestamp current-time
-   initial-camera initial-mouse-pos-svg-px dst-mouse-pos-svg-px
-   current-camera]
+  [initial-camera initial-mouse-pos-svg-px dst-mouse-pos-svg-px
+   current-camera current-x'-svg-px]
   (let [target-translation-vec-svg-px
-        ;; (map - dst-mouse-pos-svg-px initial-mouse-pos-svg-px)
         (map - initial-mouse-pos-svg-px dst-mouse-pos-svg-px)
-        ;; _ (prn "target-translation-vec-svg-px" target-translation-vec-svg-px)
 
         {cx0-svg-user :cx cy0-svg-user :cy} initial-camera
         {cx1-svg-user :cx cy1-svg-user :cy} current-camera
-        ;; _ (prn "[cx0-svg-user cy0-svg-user]" [cx0-svg-user cy0-svg-user])
-        ;; _ (prn "[cx1-svg-user cy1-svg-user]" [cx1-svg-user cy1-svg-user])
 
-        current-translation-vec-svg-px
-        (vec-svg-user->svg-px
-         initial-camera [cx0-svg-user cy0-svg-user] [cx1-svg-user cy1-svg-user])
-        ;; _ (prn "current-translation-vec-svg-px" current-translation-vec-svg-px)
+        center-initial-camera-svg-px
+        (svg-user->svg-px initial-camera [cx0-svg-user cy0-svg-user])
 
-        adjusted-translation-vec-svg-px
-        (map - target-translation-vec-svg-px current-translation-vec-svg-px)
-        ;; _ (prn "adjusted-translation-vec-svg-px" adjusted-translation-vec-svg-px)
+        center-current-camera-svg-px
+        (svg-user->svg-px initial-camera [cx1-svg-user cy1-svg-user])
 
-        adjusted-translation-vec-svg-user
-        (map #(scale-dist initial-camera %) adjusted-translation-vec-svg-px)
+        center-target-camera-svg-px
+        (map + target-translation-vec-svg-px center-initial-camera-svg-px)
 
+        current-x-svg-px
+        (map - center-current-camera-svg-px center-target-camera-svg-px)
 
-        t (/ (- current-time initial-timestamp) 1000)
+        [next-x-svg-px next-x'-svg-px]
+        (->>
+         (interleave current-x-svg-px current-x'-svg-px)
+         (partition 2)
+         (map (partial motion-solver 0.1 0.8 4 (/ 1 60)))
+         (apply interleave)
+         (partition 2))
 
-        [step-cx step-cy]
-        (map #(reverse-gaussian % 3 t) adjusted-translation-vec-svg-user)
+        center-next-camera-svg-px
+        (map + center-target-camera-svg-px next-x-svg-px)
 
-        [new-cx new-cy] (map + [cx1-svg-user cy1-svg-user] [step-cx step-cy])
+        ;; center-next-camera-svg-user
+        [new-cx new-cy]
+        (svg-px->svg-user initial-camera center-next-camera-svg-px)
+
         new-camera (update-camera current-camera {:cx new-cx :cy new-cy})
         ]
-    new-camera
-    ))
-
-;; TODO: save the mouse pointer velocity in an atom
+    [new-camera next-x'-svg-px]))
 
 (def initial-camera (atom nil))
 (def initial-mouse-pos-svg-px (atom nil))
 (def current-setInterval-id (atom nil))
-(def initial-timestamp (atom nil))
-
-(defn- current-time []
-  (.now js/Date))
+(def camera-velocity (atom [0 0]))
+(def dst-mouse-pos-svg-px (atom [0 0]))
 
 (defn- move-camera!
-  ([dst-mouse-pos-svg-px] (move-camera! dst-mouse-pos-svg-px (current-time)))
-  ([dst-mouse-pos-svg-px current-t]
-   (let [new-camera
-         (move-camera @initial-timestamp current-t
-                      @initial-camera @initial-mouse-pos-svg-px dst-mouse-pos-svg-px
-                      @camera)]
-     (set-camera! new-camera))))
+  ([]
+   (let [[new-camera x'-svg-px]
+         (move-camera @initial-camera @initial-mouse-pos-svg-px @dst-mouse-pos-svg-px
+                        @camera @camera-velocity)]
+     (set-camera! new-camera)
+     (reset! camera-velocity x'-svg-px))))
 
 (defn- kill-setInterval []
   (when @current-setInterval-id
@@ -502,33 +488,29 @@
   (reset! current-setInterval-id nil)
   )
 
-(defn- launch-setInterval [mouse-pos-svg-px]
-  (kill-setInterval)
-  ;; (reset! initial-camera @camera)
-  ;; (reset! initial-timestamp (current-time))
+(defn- launch-setInterval []
   (reset! current-setInterval-id
-          (js/setInterval move-camera! (/ 1000 60) mouse-pos-svg-px)))
+          (js/setInterval move-camera! (/ 1000 60))))
 
 ;; BEGIN CAMERA EVENT QUEUE
-;; TODO: launch launch-setInterval from start
 (defn pan-start [mouse-pos-win-px]
   (let [mouse-pos-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
     (reset! initial-camera @camera)
     (reset! initial-mouse-pos-svg-px mouse-pos-svg-px)
-    (reset! initial-timestamp (current-time)))
-  )
+    (reset! camera-velocity [0 0])
+    (reset! dst-mouse-pos-svg-px mouse-pos-svg-px)
+    (launch-setInterval)))
 
 (defn pan-move [mouse-pos-win-px]
-  (let [dst-mouse-pos-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
-    (launch-setInterval dst-mouse-pos-svg-px))
-  )
+  (let [updated-dst-mouse-pos-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
+    (reset! dst-mouse-pos-svg-px updated-dst-mouse-pos-svg-px)))
 
 (defn pan-stop []
   (kill-setInterval)
   (reset! initial-camera nil)
   (reset! initial-mouse-pos-svg-px nil)
-  (reset! initial-timestamp nil)
-  (reset! current-setInterval-id nil))
+  (reset! current-setInterval-id nil)
+  (reset! camera-velocity [0 0]))
 
 (def event-queue (chan))
 (go-loop [[event & args] (<! event-queue)]
@@ -543,7 +525,6 @@
 
     :pan-stop
     (pan-stop)
-
     )
   (recur (<! event-queue)))
 ;; END CAMERA EVENT QUEUE
