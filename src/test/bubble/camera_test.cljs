@@ -151,23 +151,23 @@
 ;;   (let [deadline (+ msec (.getTime (js/Date.)))]
 ;;     (while (> deadline (.getTime (js/Date.))))))
 
-(deftest vec-svg-user->svg-px_basic
-  (let [camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 1}
-        src-svg-user [400 300]
-        dst-svg-user [500 300]]
-    (is
-     (=
-      (#'c/vec-svg-user->svg-px camera src-svg-user dst-svg-user)
-      [100 0]))))
+;; (deftest vec-svg-user->svg-px_basic
+;;   (let [camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 1}
+;;         src-svg-user [400 300]
+;;         dst-svg-user [500 300]]
+;;     (is
+;;      (=
+;;       (#'c/vec-svg-user->svg-px camera src-svg-user dst-svg-user)
+;;       [100 0]))))
 
-(deftest vec-svg-user->svg-px_zoomed
-  (let [camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 2}
-        src-svg-user [400 300]
-        dst-svg-user [500 300]]
-    (is
-     (=
-      (#'c/vec-svg-user->svg-px camera src-svg-user dst-svg-user)
-      [200 0]))))
+;; (deftest vec-svg-user->svg-px_zoomed
+;;   (let [camera {:cx 400 :cy 300 :width 800 :height 600 :zoom 2}
+;;         src-svg-user [400 300]
+;;         dst-svg-user [500 300]]
+;;     (is
+;;      (=
+;;       (#'c/vec-svg-user->svg-px camera src-svg-user dst-svg-user)
+;;       [200 0]))))
 
 ;; (deftest move-camera_basic
 ;;   (let [initial-timestamp 0

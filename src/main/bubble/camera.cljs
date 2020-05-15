@@ -339,11 +339,8 @@
      pt-user-coord
      )))
 
-(win-px->svg-user {:cx 504, :cy 472, :width 1008, :height 944, :zoom 1} [831 403])
-(win-px->svg-user [831 403])
-
 (defn- mouse-wheel-evt [evt]
-  (let [reduction-speed-factor (if (.-shiftKey evt) 10 5)
+  (let [reduction-speed-factor 5
         scale (.pow js/Math 1.005 (/ (..  evt -event_ -wheelDeltaY) reduction-speed-factor))
         win-px [(.-clientX evt) (.-clientY evt)]
         new-camera (apply-zoom @camera scale (coord/win-px->svg-px win-px))]
@@ -405,34 +402,20 @@
     (animate-camera-transition @camera target-camera animation-duration animation-fps)
     ))
 
-(defn motion-solver [m alpha k h [xn xn']]
+;; BEGIN CAMERA MOTION
+(defn- motion-solver [m alpha k h [xn xn']]
   (let [x''
-        (+
-         (- (* (/ alpha m) xn'))
-         (- (* (/ k m) xn)))
+        (+ (- (* (/ alpha m) xn'))
+           (- (* (/ k m) xn)))
         xnp1' (+ xn' (* h x''))
-        xnp1 (+ xn (* h xnp1'))
-        ]
+        xnp1 (+ xn (* h xnp1'))]
     [xnp1 xnp1']))
 
-(comment
-  (motion-solver 1 2 1 (/ 1 60) [5 0])
-  ((partial motion-solver 1 2 1 (/ 1 60)) [5 0])
-
-  (take
-   180
-   (iterate
-    (partial motion-solver 0.05 2 1 (/ 1 60))
-    [5 0]))
-
-  (map (fn [x0 x1] [x0 x1]) [:x0 :y0] [:x0' :y0'])
-  )
-
 (defn- move-camera
-  [initial-camera initial-mouse-pos-svg-px dst-mouse-pos-svg-px
+  [initial-camera initial-mouse-svg-px target-mouse-svg-px
    current-camera current-x'-svg-px]
   (let [target-translation-vec-svg-px
-        (map - initial-mouse-pos-svg-px dst-mouse-pos-svg-px)
+        (map - initial-mouse-svg-px target-mouse-svg-px)
 
         {cx0-svg-user :cx cy0-svg-user :cy} initial-camera
         {cx1-svg-user :cx cy1-svg-user :cy} current-camera
@@ -464,53 +447,59 @@
         [new-cx new-cy]
         (svg-px->svg-user initial-camera center-next-camera-svg-px)
 
-        new-camera (update-camera current-camera {:cx new-cx :cy new-cy})
-        ]
+        new-camera (update-camera current-camera {:cx new-cx :cy new-cy})]
     [new-camera next-x'-svg-px]))
+;; END CAMERA MOTION
 
+;; BEGIN PANNING ENVIRONMENT
 (def initial-camera (atom nil))
-(def initial-mouse-pos-svg-px (atom nil))
-(def current-setInterval-id (atom nil))
 (def camera-velocity (atom [0 0]))
-(def dst-mouse-pos-svg-px (atom [0 0]))
+(def initial-mouse-svg-px (atom nil))
+(def target-mouse-svg-px (atom [0 0]))
+(def panning-background-id (atom nil))
 
-(defn- move-camera!
-  ([]
-   (let [[new-camera x'-svg-px]
-         (move-camera @initial-camera @initial-mouse-pos-svg-px @dst-mouse-pos-svg-px
-                        @camera @camera-velocity)]
-     (set-camera! new-camera)
-     (reset! camera-velocity x'-svg-px))))
+(defn- move-camera! []
+  (let [[new-camera x'-svg-px]
+        (move-camera @initial-camera @initial-mouse-svg-px @target-mouse-svg-px
+                     @camera @camera-velocity)]
+    (set-camera! new-camera)
+    (reset! camera-velocity x'-svg-px)))
 
-(defn- kill-setInterval []
-  (when @current-setInterval-id
-    (js/clearInterval @current-setInterval-id))
-  (reset! current-setInterval-id nil)
-  )
-
-(defn- launch-setInterval []
-  (reset! current-setInterval-id
+(defn- pan-start-background! []
+  (reset! panning-background-id
           (js/setInterval move-camera! (/ 1000 60))))
+
+(defn- pan-stop-background! []
+  (when @panning-background-id
+    (js/clearInterval @panning-background-id))
+  (reset! panning-background-id nil))
+
+(defn- set-pan-environment! [mouse-pos-svg-px]
+  (reset! initial-camera @camera)
+  (reset! initial-mouse-svg-px mouse-pos-svg-px)
+  (reset! camera-velocity [0 0])
+  (reset! target-mouse-svg-px mouse-pos-svg-px))
+
+(defn- reset-pan-environment! []
+  (reset! initial-camera nil)
+  (reset! initial-mouse-svg-px nil)
+  (reset! camera-velocity [0 0])
+  (reset! target-mouse-svg-px [0 0]))
+;; END PANNING ENVIRONMENT
 
 ;; BEGIN CAMERA EVENT QUEUE
 (defn pan-start [mouse-pos-win-px]
   (let [mouse-pos-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
-    (reset! initial-camera @camera)
-    (reset! initial-mouse-pos-svg-px mouse-pos-svg-px)
-    (reset! camera-velocity [0 0])
-    (reset! dst-mouse-pos-svg-px mouse-pos-svg-px)
-    (launch-setInterval)))
+    (set-pan-environment! mouse-pos-svg-px)
+    (pan-start-background!)))
 
 (defn pan-move [mouse-pos-win-px]
-  (let [updated-dst-mouse-pos-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
-    (reset! dst-mouse-pos-svg-px updated-dst-mouse-pos-svg-px)))
+  (let [current-mouse-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
+    (reset! target-mouse-svg-px current-mouse-svg-px)))
 
 (defn pan-stop []
-  (kill-setInterval)
-  (reset! initial-camera nil)
-  (reset! initial-mouse-pos-svg-px nil)
-  (reset! current-setInterval-id nil)
-  (reset! camera-velocity [0 0]))
+  (pan-stop-background!)
+  (reset-pan-environment!))
 
 (def event-queue (chan))
 (go-loop [[event & args] (<! event-queue)]
