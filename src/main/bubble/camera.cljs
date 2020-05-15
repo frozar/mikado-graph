@@ -272,26 +272,24 @@
 (defn in-pan-limit?
   "Check if the graph is still enough in the displayed viewBox. Typically,
   if less than 30% of the graph is displayed, return false."
-  ([] (in-pan-limit? 30))
-  ([minimal-ratio] (in-pan-limit? @camera minimal-ratio))
-  ([camera minimal-ratio]
-   (let [{width :width height :height
-          view-left :min-x view-top :min-y} (camera->viewBox camera)
-         [view-right view-bottom] (map + [view-left view-top] [width height])
-         {graph-left :left graph-right :right
-          graph-top :top graph-bottom :bottom} (state-read/graph-bbox)
+  [camera minimal-ratio]
+  (let [{width :width height :height
+         view-left :min-x view-top :min-y} (camera->viewBox camera)
+        [view-right view-bottom] (map + [view-left view-top] [width height])
+        {graph-left :left graph-right :right
+         graph-top :top graph-bottom :bottom} (state-read/graph-bbox)
 
-         intersection-bbox
-         {:left (max view-left graph-left)
-          :right (min view-right graph-right)
-          :top (max view-top graph-top)
-          :bottom (min view-bottom graph-bottom)}
+        intersection-bbox
+        {:left (max view-left graph-left)
+         :right (min view-right graph-right)
+         :top (max view-top graph-top)
+         :bottom (min view-bottom graph-bottom)}
 
-         intersection-bbox-area (bbox-area intersection-bbox)
+        intersection-bbox-area (bbox-area intersection-bbox)
 
-         area-ratio (* 100 (/ intersection-bbox-area (state-read/graph-bbox-area)))]
-     (< minimal-ratio area-ratio)
-     )))
+        area-ratio (* 100 (/ intersection-bbox-area (state-read/graph-bbox-area)))]
+    (< minimal-ratio area-ratio)
+    ))
 
 (defn set-camera! [new-camera]
   ;; TODO: smooth the transition
@@ -497,8 +495,17 @@
   (let [current-mouse-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
     (reset! target-mouse-svg-px current-mouse-svg-px)))
 
+(defn should-center?
+  "If the graph is no more visible, call the home event to 'center'
+  the view around the graph."
+  []
+  ;; TODO: adjust with the animation
+  (when (not (in-pan-limit? @camera 20))
+    (home-evt)))
+
 (defn pan-stop []
   (pan-stop-background!)
+  (should-center?)
   (reset-pan-environment!))
 
 (def event-queue (chan))
