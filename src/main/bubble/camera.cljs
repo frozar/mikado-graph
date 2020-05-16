@@ -12,7 +12,9 @@
    [goog.events EventType]
    ))
 
-;; BEGIN camera section
+(def event-queue (chan))
+
+;; BEGIN CAMERA SECTION
 (defn init-camera
   ([]
    (let [width (.-innerWidth js/window)
@@ -47,8 +49,7 @@
     (string/join " " [min-x min-y width height])))
 
 (defn camera-viewBox-area [camera]
-  (let [{width :width
-         height :height} (camera->viewBox camera)]
+  (let [{width :width height :height} (camera->viewBox camera)]
     (* width height)))
 
 (declare svg-px->svg-user)
@@ -59,26 +60,6 @@
         ;; vector in svg-user space: origin = pt (0, 0) in user space
         top-left-corner-svg-user [min-x min-y]]
     top-left-corner-svg-user))
-
-(defn- compute-fix-point-svg-user
-  [camera0 camera1]
-  (let [;; deduce from svg-user->svg-px
-        ;; z0 * svg-scaled0 = z1 * svg-scaled1
-        ;; z0 * (pt-svg-user - top-left0) = z1 * (pt-svg-user - top-left1)
-        ;; (z0 - z1) * pt-svg-user = z0 * top-left0 - z1 * top-left1
-        ;; pt-svg-user = (1 / (z0 - z1)) (z0 * top-left0 - z1 * top-left1)
-        zoom0 (:zoom camera0)
-        zoom1 (:zoom camera1)
-        top-left-corner-svg-user0 (get-top-left-corner-svg-user camera0)
-        top-left-corner-svg-user1 (get-top-left-corner-svg-user camera1)
-        zoom-factor (/ 1 (- zoom0 zoom1))
-        tmp-pt (map -
-                    (map #(* zoom0 %) top-left-corner-svg-user0)
-                    (map #(* zoom1 %) top-left-corner-svg-user1))
-        fix-pt-svg-user (map #(* zoom-factor %) tmp-pt)
-        ]
-    fix-pt-svg-user
-    ))
 
 (defn- correct-camera-by-translation-fix-point-svg-px
   [camera-origin camera-modified pt-svg-px]
@@ -107,134 +88,6 @@
         pt-svg-px [0 0]]
     (correct-camera-by-translation-fix-point-svg-px camera camera-wider pt-svg-px)))
 
-;; BEGIN CAMERA INTERPOLATION
-(defn- compute-linear-steps [dist nb-step]
-  (for [idx (range 0 nb-step)]
-    (* dist
-       (/ idx (dec nb-step)))))
-
-(defn- compute-log-steps [dist nb-step]
-  (for [idx (map inc (compute-linear-steps 9 nb-step))]
-    (* dist
-       (/ (.log js/Math idx) (.log js/Math 10)))))
-
-(defn- reverse-gaussian
-  "Typical value:
-  tau: 0.11"
-  [K tau t]
-  (* K
-     (-
-      1
-      (.exp js/Math (/ (- (* t t)) tau)))))
-
-(comment
-  (for [t (compute-linear-steps 1 60)]
-    [t (reverse-gaussian 1 0.4 t)]))
-
-(defn- compute-reverse-gaussian-steps [dist nb-step]
-  (for [idx (range 0 nb-step)]
-    (let [t (/ idx (dec nb-step))]
-      (reverse-gaussian dist 0.11 t))))
-
-(defn- sign [number]
-  (if (pos? number) + -))
-
-(defn- higher-range
-  "interpolation-type: [:linear|:log]"
-  [start end nb-step interpolation-type]
-  (let [dist (.abs js/Math (- end start))
-        compute-steps-fn
-        (condp = interpolation-type
-          :linear compute-linear-steps
-          :log    compute-log-steps
-          :reverse-gaussian compute-reverse-gaussian-steps
-          )
-        log-steps (compute-steps-fn dist nb-step)
-        sign-operator (sign (- end start))
-        signed-log-steps (map #(sign-operator %) log-steps)]
-    (for [step signed-log-steps]
-      (+ start step))
-    ))
-
-(defn- range-math
-  ([start end nb-step] (range-math start end nb-step :linear))
-  ([start end nb-step interpolation-type]
-   (higher-range start end nb-step interpolation-type))
-  )
-
-(defn- camera-interpolation-translation [src-camera dst-camera nb-step interpolation-type]
-  (let [{cx0 :cx cy0 :cy} src-camera
-        {cx1 :cx cy1 :cy} dst-camera
-
-        cameras-center-x (range-math cx0 cx1 nb-step interpolation-type)
-        cameras-center-y (range-math cy0 cy1 nb-step interpolation-type)
-
-        cameras-center
-        (->> (interleave cameras-center-x cameras-center-y)
-             (partition 2)
-             (map (fn [[cx cy]] {:cx cx :cy cy}))
-             )
-        ]
-    (for [center cameras-center]
-      (merge src-camera center))
-    )
-  )
-
-(defn- camera-interpolation-homothety [src-camera dst-camera nb-step interpolation-type]
-  (let [zoom0 (:zoom src-camera)
-        zoom1 (:zoom dst-camera)
-
-        cameras-zoom
-        (->> (range-math zoom0 zoom1 nb-step interpolation-type)
-             (map (fn [zoom-value] {:zoom zoom-value}))
-             (drop 1))
-
-        fix-pt-svg-user (compute-fix-point-svg-user src-camera dst-camera)
-        fix-pt-svg-px   (svg-user->svg-px src-camera fix-pt-svg-user)
-
-        list-camera-zoomed
-        (take
-         nb-step
-         (iterate
-          (fn [[camera idx]]
-            (let [current-zoom (nth cameras-zoom idx)
-                  camera-zoomed (merge camera current-zoom)
-
-                  next-camera
-                  (correct-camera-by-translation-fix-point-svg-px
-                   camera camera-zoomed fix-pt-svg-px)]
-              [next-camera (inc idx)]))
-          [src-camera 0]))
-        ]
-    (map first list-camera-zoomed)))
-
-(defn- camera-interpolation*
-  [src-camera dst-camera nb-step interpolation-type]
-  (let [dist-zoom (.abs js/Math (- (:zoom src-camera) (:zoom dst-camera)))]
-    (cond
-      ;; In case the 2 input cameras are just translation of each other
-      (< dist-zoom 10e-3)
-      (camera-interpolation-translation src-camera dst-camera nb-step interpolation-type)
-
-      ;; In case a zoom/unzoom have been done
-      :else
-      (camera-interpolation-homothety src-camera dst-camera nb-step interpolation-type)
-      )))
-
-(defn- camera-interpolation
-  [src-camera dst-camera nb-step interpolation-type]
-  (if (< nb-step 2)
-    []
-    (cond
-      ;; In case the 2 input cameras are the same
-      (= src-camera dst-camera)
-      (take nb-step (repeat src-camera))
-
-      ;; In case a zoom/unzoom have been done
-      :else
-      (camera-interpolation* src-camera dst-camera nb-step interpolation-type)
-      )))
-;; END CAMERA INTERPOLATION
 (defn update-camera
   ([hashmap]
    (update-camera @camera hashmap))
@@ -292,13 +145,12 @@
     ))
 
 (defn set-camera! [new-camera]
-  ;; TODO: smooth the transition
   (let [is-in-zoom-limit (in-zoom-limit? new-camera)]
-    (when (and is-in-zoom-limit
-               #_is-in-pan-limit)
+    (when is-in-zoom-limit
       (reset! camera new-camera))))
-;; END camera section
+;; END CAMERA SECTION
 
+;; BEGIN COORDINATE CONVERTION
 (defn svg-px->svg-user
   "From svg pixel position, convert to svg user position."
   [camera pt-svg-px]
@@ -336,13 +188,18 @@
          pt-user-coord (svg-px->svg-user camera svg-px)]
      pt-user-coord
      )))
+;; END COORDINATE CONVERTION
+
+(defn- mouse-wheel [wheel-delta-y win-px-x win-px-y]
+  (let [reduction-speed-factor 5
+        scale (.pow js/Math 1.005 (/ wheel-delta-y reduction-speed-factor))
+        svg-px (coord/win-px->svg-px [win-px-x win-px-y])
+        new-camera (apply-zoom @camera scale svg-px)]
+    (set-camera! new-camera)))
 
 (defn- mouse-wheel-evt [evt]
-  (let [reduction-speed-factor 5
-        scale (.pow js/Math 1.005 (/ (..  evt -event_ -wheelDeltaY) reduction-speed-factor))
-        win-px [(.-clientX evt) (.-clientY evt)]
-        new-camera (apply-zoom @camera scale (coord/win-px->svg-px win-px))]
-    (set-camera! new-camera)))
+  (put! event-queue
+        [:mouse-wheel (..  evt -event_ -wheelDeltaY) (.-clientX evt) (.-clientY evt)]))
 
 (defn mouse-wheel-evt-fn []
   (events/listen js/window EventType.WHEEL mouse-wheel-evt))
@@ -350,34 +207,20 @@
 (defn mouse-wheel-evt-off []
   (events/unlisten js/window EventType.WHEEL mouse-wheel-evt))
 
-(defn- window-resize-evt []
+(defn- window-resize [width height]
   (let [new-camera
-        (apply-resize @camera (.-innerWidth js/window) (.-innerHeight js/window))]
+        (apply-resize @camera width height)]
     (set-camera! new-camera)))
+
+(defn- window-resize-evt []
+  (put! event-queue
+        [:resize (.-innerWidth js/window) (.-innerHeight js/window)]))
 
 (defn window-resize-evt-fn []
   (events/listen js/window EventType.RESIZE window-resize-evt))
 
 (defn window-resize-evt-off []
   (events/unlisten js/window EventType.RESIZE window-resize-evt))
-
-(defn animate-camera-transition
-  "duration: in second"
-  ([dst-camera duration]
-   (animate-camera-transition @camera dst-camera duration 60))
-  ([src-camera dst-camera duration]
-   (animate-camera-transition src-camera dst-camera duration 60))
-  ([src-camera dst-camera duration fps]
-   (let [nb-step (* duration fps)
-         list-camera (camera-interpolation src-camera dst-camera nb-step :log)
-         ;; the time between camera (time-step): in millisecond
-         time-step (/ 1000 fps)]
-     (doall
-      (for [idx (range nb-step)]
-        (js/setTimeout
-         (fn [] (set-camera! (nth list-camera idx)))
-         (* time-step idx))))
-     )))
 
 (defn- target-dimension->zoom
   "From a target width and height for the camera, compute the zoom associated"
@@ -387,20 +230,6 @@
         weakest_zoom (apply min zooms)]
     weakest_zoom))
 
-(defn home-evt []
-  (let [[cx cy] (state-read/graph-mid-pt)
-        {:keys [width height]} (state-read/graph-width-height)
-        border-factor 1.3
-        target-dimension [(* border-factor width) (* border-factor height)]
-        weakest_zoom (target-dimension->zoom target-dimension)
-
-        target-camera (merge @camera {:cx cx :cy cy :zoom weakest_zoom})
-        animation-duration 0.8
-        animation-fps 60]
-    (animate-camera-transition @camera target-camera animation-duration animation-fps)
-    ))
-
-;; BEGIN CAMERA MOTION
 (defn- motion-solver [m alpha k h [xn xn']]
   (let [x''
         (+ (- (* (/ alpha m) xn'))
@@ -409,6 +238,87 @@
         xnp1 (+ xn (* h xnp1'))]
     [xnp1 xnp1']))
 
+(defn- move-home-camera
+  [target-camera
+   current-camera current-x'-svg-user]
+  (let [{cx-src-svg-user :cx cy-src-svg-user :cy zoom-src-svg-user :zoom} current-camera
+        {cx-dst-svg-user :cx cy-dst-svg-user :cy zoom-dst-svg-user :zoom} target-camera
+
+        current-x-svg-user
+        (map -
+             [cx-dst-svg-user cy-dst-svg-user zoom-dst-svg-user]
+             [cx-src-svg-user cy-src-svg-user zoom-src-svg-user])
+
+        [next-x-svg-user next-x'-svg-user]
+        (->>
+         (interleave current-x-svg-user current-x'-svg-user)
+         (partition 2)
+         (map (partial motion-solver 0.1 0.8 4 (/ 1 60)))
+         (apply interleave)
+         (partition 3)) ; 3 components: cx cy zoom
+
+        [new-cx new-cy new-zoom]
+        (map -
+             [cx-dst-svg-user cy-dst-svg-user zoom-dst-svg-user]
+             next-x-svg-user)
+
+        new-camera (update-camera current-camera {:cx new-cx :cy new-cy :zoom new-zoom})]
+    [new-camera next-x'-svg-user]))
+
+(defn- current-time []
+  (.now js/Date))
+
+;; BEGIN HOME-EVT ENVIRONMENT
+(def home-camera-velocity (atom [0 0 0]))
+(def home-evt-background-id (atom nil))
+(def home-initial-time (atom nil))
+
+(defn- reset-home-evt-environment! []
+  (reset! home-camera-velocity [0 0 0])
+  (reset! home-initial-time (current-time)))
+
+(defn- home-evt-stop-background! []
+  (when @home-evt-background-id
+    (js/clearInterval @home-evt-background-id))
+  (reset! home-evt-background-id nil)
+  (reset-home-evt-environment!))
+
+(defn- square-norm [vector]
+  (apply +
+         (map (fn [v] (* v v)) vector)))
+
+(defn- move-home-camera! [target-camera]
+  (let [elapsed-time (- (current-time) @home-initial-time)]
+    (if (and
+         (< 500 elapsed-time)  ; at least 0.5 second of animation
+         (< (square-norm @home-camera-velocity) 10e-3))
+      (home-evt-stop-background!)
+      (let [[new-camera x'-svg-user]
+            (move-home-camera target-camera
+                              @camera @home-camera-velocity)
+            ]
+        (set-camera! new-camera)
+        (reset! home-camera-velocity x'-svg-user)))))
+
+(defn- home-evt-start-background! [target-camera]
+  (reset-home-evt-environment!)
+  (reset! home-evt-background-id
+          (js/setInterval move-home-camera! (/ 1000 60) target-camera))  )
+;; END HOME-EVT ENVIRONMENT
+
+(defn home-evt []
+  (let [[cx cy] (state-read/graph-mid-pt)
+        {:keys [width height]} (state-read/graph-width-height)
+        border-factor 1.2
+        target-dimension [(* border-factor width) (* border-factor height)]
+        weakest_zoom (target-dimension->zoom target-dimension)
+
+        target-camera (update-camera @camera {:cx cx :cy cy :zoom weakest_zoom})
+        ]
+    (home-evt-start-background! target-camera)
+    ))
+
+;; BEGIN CAMERA MOTION
 (defn- move-camera
   [initial-camera initial-mouse-svg-px target-mouse-svg-px
    current-camera current-x'-svg-px]
@@ -455,6 +365,7 @@
 (def initial-mouse-svg-px (atom nil))
 (def target-mouse-svg-px (atom [0 0]))
 (def panning-background-id (atom nil))
+(def min-graph-portion 20)
 
 (defn- move-camera! []
   (let [[new-camera x'-svg-px]
@@ -499,21 +410,21 @@
   "If the graph is no more visible, call the home event to 'center'
   the view around the graph."
   []
-  ;; TODO: adjust with the animation
-  (when (not (in-pan-limit? @camera 20))
-    (home-evt)))
+  (when (not (in-pan-limit? @camera min-graph-portion))
+    (put! chan [:home])))
 
 (defn pan-stop []
   (pan-stop-background!)
   (should-center?)
   (reset-pan-environment!))
 
-(def event-queue (chan))
 (go-loop [[event & args] (<! event-queue)]
   (case event
     :pan-start
-    (let [[mouse-pos-win-px] args]
-      (pan-start mouse-pos-win-px))
+    (do
+      (home-evt-stop-background!)
+      (let [[mouse-pos-win-px] args]
+        (pan-start mouse-pos-win-px)))
 
     :pan-move
     (let [[mouse-pos-win-px] args]
@@ -521,6 +432,19 @@
 
     :pan-stop
     (pan-stop)
+
+    :mouse-wheel
+    (do
+      (home-evt-stop-background!)
+      (let [[wheel-delta-y win-px-x win-px-y] args]
+        (mouse-wheel wheel-delta-y win-px-x win-px-y)))
+
+    :home
+    (home-evt)
+
+    :resize
+    (let [[width height] args]
+      (window-resize width height))
     )
   (recur (<! event-queue)))
 ;; END CAMERA EVENT QUEUE

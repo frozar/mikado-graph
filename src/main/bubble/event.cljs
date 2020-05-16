@@ -98,7 +98,7 @@
 
     "Home"
     (when (not= @interaction "edition")
-      (camera/home-evt))
+      (put! camera/event-queue [:home]))
 
     nil
     ))
