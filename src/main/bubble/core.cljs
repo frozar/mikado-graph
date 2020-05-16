@@ -52,7 +52,7 @@
    {:cx 0 :cy 0 :r 5 :fill "black"}])
 
 (defn camera-center []
-  (let [{:keys [cx cy]} @camera/camera]
+  (let [{:keys [cx cy]} (camera/state)]
     [:circle
      {:cx cx :cy cy :r 5 :fill "red"}]))
 
@@ -69,46 +69,47 @@
 
     :reagent-render
     (fn []
-      [:svg
-       {:id "svg-canvas"
-        :viewBox (camera/camera->viewBox-str)
-        :height (.-innerHeight js/window)
-        :width (.-innerWidth js/window)
-        :style
-        {:border "none"
-         :background "#f1f1f1"
-         :position "fixed"
-         :top 0
-         :left 0
-         }
+      (let [{:keys [width height]} (camera/state)]
+        [:svg
+         {:id "svg-canvas"
+          :viewBox (camera/camera->viewBox-str)
+          :height height
+          :width width
+          :style
+          {:border "none"
+           :background "#f1f1f1"
+           :position "fixed"
+           :top 0
+           :left 0
+           }
 
-        :on-context-menu
-        (event/prevent-default)
+          :on-context-menu
+          (event/prevent-default)
 
-        :on-drag-start
-        (event/prevent-default)
+          :on-drag-start
+          (event/prevent-default)
 
-        :on-mouse-down
-        (let [if-left-click
-              (fn [evt]
-                (= 0 (.-button evt)))]
-          (fn [evt]
-            (when (if-left-click evt)
-              (pan/panning))))
-        }
+          :on-mouse-down
+          (let [if-left-click
+                (fn [evt]
+                  (= 0 (.-button evt)))]
+            (fn [evt]
+              (when (if-left-click evt)
+                (pan/panning evt))))
+          }
 
-       ;; This filter is used in rough display mode: background of text node
-       ;; Documentation: https://stackoverflow.com/questions/15500894/background-color-of-text-in-svg
-       [:defs
-        [:filter
-         {:x 0 :y 0 :width 1 :height 1 :id "bg-text"}
-         [:feFlood {:floodColor "#ffffffee"}]
-         [:feComposite {:in "SourceGraphic" :operator "xor"}]
-         ]]
+         ;; This filter is used in rough display mode: background of text node
+         ;; Documentation: https://stackoverflow.com/questions/15500894/background-color-of-text-in-svg
+         [:defs
+          [:filter
+           {:x 0 :y 0 :width 1 :height 1 :id "bg-text"}
+           [:feFlood {:floodColor "#ffffffee"}]
+           [:feComposite {:in "SourceGraphic" :operator "xor"}]
+           ]]
 
-       [draw-graph]
+         [draw-graph]
 
-       ;; ;; DBG element
-       ;; [svg-origin]
-       ;; [camera-center]
-       ])}))
+         ;; ;; DBG element
+         ;; [svg-origin]
+         ;; [camera-center]
+         ]))}))

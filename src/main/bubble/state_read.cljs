@@ -2,6 +2,7 @@
   (:require
    [bubble.state :refer [appstate]]
    [bubble.bubble :as bubble]
+   [debux.cs.core :refer-macros [clog clogn dbg dbgn break]]
    ))
 
 ;; Read application state
@@ -26,22 +27,40 @@
   (let [idx (get-list-id appstate)]
     (not= (some #{id} idx) nil)))
 
-(apply max [1 2])
-
-(defn graph-bounding-box-svg-user []
-  (let [globally
+(defn graph-bbox []
+  (let [get-global-extremity
         (fn [bubble-characteristic-fn min-or-max-fn]
           (->> (get-bubbles)
                vals
                (map bubble-characteristic-fn)
                (apply min-or-max-fn)))]
-    {:left   (globally bubble/left-bubble   min)
-     :right  (globally bubble/right-bubble  max)
-     :top    (globally bubble/top-bubble    min)
-     :bottom (globally bubble/bottom-bubble max)}))
+    {:left   (get-global-extremity bubble/left-bubble   min)
+     :right  (get-global-extremity bubble/right-bubble  max)
+     :top    (get-global-extremity bubble/top-bubble    min)
+     :bottom (get-global-extremity bubble/bottom-bubble max)}))
+
+(defn- graph-bbox-dimension []
+  (let [{left :left
+         right :right
+         top :top
+         bottom :bottom} (graph-bbox)
+        width (- right left)
+        height (- bottom top)]
+    {:width width :height height}))
+
+(defn graph-bbox-area []
+  (let [{width :width
+         height :height} (graph-bbox-dimension)]
+    (* width height)))
+
+(defn graph-min-bubble-bbox-area []
+  (->> (get-bubbles)
+       vals
+       (map #(bubble/bbox-area-bubble %))
+       (apply min)))
 
 (defn graph-mid-pt []
-  (let [bbox (graph-bounding-box-svg-user)
+  (let [bbox (graph-bbox)
         top-left-pt [(:left bbox) (:top bbox)]
         bottom-right-pt [(:right bbox) (:bottom bbox)]
         mid-pt (->> (map + top-left-pt bottom-right-pt)
@@ -49,7 +68,7 @@
     mid-pt))
 
 (defn graph-width-height []
-  (let [bbox (graph-bounding-box-svg-user)]
+  (let [bbox (graph-bbox)]
     {:width  (- (:right bbox) (:left bbox))
      :height (- (:bottom bbox) (:top bbox))}))
 ;; END: bubble part

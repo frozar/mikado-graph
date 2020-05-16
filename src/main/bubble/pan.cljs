@@ -1,45 +1,38 @@
 (ns bubble.pan
   (:require
    [bubble.camera :as camera]
-   [bubble.coordinate :as coord]
+   [cljs.core.async :refer [put!]]
    [goog.events :as events]
    )
   (:import
    [goog.events EventType]
    ))
 
-(defn pan-move-fn []
-  (let [{init-cam-cx :cx init-cam-cy :cy zoom :zoom} @camera/camera
-        init-mouse-x (atom nil)
-        init-mouse-y (atom nil)]
-    (fn [evt]
-      (let [[mouse-x mouse-y]
-            (coord/win-px->svg-px [(.-clientX evt) (.-clientY evt)])
-            ]
-        (when (or (nil? @init-mouse-x)
-                  (nil? @init-mouse-y))
-          (reset! init-mouse-x mouse-x)
-          (reset! init-mouse-y mouse-y))
+(defn pan-move []
+  (fn [evt]
+    (let [mouse-pos-win-px [(.-clientX evt) (.-clientY evt)]]
+      (put! camera/event-queue [:pan-move mouse-pos-win-px]))))
 
-        (swap! camera/camera
-               merge
-               {:cx (- init-cam-cx (/ (- mouse-x @init-mouse-x) zoom))
-                :cy (- init-cam-cy (/ (- mouse-y @init-mouse-y) zoom))
-                })))))
-
-(defn pan-end-fn [pan-move pan-end-atom on-end]
+(defn pan-end [pan-move ref-to-pan-end-atom on-end]
   (fn []
     (events/unlisten js/window EventType.MOUSEMOVE pan-move)
-    (events/unlisten js/window EventType.MOUSEUP @pan-end-atom)
-    (on-end)))
+    (events/unlisten js/window EventType.MOUSEUP @ref-to-pan-end-atom)
+    (put! camera/event-queue [:pan-stop])
+    (on-end)
+    ))
+
+(defn pan-start [evt]
+  (let [mouse-pos-win-px [(.-clientX evt) (.-clientY evt)]]
+    (put! camera/event-queue [:pan-start mouse-pos-win-px])))
 
 (defn panning
-  ([] (panning (fn []) (fn [])))
-  ([on-start on-end]
-   (let [pan-move (pan-move-fn)
-         pan-end-atom (atom nil)
-         pan-end (pan-end-fn pan-move pan-end-atom on-end)]
-     (on-start)
-     (reset! pan-end-atom pan-end)
-     (events/listen js/window EventType.MOUSEMOVE pan-move)
-     (events/listen js/window EventType.MOUSEUP pan-end))))
+  ([evt] (panning evt (fn []) (fn [])))
+  ([evt hook-on-start hook-on-end]
+   (let [a-pan-move (pan-move)
+         ref-to-pan-end (atom nil)
+         a-pan-end (pan-end a-pan-move ref-to-pan-end hook-on-end)]
+     (hook-on-start)
+     (pan-start evt)
+     (reset! ref-to-pan-end a-pan-end)
+     (events/listen js/window EventType.MOUSEMOVE a-pan-move)
+     (events/listen js/window EventType.MOUSEUP a-pan-end))))

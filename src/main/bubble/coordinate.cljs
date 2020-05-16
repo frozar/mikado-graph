@@ -5,8 +5,8 @@
 
 (defonce svg-origin (reagent/atom nil))
 
-(defn init-svg-origin! [svg-origin-x svg-origin-y]
-  (reset! svg-origin [svg-origin-x svg-origin-y])
+(defn init-svg-origin! [svg-origin-x-px svg-origin-y-px]
+  (reset! svg-origin [svg-origin-x-px svg-origin-y-px])
   )
 
 (defn win-px->svg-px

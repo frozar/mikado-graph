@@ -49,3 +49,12 @@
 
 (defn right-bubble [{:keys [cx rx]}]
   (+ cx rx))
+
+(defn bbox-area-bubble [bubble]
+  (let [top (top-bubble bubble)
+        bottom (bottom-bubble bubble)
+        left (left-bubble bubble)
+        right (right-bubble bubble)
+        width (- right left)
+        height (- bottom top)]
+    (* width height)))
