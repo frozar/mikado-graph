@@ -4,6 +4,7 @@
    [bubble.constant :as const]
    [bubble.state :refer [appstate]] ;; used in BANG macro
    [bubble.state-read :as state-read]
+   [cljsjs.d3]
    )
   (:require-macros
    [bubble.macro :as macro])
@@ -145,6 +146,8 @@
          (add-link parent-bubble-id not-duplicated-id))
      ))
   )
+
+
 
 (macro/BANG create-bubble-and-link)
 
