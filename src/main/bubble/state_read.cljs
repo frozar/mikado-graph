@@ -93,21 +93,3 @@
 
 (defn get-rendering-style []
   (:rendering-style @appstate))
-
-(defn appstate->graph
-  [appstate]
-  (let [nodes-field
-        (reduce
-         (fn [acc [id {:keys [cx cy]}]]
-           (conj acc {:id id :x cx :y cy :group 1}))
-         []
-         (get-bubbles appstate))
-
-        links-field
-        (reduce
-         (fn [acc {:keys [src dst]}]
-           (conj acc {:source src :target dst :value 10}))
-         []
-         (get-links appstate))]
-    {:nodes nodes-field
-     :links links-field}))
