@@ -147,10 +147,104 @@
      ))
   )
 
-
-
 (macro/BANG create-bubble-and-link)
 
+(defn appstate->graph
+  [appstate]
+  (let [nodes-field
+        (reduce
+         (fn [acc [id {:keys [cx cy]}]]
+           (conj acc {:id id :x cx :y cy :group 1}))
+         []
+         (state-read/get-bubbles appstate))
+
+        links-field
+        (reduce
+         (fn [acc {:keys [src dst]}]
+           (conj acc {:source src :target dst :value 10}))
+         []
+         (state-read/get-links appstate))]
+    {:nodes nodes-field
+     :links links-field}))
+
+;; (defn init-simulation
+;;   ([appstate parent-bubble-id]
+;;    (init-simulation appstate parent-bubble-id (gen-id)))
+;;   ([appstate parent-bubble-id id]
+;;    (let [{:keys [cx cy]} (state-read/get-bubble appstate parent-bubble-id)
+;;          new-state (create-bubble-and-link appstate parent-bubble-id cx cy id)
+;;          ]
+;;      new-state)
+;;    ;; state-read/get-links
+;;    ;; state-read/get-bubbles
+;;    ;; nil
+;;    ))
+
+
+;; (defn simulation [height width graph links nodes labels]
+;;   (let [sim
+;;         (-> js/d3
+;;             (.forceSimulation)
+;;             (.force "link"
+;;                     (-> js/d3
+;;                         (.forceLink)
+;;                         (.id (fn [d] (.-id d)))
+;;                         (.distance 100)))
+;;                         ;; (.strength 0.7)
+
+;;             (.force "charge"
+;;                     (.forceManyBody js/d3))
+;;             (.force "center"
+;;                     (.forceCenter
+;;                      js/d3
+;;                      (/ width 2)
+;;                      (/ height 2)))
+
+;;             (.force "positionning"
+;;                     (-> js/d3
+;;                         (.forceY 100)
+;;                         (.strength
+;;                          (fn [d]
+;;                            ;; (.log js/console (.-id d))
+;;                            ;; -30
+;;                            (if (= (.-id d) "FAKE")
+;;                              0.99
+;;                              0))
+
+;;                          #_0.05))))
+
+;;         input-nodes (.-nodes graph)
+;;         _ (.log js/console "SIM (.-nodes graph)" (.-nodes graph))
+;;         _ (prn "prn 0 (.-nodes graph)" (.-nodes graph))
+;;         fake-node (clj->js {:id "FAKE", :group 1, :index 5, :x 0, :y 0, :vx 0, :vy 0})
+;;         ;; _ (.log js/console "nodes" nodes)
+;;         ;; _ (.log js/console "BEFORE (.-_groups nodes)" (.. nodes -_groups))
+;;         ;; every-nodes (.concat (.-_groups nodes) fake-node)
+;;         ;; every-nodes input-nodes
+;;         every-nodes (.concat input-nodes fake-node)
+;;         ;; _ (.log js/console "AFTER  (.-_groups nodes)" (.. nodes -_groups))
+;;         ;; _ (.log js/console "AFTER  every-nodes" every-nodes)
+;;         ;; every-nodes (.append nodes fake-node)
+;;         ]
+
+;;     (-> sim
+;;         (.nodes
+;;          ;; (.-nodes graph)
+;;          every-nodes
+;;          )
+
+;;         (.on "tick"
+;;              ;; (ticked links nodes labels)
+;;              (ticked)
+;;              ;; (ticked links every-nodes labels)
+;;              ))
+
+;; (-> sim
+;;     (.force "link")
+;;     (.links (.-links graph)))
+
+;;     sim
+;;     ))
 
 ;; START: Building link
 ;;TODO: UT
