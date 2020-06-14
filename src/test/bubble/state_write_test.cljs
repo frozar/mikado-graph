@@ -308,36 +308,6 @@
     )
   )
 
-(def appstate-1-bubble
-  (#'sd/init-appstate)
-  )
-
-(deftest appstate->graph_basic
-  (is
-   (=
-    (sw/appstate->graph appstate-1-bubble)
-    {:nodes [{:id ROOT-BUBBLE-ID, :x 450, :y 450 :group 1}]
-     :links []}))
-  (is
-   (=
-    (-> appstate-1-bubble
-        (sw/create-bubble-and-link ROOT-BUBBLE-ID 450 450 "bubble-1")
-        sw/appstate->graph)
-    {:nodes [{:id ROOT-BUBBLE-ID, :x 450, :y 450 :group 1}
-             {:id "bubble-1", :x 450, :y 450, :group 1}]
-     :links [{:source ROOT-BUBBLE-ID, :target "bubble-1", :value 10}]}))
-  (is
-   (=
-    (-> appstate-1-bubble
-        (sw/create-bubble-and-link ROOT-BUBBLE-ID 450 450 "bubble-1")
-        (sw/create-bubble-and-link ROOT-BUBBLE-ID 450 450 "bubble-2")
-        sw/appstate->graph)
-    {:nodes [{:id ROOT-BUBBLE-ID, :x 450, :y 450 :group 1}
-             {:id "bubble-1", :x 450, :y 450, :group 1}
-             {:id "bubble-2", :x 450, :y 450, :group 1}]
-     :links [{:source ROOT-BUBBLE-ID, :target "bubble-1", :value 10}
-             {:source ROOT-BUBBLE-ID, :target "bubble-2", :value 10}]})))
-
 ;; (deftest init-simulation_basic
 ;;   (is
 ;;    (=
