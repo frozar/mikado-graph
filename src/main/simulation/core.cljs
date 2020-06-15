@@ -2,6 +2,7 @@
   (:require
    [bubble.camera :as camera]
    [bubble.state-read :as state-read]
+   [cljs.core.async :refer [put!]]
    [cljsjs.d3]
    [clojure.walk :as walk]
    ))
@@ -23,138 +24,23 @@
     {:nodes nodes-field
      :links links-field}))
 
-(defn ticked [sim] ;; links nodes labels
+(defn ticked [event-queue sim]
   (fn tick []
-    ;; (prn "DBG tick")
-    (let [
-          ;; selected-links
-          ;; (-> js/d3
-          ;;     (.selectAll "#app svg .links line"))
-          ;; selected-nodes
-          ;; (-> js/d3
-          ;;     (.selectAll "#app svg .nodes circle"))
-          ;; selected-labels
-          ;; (-> js/d3
-          ;;     (.selectAll "#app svg .labels text"))
+    (let [nodes (-> (.nodes sim)
+                    js->clj
+                    walk/keywordize-keys)
           ]
 
-      (.log js/console "TICK (.nodes sim)" (.nodes sim))
-      (.log js/console "TICK (js->clj (.nodes sim))"
-            (-> (.nodes sim)
-                js->clj
-                walk/keywordize-keys))
+      ;; (.log js/console "TICK (.nodes sim)" (.nodes sim))
+      ;; (.log js/console "TICK (js->clj (.nodes sim))"
+      ;;       nodes)
 
-      ;; ;; (.log js/console "selection links" selected-links)
-      ;; ;; (.log js/console "selection labels" selected-labels)
-
-      ;; (-> selected-links
-      ;;     (.attr "x1" (fn [d] (.. d -source -x)))
-      ;;     (.attr "y1" (fn [d] (.. d -source -y)))
-      ;;     (.attr "x2" (fn [d] (.. d -target -x)))
-      ;;     (.attr "y2" (fn [d] (.. d -target -y))))
-
-      ;; ;; (let [myriel
-      ;; ;;       (-> (.. node -_groups)
-      ;; ;;           (aget 0)
-      ;; ;;           ;; (aget 0)
-
-      ;; ;;           ;; (#(.. % -attributes #_-cx #_-value))
-      ;; ;;           ;; (.getNamedItem "cx")
-
-      ;; ;;           ;; (#(js->clj %))
-      ;; ;;           ;; (#(type %))
-      ;; ;;           ;; (#(.-value %))
-      ;; ;;           ;; (#(type->str %))
-      ;; ;;           ;; (#(js-keys %))
-      ;; ;;           ;; (#(.. % -value))
-      ;; ;;           )]
-      ;; ;;   (.log js/console "before"
-      ;; ;;         (map
-      ;; ;;          #(.. % -id)
-      ;; ;;          ;; #(.. % -cx -baseVal -value)
-      ;; ;;          myriel))
-      ;; ;;   ;; (.log js/console "before" (.. myriel -cx -baseVal -value))
-      ;; ;;   ;; (prn "1" (.-name toto))
-      ;; ;;   )
-
-      ;; ;; (.log js/console "TICKED nodes" nodes)
-      ;; ;; (.log js/console "TICKED nodes groups" (.. nodes -_groups))
-      ;; ;; (.log js/console "filter node"
-      ;; ;;       (->>  node
-      ;; ;;             (filter (fn [n] (not= (.-id n) "FAKE")))
-      ;; ;;             js->clj
-      ;; ;;             (map
-      ;; ;;              (fn [{id "id" x "x" y "y"}]
-      ;; ;;                [id x y]
-      ;; ;;                ))
-      ;; ;;             ))
-
-      ;; ;; (swap! app-state
-      ;; ;;        assoc :tick
-      ;; ;;        (->>  nodes
-      ;; ;;              (filter (fn [n] (not= (.-id n) "FAKE")))
-      ;; ;;              js->clj
-      ;; ;;              (map
-      ;; ;;               (fn [{id "id" x "x" y "y"}]
-      ;; ;;                 [id x y]
-      ;; ;;                 ))))
-
-      ;; (-> selected-nodes
-      ;;     (.attr "cx" (fn [d] (.-x d)))
-      ;;     (.attr "cy" (fn [d] (.-y d))))
-
-      ;; ;; (.log js/console "selection nodes" selected-nodes)
-      ;; ;; (cljs.pprint/pprint [["toto" 5]])
-
-      ;; ;; (.log js/console
-      ;; ;;  ;; cljs.pprint/pprint
-      ;; ;;  "selection nodes data"
-      ;; ;;       ;; (-> selected-nodes
-      ;; ;;       ;;     (.attr "cx"))
-      ;; ;;       ;; (.attr selected-nodes "cx")
-      ;; ;;       (-> (.. selected-nodes -_groups)
-      ;; ;;           (aget 0)
-
-      ;; ;;           ;; convert NodeList to clojure list
-      ;; ;;           ((fn [NodeList]
-      ;; ;;              (for [i (range (.-length NodeList))]
-      ;; ;;                (.item NodeList i))
-      ;; ;;              ))
-
-      ;; ;;           ((fn [circles]
-      ;; ;;              (mapv
-      ;; ;;               (fn [circle]
-      ;; ;;                 (-> circle
-      ;; ;;                     (.-__data__)
-      ;; ;;                     js->clj
-      ;; ;;                     w/keywordize-keys
-      ;; ;;                     ((fn [{:keys [id x y]}]
-      ;; ;;                        [id x y]
-      ;; ;;                        ))))
-      ;; ;;               circles)))
-
-      ;; ;;           ;; (#(into [] %))
-
-      ;; ;;           )
-      ;; ;;       )
-
-      ;; ;; (.log js/console (type node))
-
-      ;; ;; (let [myriel
-      ;; ;;       (-> (.. node -_groups)
-      ;; ;;           (aget 0)
-      ;; ;;           (aget 0)
-      ;; ;;           )]
-      ;; ;;   (.log js/console "after " (.. myriel -cx -baseVal -value))
-      ;; ;;   )
-
-      ;; (-> selected-labels
-      ;;     (.attr "dx" (fn [d] (.-x d)))
-      ;;     (.attr "dy" (fn [d] (.-y d))))
+      (put! event-queue [:simulation-move nodes])
 
     )))
 
-(defn simulation [cx-svg-user cy-svg-user
+(defn simulation [event-chan
+                  cx-svg-user cy-svg-user
                   ;; height width
                   graph] ;; links nodes labels
   (let [sim
@@ -213,6 +99,7 @@
     ;; (.log js/console "nodes" nodes)
     ;; (.log js/console "(.-groups nodes)" (.. nodes -groups))
     ;; (.log js/console "(.-nodes graph)" (.-nodes graph))
+    (.log js/console "input-nodes" input-nodes)
     (.log js/console "every-nodes" every-nodes)
 
 
@@ -227,7 +114,7 @@
 
         (.on "tick"
              ;; (ticked links nodes labels)
-             (ticked sim)
+             (ticked event-chan sim)
              ;; (ticked links every-nodes labels)
              ))
 
@@ -257,8 +144,8 @@
 
     (.log js/console "(.-links graph)" (.-links graph))
 
-    (-> sim
-        (.stop))
+    ;; (-> sim
+    ;;     (.stop))
 
     ;; (-> sim
     ;;     (.tick))
@@ -298,7 +185,7 @@
 
     sim))
 
-(defn launch-simulation [appstate]
+(defn launch-simulation [appstate event-queue]
   (let [graph (appstate->graph appstate)
-        {:keys [cx-svg-user cy-svg-user]} (camera/state-center)]
-    (simulation cx-svg-user cy-svg-user graph)))
+        {:keys [cx cy]} (camera/state-center)
+        sim (simulation event-queue cx cy (clj->js graph))]))

@@ -4,7 +4,6 @@
    [bubble.constant :as const]
    [bubble.state :refer [appstate]] ;; used in BANG macro
    [bubble.state-read :as state-read]
-   [simulation.core]
    )
   (:require-macros
    [bubble.macro :as macro])
@@ -21,8 +20,6 @@
 
 (defn- update-bubble [appstate bubble-id hashmap]
   (update-in appstate [:bubbles bubble-id] merge hashmap))
-
-(macro/BANG update-bubble)
 ;; END: bubble part
 
 ;; START: link part
@@ -106,11 +103,21 @@
 
 (macro/BANG resize-bubble)
 
-;;TODO: UT
 (defn- move-bubble [appstate bubble-id cx cy]
   (update-bubble appstate bubble-id {:cx cx :cy cy}))
 
 (macro/BANG move-bubble)
+
+(defn- move-bubbles [appstate nodes]
+  {:pre [(map? nodes)]}
+  (if (empty? nodes)
+    appstate
+    (let [[id {:keys [cx cy]}] (first nodes)
+          left-nodes (->> nodes rest (into {}))
+          new-state (move-bubble appstate id cx cy)]
+      (recur new-state left-nodes))))
+
+(macro/BANG move-bubbles)
 
 ;;TODO: UT
 (defn- save-text-bubble [appstate bubble-id text]
@@ -149,13 +156,11 @@
 
 (macro/BANG create-bubble-and-link)
 
-(state-read/get-bubble @appstate "root")
-
 (defn simulation-create-bubble-and-link [parent-bubble-id]
   (let [{cx-parent :cx
-         cy-parent :cy} (state-read/get-bubble @appstate parent-bubble-id)
-        new-state (create-bubble-and-link @appstate parent-bubble-id cx-parent cy-parent)]
-    (simulation.core/launch-simulation new-state)))
+         cy-parent :cy} (state-read/get-bubble parent-bubble-id)
+        new-state (create-bubble-and-link! parent-bubble-id cx-parent cy-parent)]
+    new-state))
 
 ;; START: Building link
 ;;TODO: UT

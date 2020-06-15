@@ -4,6 +4,7 @@
    [bubble.state-write :as state-write]
    [cljs.core.async :refer [chan put! <! go-loop]]
    [goog.events :as events]
+   [simulation.core]
    )
   (:import
    [goog.events EventType]
@@ -17,8 +18,11 @@
   (case event
 
     :create-bubble
-    (let [[bubble-id new-cx new-cy] args]
-      (state-write/create-bubble-and-link! bubble-id new-cx new-cy))
+    (let [[bubble-id new-cx new-cy] args
+          new-state (state-write/simulation-create-bubble-and-link bubble-id)]
+      ;;(state-write/create-bubble-and-link! bubble-id new-cx new-cy)
+      (simulation.core/launch-simulation new-state event-queue)
+      )
 
     :delete-bubble
     (let [[bubble-id] args]
@@ -27,6 +31,18 @@
     :delete-link
     (let [[src-id dst-id] args]
       (state-write/delete-link! src-id dst-id))
+
+    :simulation-move
+    (let [[nodes] args
+          nodes-good-shape
+          (->> nodes
+               (map
+                (fn [{:keys [id x y]}]
+                  [id {:cx x :cy y}]))
+               (into {}))]
+      (.log js/console "EVENT nodes"
+            nodes-good-shape)
+      (state-write/move-bubbles! nodes-good-shape))
 
     :dragging
     (let [[id cx cy] args]

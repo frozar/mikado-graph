@@ -308,25 +308,21 @@
     )
   )
 
-;; (deftest init-simulation_basic
-;;   (is
-;;    (=
-;;     (sw/init-simulation appstate-1-bubble ROOT-BUBBLE-ID "bubble-1")
-;;     {:nodes [{:id ROOT-BUBBLE-ID, :group 1}
-;;              {:id "bubble-1", :group 1}]
-;;      :links [{:source ROOT-BUBBLE-ID, :target "bubble-1", :value 10}]})))
+(deftest move-bubble_basic
+  (let [new-state
+        (#'sw/move-bubble appstate-2-bubble ROOT-BUBBLE-ID 100 -100)
+        {:keys [cx cy]} (sr/get-bubble new-state ROOT-BUBBLE-ID)]
+    (is (= cx 100))
+    (is (= cy -100))))
 
-;; (def fake-data
-;;   {:nodes [{:id "Myriel", :group 1, :fx 400, :fy 400}
-;;            {:id "Napoleon", :group 1}
-;;            {:id "Mlle.Baptistine", :group 1}
-;;            {:id "Mme.Magloire", :group 1}
-;;            {:id "CountessdeLo", :group 1}
-;;            ;; {:id "FAKE", :group 2}
-;;            ]
-
-;;    :links [{:source "Napoleon", :target "Myriel", :value 10}
-;;            {:source "Napoleon", :target "Mlle.Baptistine", :value 10}
-;;            {:source "Napoleon", :target "Mme.Magloire", :value 10}
-;;            {:source "Mlle.Baptistine", :target "CountessdeLo", :value 10}
-;;            {:source "Mme.Magloire", :target "CountessdeLo", :value 10}]})
+(deftest move-bubbles_basic
+  (let [new-state
+        (#'sw/move-bubbles appstate-2-bubble
+                           {ROOT-BUBBLE-ID {:cx 100 :cy -100}
+                            "bubble-1" {:cx 200 :cy -200}})
+        {cx0 :cx cy0 :cy} (sr/get-bubble new-state ROOT-BUBBLE-ID)
+        {cx1 :cx cy1 :cy} (sr/get-bubble new-state "bubble-1")]
+    (is (= cx0 100))
+    (is (= cy0 -100))
+    (is (= cx1 200))
+    (is (= cy1 -200))))
