@@ -52,7 +52,7 @@
    {:cx 0 :cy 0 :r 5 :fill "black"}])
 
 (defn camera-center []
-  (let [{:keys [cx cy]} (camera/state)]
+  (let [{:keys [cx cy]} (camera/state-center)]
     [:circle
      {:cx cx :cy cy :r 5 :fill "red"}]))
 
@@ -69,7 +69,7 @@
 
     :reagent-render
     (fn []
-      (let [{:keys [width height]} (camera/state)]
+      (let [{:keys [width height]} (camera/state-dimension)]
         [:svg
          {:id "svg-canvas"
           :viewBox (camera/camera->viewBox-str)

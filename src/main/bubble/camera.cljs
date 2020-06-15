@@ -30,8 +30,11 @@
 (defonce camera
   (reagent/atom (init-camera)))
 
-(defn state []
-  (dissoc @camera :zoom))
+(defn state-center []
+  (select-keys @camera [:cx :cy]))
+
+(defn state-dimension []
+  (select-keys @camera [:width :height]))
 
 (defn- camera->viewBox [camera]
   (let [width  (/ (:width camera)  (:zoom camera))
