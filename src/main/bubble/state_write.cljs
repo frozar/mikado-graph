@@ -159,7 +159,7 @@
 (defn simulation-create-bubble-and-link [parent-bubble-id]
   (let [{cx-parent :cx
          cy-parent :cy} (state-read/get-bubble parent-bubble-id)
-        new-state (create-bubble-and-link! parent-bubble-id cx-parent cy-parent)]
+        new-state (create-bubble-and-link! parent-bubble-id cx-parent (- cy-parent 10))]
     new-state))
 
 ;; START: Building link

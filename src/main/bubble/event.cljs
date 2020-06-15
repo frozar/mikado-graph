@@ -40,8 +40,8 @@
                 (fn [{:keys [id x y]}]
                   [id {:cx x :cy y}]))
                (into {}))]
-      (.log js/console "EVENT nodes"
-            nodes-good-shape)
+      ;; (.log js/console "EVENT nodes"
+      ;;       nodes-good-shape)
       (state-write/move-bubbles! nodes-good-shape))
 
     :dragging
