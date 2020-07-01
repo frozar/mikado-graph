@@ -5,7 +5,17 @@
    [cljs.core.async :refer [put!]]
    [cljsjs.d3]
    [clojure.walk :as walk]
+   ["/d3/gravity" :as gravity]
    ))
+
+;; (ns-imports 'gravity)
+;; (ns-imports 'walk)
+
+;; (gravity/toto)
+;; (gravity/toto)
+;; (gravity/force)
+
+;; (toto)
 
 (defn appstate->graph [appstate]
   (let [nodes-field
@@ -42,21 +52,19 @@
                     (-> js/d3
                         (.forceLink)
                         (.id (fn [d] (.-id d)))
-                        (.distance 300)
-                        (.strength 0.05)
+                        (.distance 200)
+                        (.strength 0.4)
                         ))
             (.force "charge"
                     (->  js/d3
                          (.forceManyBody)
-                         (.strength -750)
-                         (.distanceMin 0)))
+                         (.strength -2500)))
             (.force "center"
-                    (.forceCenter
-                     js/d3
-                     ;; (/ width 2)
-                     ;; (/ height 2)
-                     cx-svg-user
-                     cy-svg-user))
+                    (.forceCenter js/d3 cx-svg-user cy-svg-user))
+            (.force "gravity"
+                    (->  (gravity/force)
+                         (.strength (* 0.125 500))
+                         (.fixId "root")))
             )
         ]
 
