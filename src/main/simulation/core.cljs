@@ -61,6 +61,10 @@
                          (.strength -2500)))
             (.force "center"
                     (.forceCenter js/d3 cx-svg-user cy-svg-user))
+            (.force "collision"
+                    (->  js/d3
+                         (.forceCollide 100)))
+            ;; the gravity force relies on a custom implementation
             (.force "gravity"
                     (->  (gravity/force)
                          (.strength (* 0.125 500))
