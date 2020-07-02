@@ -13,16 +13,17 @@
 (def event-queue (chan))
 
 (def interaction (atom nil))
+(def simulation  (atom true))
 
 (go-loop [[event & args] (<! event-queue)]
   (case event
 
     :create-bubble
-    (let [[bubble-id new-cx new-cy] args
-          new-state (state-write/simulation-create-bubble-and-link bubble-id)]
-      ;;(state-write/create-bubble-and-link! bubble-id new-cx new-cy)
-      (simulation.core/launch-simulation new-state event-queue)
-      )
+    (let [[bubble-id new-cx new-cy] args]
+      (if @simulation
+        (let [new-state (state-write/simulation-create-bubble-and-link bubble-id)]
+          (simulation.core/launch-simulation new-state event-queue))
+        (state-write/create-bubble-and-link! bubble-id new-cx new-cy)))
 
     :delete-bubble
     (let [[bubble-id] args]
@@ -115,6 +116,10 @@
     "Home"
     (when (not= @interaction "edition")
       (put! camera/event-queue [:home]))
+
+    "s"
+    (when (not= @interaction "edition")
+      (swap! simulation not))
 
     nil
     ))
