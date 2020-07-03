@@ -19,9 +19,12 @@
 ;; Store the settings if simulation is enable or not
 (def simulation? (atom true))
 
+(def print-debug? false)
+
 (go-loop [[event & args] (<! event-queue)]
-  (.log js/console "event " event)
-  (.log js/console "args " args)
+  (when print-debug?
+    (.debug js/console "event " event)
+    (.debug js/console "args " args))
   (case event
 
     :create-bubble
@@ -55,26 +58,25 @@
 
     :dragging
     (let [[id cx cy] args]
-      (state-write/move-bubble! id cx cy)
-      )
+      (state-write/move-bubble! id cx cy))
 
     :build-link-start
     (let [[id mouse-x mouse-y] args]
       (reset! interaction "build-link")
       (state-write/set-link-src! id)
-      (state-write/set-mouse-position! mouse-x mouse-y)
-      )
+      (state-write/set-mouse-position! mouse-x mouse-y))
 
     :build-link-move
     (let [[mouse-x mouse-y] args]
       (state-write/set-mouse-position! mouse-x mouse-y))
 
     :build-link-end
-    (let [[id] args]
-      (state-write/building-link-end! id)
+    (let [[id] args
+          new-state (state-write/building-link-end! id)]
+      (when @simulation?
+        (simulation.core/launch-simulation! new-state event-queue))
       (state-write/reset-build-link!)
-      (reset! interaction nil)
-      )
+      (reset! interaction nil))
 
     :build-link-exit
     (do
@@ -107,7 +109,8 @@
     (state-write/toggle-rough-layout!)
 
     )
-  (.log js/console "appstate " @state/appstate)
+  (when print-debug?
+    (.debug js/console "appstate " @state/appstate))
   (recur (<! event-queue)))
 
 (defn- window-keydown-evt
