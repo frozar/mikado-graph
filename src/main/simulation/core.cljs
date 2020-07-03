@@ -68,19 +68,19 @@
                         (.distance 200)
                         (.strength 0.4)))
             (.force "charge"
-                    (->  js/d3
-                         (.forceManyBody)
-                         (.strength -2500)))
+                    (-> js/d3
+                        (.forceManyBody)
+                        (.strength -2500)))
             (.force "center"
                     (.forceCenter js/d3 cx-svg-user cy-svg-user))
             (.force "collision"
-                    (->  js/d3
-                         (.forceCollide 100)))
+                    (-> js/d3
+                        (.forceCollide 100)))
             ;; the gravity force relies on a custom implementation
             (.force "gravity"
-                    (->  (gravity/force)
-                         (.strength (* 0.125 500))
-                         (.fixId "root"))))]
+                    (-> (gravity/force)
+                        (.strength (* 0.125 500))
+                        (.fixId "root"))))]
 
     (-> sim
         (.nodes

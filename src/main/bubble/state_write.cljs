@@ -157,11 +157,16 @@
 
 (macro/BANG create-bubble-and-link)
 
+(defn- get-epsilon []
+  (- (rand 1) 0.5))
+
 (defn simulation-create-bubble-and-link [parent-bubble-id]
   (let [{cx-parent :cx
          cy-parent :cy} (state-read/get-bubble parent-bubble-id)
-        new-state (create-bubble-and-link! parent-bubble-id cx-parent (- cy-parent 10))]
+        new-cx-parent (+ cx-parent (get-epsilon))
+        new-state (create-bubble-and-link! parent-bubble-id new-cx-parent (- cy-parent 10))]
     new-state))
+
 
 ;; START: Building link
 ;;TODO: UT
