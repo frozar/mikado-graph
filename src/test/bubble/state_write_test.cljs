@@ -50,8 +50,14 @@
         (#'sw/update-bubble ROOT-BUBBLE-ID {:cx -10 :cy -20})
         (sr/get-bubble ROOT-BUBBLE-ID))
     (b/update-bubble b/root-bubble {:cx -10 :cy -20}))
-   "The root bubble is correctly updated")
-  )
+   "The root bubble is correctly updated"))
+
+(deftest update-bubble_id_doesnt_exist
+  (is
+   (=
+    (-> (#'sd/init-appstate)
+        (#'sw/update-bubble "id-doesnt-exist" {:cx -10 :cy -20}))
+    (#'sd/init-appstate))))
 
 (def appstate-2-bubble
   (-> (#'sd/init-appstate)

@@ -19,7 +19,9 @@
   (update appstate :bubbles dissoc bubble-id))
 
 (defn- update-bubble [appstate bubble-id hashmap]
-  (update-in appstate [:bubbles bubble-id] merge hashmap))
+  (if (state-read/get-bubble appstate bubble-id)
+    (update-in appstate [:bubbles bubble-id] merge hashmap)
+    appstate))
 ;; END: bubble part
 
 ;; START: link part
