@@ -1,5 +1,6 @@
 (ns bubble.state-read-test
   (:require
+   [bubble.bubble :as b]
    [bubble.constant :refer [ROOT-BUBBLE-ID]]
    [bubble.state :as sd]
    [bubble.state-read :as sr]
@@ -54,3 +55,49 @@
         sr/get-links)
     [{:src "root", :dst "bubble-1"}
      {:src "root", :dst "bubble-2"}])))
+
+(deftest connected-graph_1-bubble
+  (is
+   (=
+    (-> appstate-1-bubble
+        (sr/connected-graph ROOT-BUBBLE-ID))
+    appstate-1-bubble)))
+
+(deftest connected-graph_3-bubble-1-link
+  (is
+   (=
+    (-> appstate-1-bubble
+        (sw/create-bubble-and-link ROOT-BUBBLE-ID 450 450 "bubble-1")
+        (#'sw/add-bubble "bubble-2" (b/create-bubble "bubble-2" 0 0))
+        (sr/connected-graph ROOT-BUBBLE-ID)
+        sr/get-bubbles
+        keys
+        (#(into #{} %))
+        )
+    #{"root" "bubble-1"})))
+
+(deftest connected-graph_3-bubble-2-link
+  (is
+   (=
+    (-> appstate-1-bubble
+        (sw/create-bubble-and-link ROOT-BUBBLE-ID 450 450 "bubble-1")
+        (#'sw/add-bubble "bubble-2" (b/create-bubble "bubble-2" 0 0))
+        (sw/add-link "bubble-2" "bubble-1")
+        (sr/connected-graph ROOT-BUBBLE-ID)
+        sr/get-links
+        )
+    [{:src "root", :dst "bubble-1"}])))
+
+(deftest connected-graph_4-bubble-3-link
+  (is
+   (=
+    (-> appstate-1-bubble
+        (sw/create-bubble-and-link ROOT-BUBBLE-ID 450 450 "bubble-1")
+        (sw/create-bubble-and-link "bubble-1" 350 450 "bubble-2")
+        (sw/create-bubble-and-link "bubble-1" 550 450 "bubble-3")
+        (sr/connected-graph ROOT-BUBBLE-ID)
+        sr/get-bubbles
+        keys
+        (#(into #{} %))
+        )
+    #{"root" "bubble-1" "bubble-2" "bubble-3"})))

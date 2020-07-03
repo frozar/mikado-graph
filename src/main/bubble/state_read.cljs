@@ -88,6 +88,34 @@
     (not= (some #{{:src src-id :dst dst-id}} links) nil)))
 ;; END: link part
 
+;; START: computer connected graph
+(defn- reachable-nodes [appstate id]
+  (loop [node-to-explore [id]
+         node-visited []]
+    (if (empty? node-to-explore)
+      node-visited
+      (let [current-id (first node-to-explore)
+            new-id-node-to-explore
+            (->> appstate
+                 get-links
+                 (filter (fn [m] (= (:src m) current-id)))
+                 (map :dst))
+            update-node-to-explore
+            (apply merge (rest node-to-explore) new-id-node-to-explore)
+            update-node-visited
+            (conj node-visited current-id)
+            ]
+        (recur update-node-to-explore update-node-visited)))))
+
+(defn connected-graph
+  ([id] (connected-graph @appstate id))
+  ([appstate id]
+   (let [nodes-to-keep (reachable-nodes appstate id)]
+     (-> appstate
+         (update :bubbles #(select-keys % nodes-to-keep))
+         (update :links #(filterv (fn [{src :src}] (some #{src} nodes-to-keep)) %))))))
+;; END: computer connected graph
+
 (defn get-mouse-position []
   (:mouse-position @appstate))
 

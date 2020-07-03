@@ -1,6 +1,7 @@
 (ns simulation.core
   (:require
    [bubble.camera :as camera]
+   [bubble.constant :refer [ROOT-BUBBLE-ID]]
    [bubble.state-read :as state-read]
    [cljs.core.async :refer [put!]]
    [cljsjs.d3]
@@ -87,9 +88,7 @@
         (.on "tick"
              (ticked event-chan sim))
         (.on "end"
-             (stop-simulation!))
-        ;; (.alphaMin 0.1)
-        )
+             (stop-simulation!)))
 
     (-> sim
         (.force "link")
@@ -117,14 +116,10 @@
      :links links-field}))
 
 (defn launch-simulation! [appstate event-queue]
-  (let [graph (appstate->graph appstate)
+  (let [connected-graph (state-read/connected-graph appstate ROOT-BUBBLE-ID)
+        graph (appstate->graph connected-graph)
+        nb-nodes (-> connected-graph state-read/get-bubbles count)
         {:keys [cx cy]} (camera/state-center)]
     (stop-simulation!)
-    (reset! current-simulation (simulation event-queue cx cy (clj->js graph))))
-  #_(js/setTimeout
-   (fn []
-     (.log js/console "2 second")
-     (when @current-simulation
-       (.stop @current-simulation))
-     )
-   2000))
+    (when (< 1 nb-nodes)
+      (reset! current-simulation (simulation event-queue cx cy (clj->js graph))))))

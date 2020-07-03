@@ -28,8 +28,7 @@
 (defn add-link
   ([appstate id-src id-dst]
    (add-link appstate {:src id-src :dst id-dst}))
-  ([appstate {id-src :src id-dst :dst
-              :as link}]
+  ([appstate {id-src :src id-dst :dst :as link}]
    (if (and
         (not= id-src id-dst)
         (state-read/bubble-id-exist appstate id-src)
