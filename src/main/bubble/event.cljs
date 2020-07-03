@@ -1,6 +1,7 @@
 (ns bubble.event
   (:require
    [bubble.camera :as camera]
+   [bubble.state :as state] ;; only for debug purpose
    [bubble.state-write :as state-write]
    [cljs.core.async :refer [chan put! <! go-loop]]
    [goog.events :as events]
@@ -12,26 +13,35 @@
 
 (def event-queue (chan))
 
+;; TODO: try to get ride of this variable
 (def interaction (atom nil))
-(def simulation  (atom true))
+
+;; Store the settings if simulation is enable or not
+(def simulation? (atom true))
 
 (go-loop [[event & args] (<! event-queue)]
+  (.log js/console "event " event)
+  (.log js/console "args " args)
   (case event
 
     :create-bubble
     (let [[bubble-id new-cx new-cy] args]
-      (if @simulation
+      (if @simulation?
         (let [new-state (state-write/simulation-create-bubble-and-link bubble-id)]
-          (simulation.core/launch-simulation new-state event-queue))
+          (simulation.core/launch-simulation! new-state event-queue))
         (state-write/create-bubble-and-link! bubble-id new-cx new-cy)))
 
     :delete-bubble
-    (let [[bubble-id] args]
-      (state-write/delete-bubble-and-update-link! bubble-id))
+    (let [[bubble-id] args
+          new-state (state-write/delete-bubble-and-update-link! bubble-id)]
+      (when @simulation?
+        (simulation.core/launch-simulation! new-state event-queue)))
 
     :delete-link
-    (let [[src-id dst-id] args]
-      (state-write/delete-link! src-id dst-id))
+    (let [[src-id dst-id] args
+          new-state (state-write/delete-link! src-id dst-id)]
+      (when @simulation?
+        (simulation.core/launch-simulation! new-state event-queue)))
 
     :simulation-move
     (let [[nodes] args
@@ -41,8 +51,6 @@
                 (fn [{:keys [id x y]}]
                   [id {:cx x :cy y}]))
                (into {}))]
-      ;; (.log js/console "EVENT nodes"
-      ;;       nodes-good-shape)
       (state-write/move-bubbles! nodes-good-shape))
 
     :dragging
@@ -99,6 +107,7 @@
     (state-write/toggle-rough-layout!)
 
     )
+  (.log js/console "appstate " @state/appstate)
   (recur (<! event-queue)))
 
 (defn- window-keydown-evt
@@ -106,9 +115,6 @@
   Currently the only interaction is with the build-link action."
   [evt]
   (condp = (.-key evt)
-    "Escape"
-    (put! event-queue [:build-link-exit])
-
     "t"
     (when (not= @interaction "edition")
       (put! event-queue [:toggle-rough-layout]))
@@ -119,7 +125,7 @@
 
     "s"
     (when (not= @interaction "edition")
-      (swap! simulation not))
+      (swap! simulation? not))
 
     nil
     ))
