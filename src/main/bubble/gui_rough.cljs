@@ -279,23 +279,26 @@
          ]
         ))}))
 
+(def ellipse-memoized (memoize rough/ellipse))
+
 (defn- draw-ellipse
   [{:keys [cx cy done? type]} rx ry
    event-property]
-  (rough/ellipse
-   cx cy (* 2 rx) (* 2 ry)
-   {:rough-option
-    {:seed 0
-     :strokeWidth 3
-     :fill (if done? const/DONE-COLOR const/PENDING-COLOR)
-     :fillStyle "hachure"
-     :fillWeight 1.5
-     :hachureAngle 110
-     :hachureGap
-     (if (= type const/ROOT-BUBBLE-TYPE)
-       10
-       6)}
-    :group-option event-property}))
+  (->
+   (ellipse-memoized
+    0 0 (* 2 rx) (* 2 ry)
+    {:rough-option
+     {:seed 0
+      :strokeWidth 3
+      :fill (if done? const/DONE-COLOR const/PENDING-COLOR)
+      :fillStyle "hachure"
+      :fillWeight 1.5
+      :hachureAngle 110
+      :hachureGap
+      (if (= type const/ROOT-BUBBLE-TYPE)
+        10
+        6)}})
+   (assoc 1 (merge event-property {:transform (str "translate(" cx " " cy ")")}))))
 
 (defn- draw-bubble [{:keys [id type rx ry edition?] :as bubble}]
   (let [show-button? (reagent/atom false)]
@@ -321,7 +324,7 @@
            (event-factory/event-property-factory
             :ellipse
             bubble
-            (+ const/ROOT-BUBBLE-OFFSET  ry))]
+            (+ const/ROOT-BUBBLE-OFFSET ry))]
           [draw-ellipse bubble rx ry
            (event-factory/event-property-factory :ellipse bubble ry)]]
 
