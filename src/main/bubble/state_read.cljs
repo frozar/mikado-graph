@@ -7,6 +7,9 @@
 
 ;; Read application state
 
+(defn get-state []
+  @appstate)
+
 ;; START: bubble part
 (defn get-bubble
   ([id] (get-bubble @appstate id))

@@ -32,8 +32,9 @@
                  (+ init-bubble-cy scaled-vec-trans-y)]))
         ))))
 
-(defn drag-end-fn [drag-move drag-end-atom on-end]
+(defn drag-end-fn [bubble-id drag-move drag-end-atom on-end]
   (fn []
+    (put! event/event-queue [:dragging-end bubble-id])
     (events/unlisten js/window EventType.MOUSEMOVE drag-move)
     (events/unlisten js/window EventType.MOUSEUP @drag-end-atom)
     (on-end)))
@@ -43,7 +44,7 @@
   ([bubble-id on-start on-end]
    (let [drag-move (drag-move-fn bubble-id)
          drag-end-atom (atom nil)
-         drag-end (drag-end-fn drag-move drag-end-atom on-end)]
+         drag-end (drag-end-fn bubble-id drag-move drag-end-atom on-end)]
      (on-start)
      (reset! drag-end-atom drag-end)
      (events/listen js/window EventType.MOUSEMOVE drag-move)

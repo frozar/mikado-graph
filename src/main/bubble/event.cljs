@@ -1,7 +1,7 @@
 (ns bubble.event
   (:require
    [bubble.camera :as camera]
-   [bubble.state :as state] ;; only for debug purpose
+   [bubble.state-read :as state-read]
    [bubble.state-write :as state-write]
    [cljs.core.async :refer [chan put! <! go-loop]]
    [goog.events :as events]
@@ -58,7 +58,14 @@
 
     :dragging
     (let [[id cx cy] args]
-      (state-write/move-bubble! id cx cy))
+      (if @simulation?
+        (simulation.core/simulation-drag! (state-read/get-state) id cx cy event-queue)
+        (state-write/move-bubble! id cx cy)))
+
+    :dragging-end
+    (let [[id] args]
+      (when @simulation?
+        (simulation.core/simulation-drag-end! id)))
 
     :build-link-start
     (let [[id mouse-x mouse-y] args]
@@ -110,7 +117,7 @@
 
     )
   (when print-debug?
-    (.debug js/console "appstate " @state/appstate))
+    (.debug js/console "appstate " (state-read/get-state)))
   (recur (<! event-queue)))
 
 (defn- window-keydown-evt
@@ -128,6 +135,7 @@
 
     "s"
     (when (not= @interaction "edition")
+      (.debug js/console "@simulation? " (not @simulation?))
       (swap! simulation? not))
 
     nil
