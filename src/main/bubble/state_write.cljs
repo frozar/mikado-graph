@@ -157,7 +157,11 @@
 
 (macro/BANG create-bubble-and-link)
 
-(defn- get-epsilon []
+(defn- get-epsilon
+  "Generate a float in [-0.5 ; 0.5].
+  Used to avoid the superposition of bubbles when 2 bubbles is successively added
+  to the root bubble."
+  []
   (- (rand 1) 0.5))
 
 (defn simulation-create-bubble-and-link [parent-bubble-id]
@@ -166,7 +170,6 @@
         new-cx-parent (+ cx-parent (get-epsilon))
         new-state (create-bubble-and-link! parent-bubble-id new-cx-parent (- cy-parent 10))]
     new-state))
-
 
 ;; START: Building link
 ;;TODO: UT
