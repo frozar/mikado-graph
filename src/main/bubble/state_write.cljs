@@ -19,17 +19,16 @@
   (update appstate :bubbles dissoc bubble-id))
 
 (defn- update-bubble [appstate bubble-id hashmap]
-  (update-in appstate [:bubbles bubble-id] merge hashmap))
-
-(macro/BANG update-bubble)
+  (if (state-read/get-bubble appstate bubble-id)
+    (update-in appstate [:bubbles bubble-id] merge hashmap)
+    appstate))
 ;; END: bubble part
 
 ;; START: link part
 (defn add-link
   ([appstate id-src id-dst]
    (add-link appstate {:src id-src :dst id-dst}))
-  ([appstate {id-src :src id-dst :dst
-              :as link}]
+  ([appstate {id-src :src id-dst :dst :as link}]
    (if (and
         (not= id-src id-dst)
         (state-read/bubble-id-exist appstate id-src)
@@ -105,11 +104,21 @@
 
 (macro/BANG resize-bubble)
 
-;;TODO: UT
 (defn- move-bubble [appstate bubble-id cx cy]
   (update-bubble appstate bubble-id {:cx cx :cy cy}))
 
 (macro/BANG move-bubble)
+
+(defn- move-bubbles [appstate nodes]
+  {:pre [(map? nodes)]}
+  (if (empty? nodes)
+    appstate
+    (let [[id {:keys [cx cy]}] (first nodes)
+          left-nodes (->> nodes rest (into {}))
+          new-state (move-bubble appstate id cx cy)]
+      (recur new-state left-nodes))))
+
+(macro/BANG move-bubbles)
 
 ;;TODO: UT
 (defn- save-text-bubble [appstate bubble-id text]
@@ -148,6 +157,19 @@
 
 (macro/BANG create-bubble-and-link)
 
+(defn- get-epsilon
+  "Generate a float in [-0.5 ; 0.5].
+  Used to avoid the superposition of bubbles when 2 bubbles is successively added
+  to the root bubble."
+  []
+  (- (rand 1) 0.5))
+
+(defn simulation-create-bubble-and-link [parent-bubble-id]
+  (let [{cx-parent :cx
+         cy-parent :cy} (state-read/get-bubble parent-bubble-id)
+        new-cx-parent (+ cx-parent (get-epsilon))
+        new-state (create-bubble-and-link! parent-bubble-id new-cx-parent (- cy-parent 10))]
+    new-state))
 
 ;; START: Building link
 ;;TODO: UT

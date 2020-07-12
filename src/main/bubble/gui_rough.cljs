@@ -51,17 +51,18 @@
                    :key (str key-value "-shadow"))))))
    path-to-shallow])
 
+(def rough-path-memoized (memoize rough/path))
+
 (defn- draw-path
   ([src-b dst-b event-property] (draw-path src-b dst-b event-property true))
   ([src-b dst-b event-property to-shadow?]
    (let [path-str (link->path-str src-b dst-b)
          key-str (link->key-str src-b dst-b)
-         rough-path (rough/path path-str
+         rough-path (rough-path-memoized path-str
                                 {:rough-option {:stroke "black"
                                                 :strokeWidth 2
                                                 :roughness 2
-                                                :roughnessGain 1
-                                                :seed 0}
+                                                :roughnessGain 1}
                                  :group-option (merge event-property
                                                       {:key key-str})})]
      (if to-shadow?
@@ -72,16 +73,15 @@
   [src-b dst-b event-property]
   (let [th0 (gui-common/angle-between-bubbles src-b dst-b)
         [dst-pt-x dst-pt-y] (gui-common/border-point dst-b th0 :target)
-        deg-th0 (/ (* th0 180) js/Math.PI)
-        ]
-    (rough/path "M -10 -20 L 0 0 L 10 -20 L 0 -5 Z"
-                {:rough-option {:stroke "black"
-                                :strokeWidth 1
-                                }
-                 :group-option (merge event-property
-                                      {:transform
-                                       (str "translate(" dst-pt-x " " dst-pt-y ") "
-                                            "rotate("(+ deg-th0 -90)")")})})))
+        deg-th0 (/ (* th0 180) js/Math.PI)]
+    (->
+     (rough-path-memoized "M -10 -20 L 0 0 L 10 -20 L 0 -5 Z"
+                          {:rough-option {:stroke "black"
+                                          :strokeWidth 1}})
+     (assoc 1 (merge event-property
+                     {:transform
+                      (str "translate(" dst-pt-x " " dst-pt-y ") "
+                           "rotate("(+ deg-th0 -90)")")})))))
 
 (defn- draw-link
   [src-b dst-b]
@@ -279,62 +279,65 @@
          ]
         ))}))
 
+(def ellipse-memoized (memoize rough/ellipse))
+
 (defn- draw-ellipse
-  [{:keys [cx cy done? type]} rx ry
-   event-property]
-  (rough/ellipse
-   cx cy (* 2 rx) (* 2 ry)
-   {:rough-option
-    {:seed 0
-     :strokeWidth 3
-     :fill (if done? const/DONE-COLOR const/PENDING-COLOR)
-     :fillStyle "hachure"
-     :fillWeight 1.5
-     :hachureAngle 110
-     :hachureGap
-     (if (= type const/ROOT-BUBBLE-TYPE)
-       10
-       6)}
-    :group-option event-property}))
+  [{:keys [cx cy done? type]} rx ry event-property fill?]
+  (->
+   (ellipse-memoized
+    0 0 (* 2 rx) (* 2 ry)
+    {:rough-option
+     {:seed 0
+      :strokeWidth 3
+      :fill (if fill?
+              (if done? const/DONE-COLOR const/PENDING-COLOR)
+              "none")
+      :fillStyle "hachure"
+      :fillWeight 1.5
+      :hachureAngle 110
+      :hachureGap
+      (if (= type const/ROOT-BUBBLE-TYPE)
+        10
+        6)}})
+   (assoc 1 (merge event-property {:transform (str "translate(" cx " " cy ")")}))))
 
 (defn- draw-bubble [{:keys [id type rx ry edition?] :as bubble}]
   (let [show-button? (reagent/atom false)]
     (fn [{:keys [id type rx ry edition?] :as bubble}]
-      [:g
-       {:class "bubble"
-        :key (str id "-group")
-        :pointer-events "bounding-box"
-        :on-mouse-over
-        (fn []
-          (if (state-read/get-link-src)
-            (reset! show-button? false)
-            (reset! show-button? true)))
-        :on-mouse-leave
-        #(reset! show-button? false)}
+      (let [offset (if (type const/ROOT-BUBBLE-TYPE) const/ROOT-BUBBLE-OFFSET 0)
+            event-property (event-factory/event-property-factory
+                            :ellipse
+                            bubble
+                            (+ offset ry))]
+        [:g
+         {:class "bubble"
+          :key (str id "-group")
+          :pointer-events "bounding-box"
+          :on-mouse-over
+          (fn []
+            (if (state-read/get-link-src)
+              (reset! show-button? false)
+              (reset! show-button? true)))
+          :on-mouse-leave
+          #(reset! show-button? false)}
 
-       (condp = type
-         const/ROOT-BUBBLE-TYPE
-         [:<>
-          [draw-ellipse bubble
-           (+ const/ROOT-BUBBLE-OFFSET rx)
-           (+ const/ROOT-BUBBLE-OFFSET ry)
-           (event-factory/event-property-factory
-            :ellipse
-            bubble
-            (+ const/ROOT-BUBBLE-OFFSET  ry))]
-          [draw-ellipse bubble rx ry
-           (event-factory/event-property-factory :ellipse bubble ry)]]
+         (condp = type
+           const/ROOT-BUBBLE-TYPE
+           [:<>
+            [draw-ellipse bubble
+             (+ const/ROOT-BUBBLE-OFFSET rx)
+             (+ const/ROOT-BUBBLE-OFFSET ry) event-property true]
+            [draw-ellipse bubble rx ry event-property false]]
 
-         const/BUBBLE-TYPE
-         [draw-ellipse bubble rx ry
-          (event-factory/event-property-factory :ellipse bubble ry)]
+           const/BUBBLE-TYPE
+           [draw-ellipse bubble rx ry event-property true]
 
-         nil)
+           nil)
 
-       (if edition?
-         [gui-common/bubble-input bubble]
-         [:<>
-          [bubble-text bubble (event-factory/event-property-factory :text bubble)]])])))
+         (if edition?
+           [gui-common/bubble-input bubble]
+           [:<>
+            [bubble-text bubble (event-factory/event-property-factory :text bubble)]])]))))
 
 (defn draw-bubbles [bubbles]
   [:<>

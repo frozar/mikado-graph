@@ -1,9 +1,12 @@
 (ns bubble.event
   (:require
    [bubble.camera :as camera]
+   [bubble.constant :refer [ROOT-BUBBLE-ID]]
+   [bubble.state-read :as state-read]
    [bubble.state-write :as state-write]
    [cljs.core.async :refer [chan put! <! go-loop]]
    [goog.events :as events]
+   [simulation.core]
    )
   (:import
    [goog.events EventType]
@@ -11,45 +14,86 @@
 
 (def event-queue (chan))
 
+;; TODO: try to get ride of this variable
 (def interaction (atom nil))
 
+;; Store the settings if simulation is enable or not
+(def simulation? (atom true))
+
+(def print-debug? false)
+
 (go-loop [[event & args] (<! event-queue)]
+  (when print-debug?
+    (.debug js/console "event " event)
+    (.debug js/console "args " args))
   (case event
 
     :create-bubble
     (let [[bubble-id new-cx new-cy] args]
-      (state-write/create-bubble-and-link! bubble-id new-cx new-cy))
+      (if @simulation?
+        (let [new-state (state-write/simulation-create-bubble-and-link bubble-id)]
+          (simulation.core/launch-simulation! new-state event-queue))
+        (state-write/create-bubble-and-link! bubble-id new-cx new-cy)))
 
     :delete-bubble
-    (let [[bubble-id] args]
-      (state-write/delete-bubble-and-update-link! bubble-id))
+    (let [[bubble-id] args
+          new-state (state-write/delete-bubble-and-update-link! bubble-id)]
+      (when @simulation?
+        (simulation.core/launch-simulation! new-state event-queue)))
 
     :delete-link
-    (let [[src-id dst-id] args]
-      (state-write/delete-link! src-id dst-id))
+    (let [[src-id dst-id] args
+          new-state (state-write/delete-link! src-id dst-id)]
+      (when (and @simulation?
+                 (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID src-id)
+                 (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID dst-id))
+        (simulation.core/launch-simulation! new-state event-queue)))
+
+    :simulation-move
+    (let [[nodes] args
+          nodes-good-shape
+          (->> nodes
+               (map
+                (fn [{:keys [id x y]}]
+                  [id {:cx x :cy y}]))
+               (into {}))]
+      (state-write/move-bubbles! nodes-good-shape))
+
+    :dragging-start
+    (let [[id] args]
+      (when @simulation?
+        (simulation.core/simulation-drag-start! id)))
 
     :dragging
     (let [[id cx cy] args]
-      (state-write/move-bubble! id cx cy)
-      )
+      (if (and @simulation?
+               (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID id))
+        (simulation.core/simulation-drag! (state-read/get-state) id cx cy event-queue)
+        (state-write/move-bubble! id cx cy)))
+
+    :dragging-end
+    (let [[id] args]
+      (when @simulation?
+        (simulation.core/simulation-drag-end! id)))
 
     :build-link-start
     (let [[id mouse-x mouse-y] args]
       (reset! interaction "build-link")
       (state-write/set-link-src! id)
-      (state-write/set-mouse-position! mouse-x mouse-y)
-      )
+      (state-write/set-mouse-position! mouse-x mouse-y))
 
     :build-link-move
     (let [[mouse-x mouse-y] args]
       (state-write/set-mouse-position! mouse-x mouse-y))
 
     :build-link-end
-    (let [[id] args]
-      (state-write/building-link-end! id)
+    (let [[id] args
+          new-state (state-write/building-link-end! id)]
+      (when (and @simulation?
+                 (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID id))
+        (simulation.core/launch-simulation! new-state event-queue))
       (state-write/reset-build-link!)
-      (reset! interaction nil)
-      )
+      (reset! interaction nil))
 
     :build-link-exit
     (do
@@ -82,6 +126,8 @@
     (state-write/toggle-rough-layout!)
 
     )
+  (when print-debug?
+    (.debug js/console "appstate " (state-read/get-state)))
   (recur (<! event-queue)))
 
 (defn- window-keydown-evt
@@ -89,9 +135,6 @@
   Currently the only interaction is with the build-link action."
   [evt]
   (condp = (.-key evt)
-    "Escape"
-    (put! event-queue [:build-link-exit])
-
     "t"
     (when (not= @interaction "edition")
       (put! event-queue [:toggle-rough-layout]))
@@ -99,6 +142,11 @@
     "Home"
     (when (not= @interaction "edition")
       (put! camera/event-queue [:home]))
+
+    "s"
+    (when (not= @interaction "edition")
+      (.debug js/console "@simulation? " (not @simulation?))
+      (swap! simulation? not))
 
     nil
     ))

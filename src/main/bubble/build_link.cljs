@@ -18,13 +18,28 @@
   (let [[mouse-x mouse-y] (get-mouse-svg-user-position evt)]
     (put! event/event-queue [:build-link-move mouse-x mouse-y])))
 
+(defn- build-link-exit-evt
+  "Configure the press to escape-key to exit interactive edition mode.
+  Currently the only interaction is with the build-link action."
+  [evt]
+  (condp = (.-key evt)
+    "Escape"
+    (do
+      (events/unlisten js/window EventType.KEYDOWN build-link-exit-evt)
+      (events/unlisten js/window EventType.MOUSEMOVE build-link-move)
+      (put! event/event-queue [:build-link-exit]))
+
+    nil
+    ))
+
 (defn build-link-start
   ([bubble-id mouse-x mouse-y]
    (build-link-start bubble-id mouse-x mouse-y (fn [])))
   ([bubble-id mouse-x mouse-y on-start]
    (on-start)
    (put! event/event-queue [:build-link-start bubble-id mouse-x mouse-y])
-   (events/listen js/window EventType.MOUSEMOVE build-link-move)))
+   (events/listen js/window EventType.MOUSEMOVE build-link-move)
+   (events/listen js/window EventType.KEYDOWN build-link-exit-evt)))
 
 (defn build-link-start-fn [bubble-id]
   (fn [evt]
@@ -38,6 +53,7 @@
    (if-not (nil? (state-read/get-link-src))
      (do
        (events/unlisten js/window EventType.MOUSEMOVE build-link-move)
+       (events/unlisten js/window EventType.KEYDOWN build-link-exit-evt)
        (put! event/event-queue [:build-link-end bubble-id])
        (on-end)))))
 

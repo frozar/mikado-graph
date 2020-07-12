@@ -2,10 +2,14 @@
   (:require
    [bubble.state :refer [appstate]]
    [bubble.bubble :as bubble]
+   [clojure.set :as cljset]
    [debux.cs.core :refer-macros [clog clogn dbg dbgn break]]
    ))
 
 ;; Read application state
+
+(defn get-state []
+  @appstate)
 
 ;; START: bubble part
 (defn get-bubble
@@ -71,6 +75,21 @@
   (let [bbox (graph-bbox)]
     {:width  (- (:right bbox) (:left bbox))
      :height (- (:bottom bbox) (:top bbox))}))
+
+(defn graph-barycenter [appstate]
+  {:post [(map? %) (:x %) (:y %)]}
+  (let [nb-bubbles (->> appstate
+                        get-bubbles
+                        count)]
+    (->> appstate
+         get-bubbles
+         vals
+         (map (fn [{:keys [cx cy]}] [cx cy]))
+         (apply interleave)
+         (split-at nb-bubbles)
+         (map #(apply + %))
+         (map #(/ % nb-bubbles))
+         (#((fn [[x y]] {:x x :y y}) %)))))
 ;; END: bubble part
 
 ;; START: link part
@@ -87,6 +106,66 @@
   (let [links (get-links appstate)]
     (not= (some #{{:src src-id :dst dst-id}} links) nil)))
 ;; END: link part
+
+;; START: computer connected graph
+(defn- reachable-nodes [appstate id]
+  (loop [node-to-explore [id]
+         node-visited []]
+    (if (empty? node-to-explore)
+      node-visited
+      (let [current-id (first node-to-explore)
+            new-id-node-to-explore
+            (->> appstate
+                 get-links
+                 (filter (fn [l] (= (:src l) current-id)))
+                 (map :dst))
+            update-node-to-explore
+            (apply merge (rest node-to-explore) new-id-node-to-explore)
+            update-node-visited
+            (conj node-visited current-id)
+            ]
+        (recur update-node-to-explore update-node-visited)))))
+
+(defn- connected-nodes [appstate id]
+  (loop [node-to-explore [id]
+         node-visited []]
+    (if (empty? node-to-explore)
+      node-visited
+      (let [current-id (first node-to-explore)
+            new-id-node-to-explore
+            (->> appstate
+                 get-links
+                 (filter (fn [l] (or (= (:src l) current-id)
+                                     (= (:dst l) current-id))))
+                 (map (fn [{:keys [src dst]}] (if (= src current-id) dst src)))
+                 (#(into #{} %))
+                 (#(cljset/difference % (set node-to-explore) (set node-visited)))
+                 (#(into [] %)))
+            update-node-to-explore
+            (apply merge (rest node-to-explore) new-id-node-to-explore)
+            update-node-visited
+            (conj node-visited current-id)]
+        (recur update-node-to-explore update-node-visited)))))
+
+(defn connected-graph
+  ([id] (connected-graph @appstate id))
+  ([appstate id]
+   (let [nodes-to-keep (connected-nodes appstate id)]
+     (-> appstate
+         (update :bubbles #(select-keys % nodes-to-keep))
+         (update :links #(filterv (fn [{:keys [src dst]}]
+                                    (or (not (nil? (some #{src} nodes-to-keep)))
+                                        (not (nil? (some #{dst} nodes-to-keep))))) %))))))
+
+(defn is-connected? [appstate bubble-id-0 bubble-id-1]
+  (let [graph (connected-graph appstate bubble-id-0)]
+    (-> graph
+        get-bubbles
+        keys
+        (#(some #{bubble-id-1} %))
+        nil?
+        not)))
+;; END: computer connected graph
 
 (defn get-mouse-position []
   (:mouse-position @appstate))
