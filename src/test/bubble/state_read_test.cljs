@@ -79,13 +79,15 @@
   (is
    (=
     (-> appstate-1-bubble
-        (sw/create-bubble-and-link ROOT-BUBBLE-ID 450 450 "bubble-1")
+        (sw/create-bubble-and-link ROOT-BUBBLE-ID 0 0 "bubble-1")
         (#'sw/add-bubble "bubble-2" (b/create-bubble "bubble-2" 0 0))
         (sw/add-link "bubble-2" "bubble-1")
         (sr/connected-graph ROOT-BUBBLE-ID)
-        sr/get-links
+        sr/get-bubbles
+        keys
+        (#(into #{} %))
         )
-    [{:src "root", :dst "bubble-1"}])))
+    #{"root" "bubble-1" "bubble-2"})))
 
 (deftest connected-graph_4-bubble-3-link
   (is
@@ -122,3 +124,29 @@
         (sw/create-bubble-and-link ROOT-BUBBLE-ID 200 60 "bubble-2")
         sr/graph-barycenter)
     {:x 100 :y 30})))
+
+(deftest is-connected?_1-bubble
+  (is
+   (-> appstate-1-bubble
+       (sr/is-connected? ROOT-BUBBLE-ID ROOT-BUBBLE-ID))))
+
+(deftest is-connected?_2-bubble
+  (is
+   (-> appstate-1-bubble
+       (sw/create-bubble-and-link ROOT-BUBBLE-ID 450 450 "bubble-1")
+       (sr/is-connected? ROOT-BUBBLE-ID "bubble-1"))))
+
+(deftest is-connected?_2-bubble-0-link
+  (is
+   (not
+    (-> appstate-1-bubble
+        (#'sw/add-bubble "bubble-1" (b/create-bubble "bubble-1" 0 0))
+        (sr/is-connected? ROOT-BUBBLE-ID "bubble-1")))))
+
+(deftest is-connected?_3-bubble-2-link
+  (is
+   (-> appstate-1-bubble
+       (sw/create-bubble-and-link ROOT-BUBBLE-ID 0 0 "bubble-1")
+       (#'sw/add-bubble "bubble-2" (b/create-bubble "bubble-2" 0 0))
+       (sw/add-link "bubble-2" "bubble-1")
+       (sr/is-connected? ROOT-BUBBLE-ID "bubble-2"))))

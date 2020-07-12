@@ -146,16 +146,18 @@
   (let [js-nodes         (.nodes sim)
         idx-dragged-node (get-idx-by-id-js-node js-nodes dragged-node-id)
         js-node          (aget js-nodes idx-dragged-node)]
-    (set! (.-fx js-node) fx)
-    (set! (.-fy js-node) fy)))
+    (when js-node
+      (set! (.-fx js-node) fx)
+      (set! (.-fy js-node) fy))))
 
 (defn simulation-set-node-in-place [sim dragged-node-id]
   (let [js-nodes         (.nodes sim)
         idx-dragged-node (get-idx-by-id-js-node js-nodes dragged-node-id)
-        js-node          (aget js-nodes idx-dragged-node)
-        fx               (.-x js-node)
-        fy               (.-y js-node)]
-    (simulation-set-node-position sim dragged-node-id fx fy)))
+        js-node          (aget js-nodes idx-dragged-node)]
+    (when js-node
+      (let [fx               (.-x js-node)
+            fy               (.-y js-node)]
+        (simulation-set-node-position sim dragged-node-id fx fy)))))
 
 (defn simulation-drag-start! [dragged-node-id]
   (when-not (nil? @current-simulation)
