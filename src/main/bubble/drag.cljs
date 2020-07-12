@@ -46,6 +46,7 @@
          drag-end-atom (atom nil)
          drag-end (drag-end-fn bubble-id drag-move drag-end-atom on-end)]
      (on-start)
+     (put! event/event-queue [:dragging-start bubble-id])
      (reset! drag-end-atom drag-end)
      (events/listen js/window EventType.MOUSEMOVE drag-move)
      (events/listen js/window EventType.MOUSEUP drag-end))))

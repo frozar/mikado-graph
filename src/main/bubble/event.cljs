@@ -56,6 +56,11 @@
                (into {}))]
       (state-write/move-bubbles! nodes-good-shape))
 
+    :dragging-start
+    (let [[id] args]
+      (when @simulation?
+        (simulation.core/simulation-drag-start! id)))
+
     :dragging
     (let [[id cx cy] args]
       (if @simulation?
