@@ -17,11 +17,13 @@
     (+ (square (- x1 x0))
        (square (- y1 y0)))))
 
+(def square-dist-memoized (memoize square-dist))
+
 (defn- graph-distance
   "Return the sum of the square distances between each node of two graph."
   [previous-nodes nodes]
   (->>
-   (map square-dist previous-nodes nodes)
+   (map square-dist-memoized previous-nodes nodes)
    (apply +)))
 
 (defn- graph-converged?

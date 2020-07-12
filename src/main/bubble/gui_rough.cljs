@@ -51,17 +51,18 @@
                    :key (str key-value "-shadow"))))))
    path-to-shallow])
 
+(def rough-path-memoized (memoize rough/path))
+
 (defn- draw-path
   ([src-b dst-b event-property] (draw-path src-b dst-b event-property true))
   ([src-b dst-b event-property to-shadow?]
    (let [path-str (link->path-str src-b dst-b)
          key-str (link->key-str src-b dst-b)
-         rough-path (rough/path path-str
+         rough-path (rough-path-memoized path-str
                                 {:rough-option {:stroke "black"
                                                 :strokeWidth 2
                                                 :roughness 2
-                                                :roughnessGain 1
-                                                :seed 0}
+                                                :roughnessGain 1}
                                  :group-option (merge event-property
                                                       {:key key-str})})]
      (if to-shadow?
@@ -72,16 +73,15 @@
   [src-b dst-b event-property]
   (let [th0 (gui-common/angle-between-bubbles src-b dst-b)
         [dst-pt-x dst-pt-y] (gui-common/border-point dst-b th0 :target)
-        deg-th0 (/ (* th0 180) js/Math.PI)
-        ]
-    (rough/path "M -10 -20 L 0 0 L 10 -20 L 0 -5 Z"
-                {:rough-option {:stroke "black"
-                                :strokeWidth 1
-                                }
-                 :group-option (merge event-property
-                                      {:transform
-                                       (str "translate(" dst-pt-x " " dst-pt-y ") "
-                                            "rotate("(+ deg-th0 -90)")")})})))
+        deg-th0 (/ (* th0 180) js/Math.PI)]
+    (->
+     (rough-path-memoized "M -10 -20 L 0 0 L 10 -20 L 0 -5 Z"
+                          {:rough-option {:stroke "black"
+                                          :strokeWidth 1}})
+     (assoc 1 (merge event-property
+                     {:transform
+                      (str "translate(" dst-pt-x " " dst-pt-y ") "
+                           "rotate("(+ deg-th0 -90)")")})))))
 
 (defn- draw-link
   [src-b dst-b]
