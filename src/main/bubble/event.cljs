@@ -1,6 +1,7 @@
 (ns bubble.event
   (:require
    [bubble.camera :as camera]
+   [bubble.constant :refer [ROOT-BUBBLE-ID]]
    [bubble.state-read :as state-read]
    [bubble.state-write :as state-write]
    [cljs.core.async :refer [chan put! <! go-loop]]
@@ -63,7 +64,8 @@
 
     :dragging
     (let [[id cx cy] args]
-      (if @simulation?
+      (if (and @simulation?
+               (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID id))
         (simulation.core/simulation-drag! (state-read/get-state) id cx cy event-queue)
         (state-write/move-bubble! id cx cy)))
 
