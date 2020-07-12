@@ -21,9 +21,21 @@
                                 :roughnessGain 1
                                 :seed 0}})))
 
+(defn round-decade [x base]
+  (-> x
+      (/ base)
+      int
+      (* base)))
+
 (defn- link->path-str [src-b dst-b]
-  (let [[src-pt-x src-pt-y dst-pt-x dst-pt-y]
-        (gui-common/incidental-border-points-between-bubbles src-b dst-b)]
+  (let [{:keys [cx cy]} src-b
+        [src-pt-x-tmp src-pt-y-tmp dst-pt-x-tmp dst-pt-y-tmp]
+        (gui-common/incidental-border-points-between-bubbles src-b dst-b)
+
+        [src-pt-x src-pt-y dst-pt-x dst-pt-y]
+        (map
+         #(round-decade % 5)
+         [(- src-pt-x-tmp cx) (- src-pt-y-tmp cy) (- dst-pt-x-tmp cx) (- dst-pt-y-tmp cy)])]
     (str "M " src-pt-x "," src-pt-y " L " dst-pt-x "," dst-pt-y)))
 
 (defn- link->key-str [src-b dst-b]
@@ -58,13 +70,18 @@
   ([src-b dst-b event-property to-shadow?]
    (let [path-str (link->path-str src-b dst-b)
          key-str (link->key-str src-b dst-b)
-         rough-path (rough-path-memoized path-str
-                                {:rough-option {:stroke "black"
-                                                :strokeWidth 2
-                                                :roughness 2
-                                                :roughnessGain 1}
-                                 :group-option (merge event-property
-                                                      {:key key-str})})]
+         {:keys [cx cy]} src-b
+         rough-path
+         (->
+          (rough-path-memoized path-str
+                               {:rough-option {:stroke "black"
+                                               :strokeWidth 2
+                                               :roughness 2
+                                               :roughnessGain 1}})
+          (assoc 1 (merge event-property
+                          {:key key-str
+                           :transform
+                           (str "translate(" cx " " cy ")")})))]
      (if to-shadow?
        [draw-white-shadow-path rough-path]
        rough-path))))
