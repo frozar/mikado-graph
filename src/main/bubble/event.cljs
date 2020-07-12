@@ -44,7 +44,9 @@
     :delete-link
     (let [[src-id dst-id] args
           new-state (state-write/delete-link! src-id dst-id)]
-      (when @simulation?
+      (when (and @simulation?
+                 (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID src-id)
+                 (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID dst-id))
         (simulation.core/launch-simulation! new-state event-queue)))
 
     :simulation-move
@@ -87,7 +89,8 @@
     :build-link-end
     (let [[id] args
           new-state (state-write/building-link-end! id)]
-      (when @simulation?
+      (when (and @simulation?
+                 (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID id))
         (simulation.core/launch-simulation! new-state event-queue))
       (state-write/reset-build-link!)
       (reset! interaction nil))
