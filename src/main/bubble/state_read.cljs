@@ -74,6 +74,20 @@
   (let [bbox (graph-bbox)]
     {:width  (- (:right bbox) (:left bbox))
      :height (- (:bottom bbox) (:top bbox))}))
+
+(defn graph-barycenter [appstate]
+  (let [nb-bubbles (->> appstate
+                        get-bubbles
+                        count)]
+    (->> appstate
+         get-bubbles
+         vals
+         (map (fn [{:keys [cx cy]}] [cx cy]))
+         (apply interleave)
+         (split-at nb-bubbles)
+         (map #(apply + %))
+         (map #(/ % nb-bubbles))
+         (#((fn [[x y]] {:x x :y y}) %)))))
 ;; END: bubble part
 
 ;; START: link part

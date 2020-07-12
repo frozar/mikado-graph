@@ -1,6 +1,5 @@
 (ns simulation.core
   (:require
-   [bubble.camera :as camera]
    [bubble.constant :refer [ROOT-BUBBLE-ID]]
    [bubble.state-read :as state-read]
    [cljs.core.async :refer [put!]]
@@ -116,7 +115,9 @@
          :links (build-links-field connected-graph)}
 
         nb-nodes (-> connected-graph state-read/get-bubbles count)
-        {:keys [cx cy]} (camera/state-center)]
+        barycenter (state-read/graph-barycenter connected-graph)
+        {cx :x cy :y} barycenter
+        ]
     (when @current-simulation
       (.stop @current-simulation))
     (when (< 1 nb-nodes)

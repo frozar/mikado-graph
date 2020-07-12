@@ -9,8 +9,7 @@
    ))
 
 (def appstate-1-bubble
-  (#'sd/init-appstate)
-  )
+  (#'sd/init-appstate))
 
 (deftest get-bubbles_basic
   (is
@@ -101,3 +100,25 @@
         (#(into #{} %))
         )
     #{"root" "bubble-1" "bubble-2" "bubble-3"})))
+
+(def appstate-0-bubble
+  (update (#'sd/init-appstate) :bubbles (fn [_] {})))
+
+(deftest graph-barycenter_2-bubble
+  (is
+   (=
+    (-> appstate-0-bubble
+        (#'sw/add-bubble ROOT-BUBBLE-ID (b/create-bubble ROOT-BUBBLE-ID 0 0))
+        (sw/create-bubble-and-link ROOT-BUBBLE-ID 100 30 "bubble-1")
+        sr/graph-barycenter)
+    {:x 50 :y 15})))
+
+(deftest graph-barycenter_3-bubble
+  (is
+   (=
+    (-> appstate-0-bubble
+        (#'sw/add-bubble ROOT-BUBBLE-ID (b/create-bubble ROOT-BUBBLE-ID 0 0))
+        (sw/create-bubble-and-link ROOT-BUBBLE-ID 100 30 "bubble-1")
+        (sw/create-bubble-and-link ROOT-BUBBLE-ID 200 60 "bubble-2")
+        sr/graph-barycenter)
+    {:x 100 :y 30})))
