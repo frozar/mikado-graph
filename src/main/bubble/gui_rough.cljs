@@ -8,6 +8,7 @@
    [reagent.core :as reagent]
    [reagent.dom :as rdom]
    [roughcljs.core :as rough]
+   [rough-cljs.core :as rough-cljs]
    ))
 
 (defn draw-building-link [bubble-src [mouse-x mouse-y]]
@@ -21,10 +22,20 @@
                                 :roughnessGain 1
                                 :seed 0}})))
 
-(defn- link->path-str [src-b dst-b]
-  (let [[src-pt-x src-pt-y dst-pt-x dst-pt-y]
-        (gui-common/incidental-border-points-between-bubbles src-b dst-b)]
-    (str "M " src-pt-x "," src-pt-y " L " dst-pt-x "," dst-pt-y)))
+(defn- link-begin-end
+  "Return a vector of shape:
+  [src-pt-x src-pt-y dst-pt-x dst-pt-y]"
+  ([{src-rx :rx src-ry :ry src-cx :cx src-cy :cy src-type :type}
+    {dst-rx :rx dst-ry :ry dst-cx :cx dst-cy :cy dst-type :type}]
+   (link-begin-end
+    src-rx src-ry src-cx src-cy src-type
+    dst-rx dst-ry dst-cx dst-cy dst-type))
+  ([src-rx src-ry src-cx src-cy src-type
+    dst-rx dst-ry dst-cx dst-cy dst-type]
+   {:post [(vector? %) (= 4 (count %))]}
+   (gui-common/incidental-border-points-between-bubbles
+    src-rx src-ry src-cx src-cy src-type
+    dst-rx dst-ry dst-cx dst-cy dst-type)))
 
 (defn- link->key-str [src-b dst-b]
   (let [src-id (:id src-b)
@@ -51,23 +62,70 @@
                    :key (str key-value "-shadow"))))))
    path-to-shallow])
 
-(def rough-path-memoized (memoize rough/path))
+(defn LocalRough
+  "Re-implementation of the component provided by rough-cljs lib:
+  avoid the surrounding <svg></svg> tag."
+  [opts primitives]
+  (let [state (reagent/atom {})]
+    (reagent/create-class
+     {:display-name "RoughJS"
+      :component-did-mount
+      (fn [this]
+        (let [dummy-svg-opt {:svg {:width 200 :height 200}}
+              rough (rough-cljs/init-roughjs! dummy-svg-opt (rdom/dom-node this))]
+          (rough-cljs/draw rough (rdom/dom-node this) primitives)
+          (swap! state assoc :roughjs rough)))
+
+      :component-did-update
+      (fn [this _]
+        (let [new-argv (rest (reagent/argv this))
+              rough    (:roughjs @state)]
+          (rough-cljs/clean-element rough (rdom/dom-node this))
+          (rough-cljs/draw rough (rdom/dom-node this) (second new-argv))))
+
+      :reagent-render
+      (fn [_ _]
+        [:g])})))
+
+(def rough-cljs-memoized (memoize LocalRough))
+(def link-begin-end-memoized (memoize link-begin-end))
 
 (defn- draw-path
-  ([src-b dst-b event-property] (draw-path src-b dst-b event-property true))
-  ([src-b dst-b event-property to-shadow?]
-   (let [path-str (link->path-str src-b dst-b)
-         key-str (link->key-str src-b dst-b)
-         rough-path (rough-path-memoized path-str
-                                {:rough-option {:stroke "black"
-                                                :strokeWidth 2
-                                                :roughness 2
-                                                :roughnessGain 1}
-                                 :group-option (merge event-property
-                                                      {:key key-str})})]
-     (if to-shadow?
-       [draw-white-shadow-path rough-path]
-       rough-path))))
+  ([src-b dst-b event-property]
+   (draw-path src-b dst-b event-property true))
+  ([{src-rx :rx src-ry :ry src-cx :cx src-cy :cy src-type :type :as src-b}
+    {dst-rx :rx dst-ry :ry dst-cx :cx dst-cy :cy dst-type :type :as dst-b}
+    event-property to-shadow?]
+   (let [key-str (link->key-str src-b dst-b)
+
+         [translated-src-cx translated-src-cy]
+         (->> (map - [src-cx src-cy] [src-cx src-cy])
+              (map int))
+         [translated-dst-cx translated-dst-cy]
+         (->> (map - [dst-cx dst-cy] [src-cx src-cy])
+              (map int))
+
+         [int-src-rx int-src-ry] (map int [src-rx src-ry])
+         [int-dst-rx int-dst-ry] (map int [dst-rx dst-ry])
+
+         [src-pt-x src-pt-y dst-pt-x dst-pt-y]
+         (link-begin-end-memoized
+          int-src-rx int-src-ry translated-src-cx translated-src-cy src-type
+          int-dst-rx int-dst-ry translated-dst-cx translated-dst-cy dst-type)
+
+         path-str (str "M" src-pt-x "," src-pt-y " L " dst-pt-x "," dst-pt-y)
+
+         rough-path
+         [rough-cljs-memoized
+          :dummy
+          [[:path path-str]]]]
+     [:g (merge event-property
+                {:key key-str
+                 :transform
+                 (str "translate(" src-cx " " src-cy ")")})
+      rough-path])))
+
+(def rough-path-memoized (memoize rough/path))
 
 (defn- draw-arrowhead
   [src-b dst-b event-property]
