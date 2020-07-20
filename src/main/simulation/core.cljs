@@ -1,5 +1,6 @@
 (ns simulation.core
   (:require
+   [bubble.camera :as camera]
    [bubble.constant :refer [ROOT-BUBBLE-ID]]
    [bubble.state-read :as state-read]
    [cljs.core.async :refer [put!]]
@@ -110,6 +111,11 @@
    []
    (state-read/get-links appstate)))
 
+(->>(interleave [10 20] [0 1])
+    (partition 2)
+    (map #(apply + %))
+    (map #(/ % 2)))
+
 (defn launch-simulation! [appstate event-queue]
   (let [connected-graph (state-read/connected-graph appstate ROOT-BUBBLE-ID)
         graph
@@ -118,8 +124,12 @@
 
         nb-nodes (-> connected-graph state-read/get-bubbles count)
         barycenter (state-read/graph-barycenter connected-graph)
-        {cx :x cy :y} barycenter
-        ]
+        {bary-x :x bary-y :y} barycenter
+        {camera-cx :cx camera-cy :cy} (camera/state-center)
+        [cx cy] (->> (interleave [bary-x bary-y] [camera-cx camera-cy])
+                     (partition 2)
+                     (map #(apply + %))
+                     (map #(/ % 2)))]
     (when @current-simulation
       (.stop @current-simulation))
     (when (< 1 nb-nodes)
