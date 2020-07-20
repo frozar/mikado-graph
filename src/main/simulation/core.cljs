@@ -111,11 +111,6 @@
    []
    (state-read/get-links appstate)))
 
-(->>(interleave [10 20] [0 1])
-    (partition 2)
-    (map #(apply + %))
-    (map #(/ % 2)))
-
 (defn launch-simulation! [appstate event-queue]
   (let [connected-graph (state-read/connected-graph appstate ROOT-BUBBLE-ID)
         graph
