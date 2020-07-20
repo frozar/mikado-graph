@@ -22,34 +22,35 @@
                                 :roughnessGain 1
                                 :seed 0}})))
 
-(defn- round-base [x base]
-  (-> x
-      (/ base)
-      int
-      (* base)))
+(defn- link-begin-end
+  ([{src-rx :rx src-ry :ry src-cx :cx src-cy :cy src-type :type}
+    {dst-rx :rx dst-ry :ry dst-cx :cx dst-cy :cy dst-type :type}]
+   (link-begin-end
+    src-rx src-ry src-cx src-cy src-type
+    dst-rx dst-ry dst-cx dst-cy dst-type))
+  ([src-rx src-ry src-cx src-cy src-type
+    dst-rx dst-ry dst-cx dst-cy dst-type]
+   {:post [(vector? %) (= 4 (count %))]}
+   (gui-common/incidental-border-points-between-bubbles
+    src-rx src-ry src-cx src-cy src-type
+    dst-rx dst-ry dst-cx dst-cy dst-type)))
 
-(defn- link-begin-end [src-b dst-b]
-  (let [{:keys [cx cy]} src-b
-        [src-pt-x-tmp src-pt-y-tmp dst-pt-x-tmp dst-pt-y-tmp]
-        (gui-common/incidental-border-points-between-bubbles src-b dst-b)
+;; (defn- round-base [x base]
+;;   (-> x
+;;       (/ base)
+;;       int
+;;       (* base)))
 
-        [src-pt-x src-pt-y dst-pt-x dst-pt-y]
-        (map
-         ;; #(round-base % 1)
-         int
-         [(- src-pt-x-tmp cx) (- src-pt-y-tmp cy) (- dst-pt-x-tmp cx) (- dst-pt-y-tmp cy)])]
-    [src-pt-x src-pt-y dst-pt-x dst-pt-y]))
+;; (defn- link->path-str [src-b dst-b]
+;;   (let [{:keys [cx cy]} src-b
+;;         [src-pt-x-tmp src-pt-y-tmp dst-pt-x-tmp dst-pt-y-tmp]
+;;         (gui-common/incidental-border-points-between-bubbles src-b dst-b)
 
-(defn- link->path-str [src-b dst-b]
-  (let [{:keys [cx cy]} src-b
-        [src-pt-x-tmp src-pt-y-tmp dst-pt-x-tmp dst-pt-y-tmp]
-        (gui-common/incidental-border-points-between-bubbles src-b dst-b)
-
-        [src-pt-x src-pt-y dst-pt-x dst-pt-y]
-        (map
-         #(round-base % 5)
-         [(- src-pt-x-tmp cx) (- src-pt-y-tmp cy) (- dst-pt-x-tmp cx) (- dst-pt-y-tmp cy)])]
-    (str "M " src-pt-x "," src-pt-y " L " dst-pt-x "," dst-pt-y)))
+;;         [src-pt-x src-pt-y dst-pt-x dst-pt-y]
+;;         (map
+;;          #(round-base % 5)
+;;          [(- src-pt-x-tmp cx) (- src-pt-y-tmp cy) (- dst-pt-x-tmp cx) (- dst-pt-y-tmp cy)])]
+;;     (str "M " src-pt-x "," src-pt-y " L " dst-pt-x "," dst-pt-y)))
 
 (defn- link->key-str [src-b dst-b]
   (let [src-id (:id src-b)
@@ -77,14 +78,32 @@
    path-to-shallow])
 
 (def rough-cljs-memoized (memoize rough-cljs/Rough))
+(def link-begin-end-memoized (memoize link-begin-end))
 
 (defn- draw-path
-  ([src-b dst-b event-property] (draw-path src-b dst-b event-property true))
-  ([src-b dst-b event-property to-shadow?]
-   (let [key-str (link->key-str src-b dst-b)
-         {:keys [cx cy]} src-b
-         [src-pt-x src-pt-y dst-pt-x dst-pt-y] (link-begin-end src-b dst-b)
-         svg-dummy-otp {:svg {:width 200 :height 200}}
+  ([src-b dst-b event-property]
+   (draw-path src-b dst-b event-property true))
+  ([{src-rx :rx src-ry :ry src-cx :cx src-cy :cy src-type :type :as src-b}
+    {dst-rx :rx dst-ry :ry dst-cx :cx dst-cy :cy dst-type :type :as dst-b}
+    event-property to-shadow?]
+   (let [svg-dummy-otp {:svg {:width 200 :height 200}}
+         key-str (link->key-str src-b dst-b)
+
+         [translated-src-cx translated-src-cy]
+         (->> (map - [src-cx src-cy] [src-cx src-cy])
+              (map int))
+         [translated-dst-cx translated-dst-cy]
+         (->> (map - [dst-cx dst-cy] [src-cx src-cy])
+              (map int))
+
+         [int-src-rx int-src-ry] (map int [src-rx src-ry])
+         [int-dst-rx int-dst-ry] (map int [dst-rx dst-ry])
+
+         [src-pt-x src-pt-y dst-pt-x dst-pt-y]
+         (link-begin-end-memoized
+          int-src-rx int-src-ry translated-src-cx translated-src-cy src-type
+          int-dst-rx int-dst-ry translated-dst-cx translated-dst-cy dst-type)
+
          rough-path
          [rough-cljs-memoized
           svg-dummy-otp
@@ -92,7 +111,7 @@
      [:g (merge event-property
                 {:key key-str
                  :transform
-                 (str "translate(" cx " " cy ")")})
+                 (str "translate(" src-cx " " src-cy ")")})
       rough-path])))
 
 (def rough-path-memoized (memoize rough/path))

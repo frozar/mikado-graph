@@ -196,10 +196,12 @@
 
 (defn angle-between-bubbles
   "Compute the angle between the Ox axis and the vector [center-src-b center-dst-b]"
-  [src-b dst-b]
-  (let [[vx vy]
-        [(- (:cx dst-b) (:cx src-b)) (- (:cy dst-b) (:cy src-b))]]
-    (js/Math.atan2 vy vx)))
+  ([{src-cx :cx src-cy :cy} {dst-cx :cx dst-cy :cy}]
+   (angle-between-bubbles src-cx src-cy dst-cx dst-cy))
+  ([src-cx src-cy dst-cx dst-cy]
+   (let [[vector-x vector-y]
+         [(- dst-cx src-cx) (- dst-cy src-cy)]]
+     (js/Math.atan2 vector-y vector-x))))
 
 (defn angle-between-bubble-position
   "Compute the angle between the Ox axis and the vector [center-src-b pt]"
@@ -211,34 +213,42 @@
 (defn border-point
   "Given an incidental segment to the center of a bubble,
   compute the intersection point between the ellipse and the segment."
-  [{:keys [rx ry cx cy type]} th0 bubble-extremity]
-  (let [relative-th0 (get-relative-th0 th0 bubble-extremity)
+  ([{:keys [rx ry cx cy type]} th0 bubble-extremity]
+   (border-point rx ry cx cy type th0 bubble-extremity))
+  ([rx ry cx cy type th0 bubble-extremity]
+   (let [relative-th0 (get-relative-th0 th0 bubble-extremity)
 
-        [effective_rx effective_ry]
-        (if (= type const/ROOT-BUBBLE-TYPE)
-          [(+ rx const/ROOT-BUBBLE-OFFSET) (+ ry const/ROOT-BUBBLE-OFFSET)]
-          [rx ry])
+         [effective_rx effective_ry]
+         (if (= type const/ROOT-BUBBLE-TYPE)
+           [(+ rx const/ROOT-BUBBLE-OFFSET) (+ ry const/ROOT-BUBBLE-OFFSET)]
+           [rx ry])
 
-        t0 (js/Math.atan2 (* effective_rx (js/Math.tan relative-th0)) effective_ry)
+         t0 (js/Math.atan2 (* effective_rx (js/Math.tan relative-th0)) effective_ry)
 
-        parametric_input
-        (if (or (< (/ js/Math.PI 2) relative-th0)
-                (< relative-th0 (- 0 (/ js/Math.PI 2))))
-          (+ t0 js/Math.PI)
-          t0)
-        ]
-    ;; Use the ellipse parametric equation
-    [(+ cx (* effective_rx (js/Math.cos parametric_input)))
-     (+ cy (* effective_ry (js/Math.sin parametric_input)))]))
+         parametric_input
+         (if (or (< (/ js/Math.PI 2) relative-th0)
+                 (< relative-th0 (- 0 (/ js/Math.PI 2))))
+           (+ t0 js/Math.PI)
+           t0)
+         ]
+     ;; Use the ellipse parametric equation
+     [(+ cx (* effective_rx (js/Math.cos parametric_input)))
+      (+ cy (* effective_ry (js/Math.sin parametric_input)))])))
 
 (defn incidental-border-points-between-bubbles
   "Return points on the border of bubbles which match with the intersection
   of the segment between the centers of the bubble and their border."
-  [src-b dst-b]
-  (let [th0 (angle-between-bubbles src-b dst-b)
-        [src-pt-x src-pt-y] (border-point src-b th0 :source)
-        [dst-pt-x dst-pt-y] (border-point dst-b th0 :target)]
-    [src-pt-x src-pt-y dst-pt-x dst-pt-y]))
+  ([{src-rx :rx src-ry :ry src-cx :cx src-cy :cy src-type :type}
+    {dst-rx :rx dst-ry :ry dst-cx :cx dst-cy :cy dst-type :type}]
+   (incidental-border-points-between-bubbles
+    src-rx src-ry src-cx src-cy src-type
+    dst-rx dst-ry dst-cx dst-cy dst-type))
+  ([src-rx src-ry src-cx src-cy src-type
+    dst-rx dst-ry dst-cx dst-cy dst-type]
+   (let [th0 (angle-between-bubbles src-cx src-cy dst-cx dst-cy)
+         [src-pt-x src-pt-y] (border-point src-rx src-ry src-cx src-cy src-type th0 :source)
+         [dst-pt-x dst-pt-y] (border-point dst-rx dst-ry dst-cx dst-cy dst-type th0 :target)]
+     [src-pt-x src-pt-y dst-pt-x dst-pt-y])))
 
 (comment
   (def src-b {:cx 0 :cy 0 :rx 2 :ry 1})
