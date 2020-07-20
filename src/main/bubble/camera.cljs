@@ -414,7 +414,7 @@
   the view around the graph."
   []
   (when (not (in-pan-limit? @camera min-graph-portion))
-    (put! chan [:home])))
+    (put! event-queue [:home])))
 
 (defn pan-stop []
   (pan-stop-background!)
