@@ -8,7 +8,7 @@
    [reagent.core :as reagent]
    [reagent.dom :as rdom]
    [roughcljs.core :as rough]
-   [bubble.rough-cljs :as rough-cljs]
+   [rough-cljs.core :as rough-cljs]
    ))
 
 (defn draw-building-link [bubble-src [mouse-x mouse-y]]
@@ -23,6 +23,8 @@
                                 :seed 0}})))
 
 (defn- link-begin-end
+  "Return a vector of shape:
+  [src-pt-x src-pt-y dst-pt-x dst-pt-y]"
   ([{src-rx :rx src-ry :ry src-cx :cx src-cy :cy src-type :type}
     {dst-rx :rx dst-ry :ry dst-cx :cx dst-cy :cy dst-type :type}]
    (link-begin-end
@@ -34,23 +36,6 @@
    (gui-common/incidental-border-points-between-bubbles
     src-rx src-ry src-cx src-cy src-type
     dst-rx dst-ry dst-cx dst-cy dst-type)))
-
-;; (defn- round-base [x base]
-;;   (-> x
-;;       (/ base)
-;;       int
-;;       (* base)))
-
-;; (defn- link->path-str [src-b dst-b]
-;;   (let [{:keys [cx cy]} src-b
-;;         [src-pt-x-tmp src-pt-y-tmp dst-pt-x-tmp dst-pt-y-tmp]
-;;         (gui-common/incidental-border-points-between-bubbles src-b dst-b)
-
-;;         [src-pt-x src-pt-y dst-pt-x dst-pt-y]
-;;         (map
-;;          #(round-base % 5)
-;;          [(- src-pt-x-tmp cx) (- src-pt-y-tmp cy) (- dst-pt-x-tmp cx) (- dst-pt-y-tmp cy)])]
-;;     (str "M " src-pt-x "," src-pt-y " L " dst-pt-x "," dst-pt-y)))
 
 (defn- link->key-str [src-b dst-b]
   (let [src-id (:id src-b)
@@ -77,7 +62,32 @@
                    :key (str key-value "-shadow"))))))
    path-to-shallow])
 
-(def rough-cljs-memoized (memoize rough-cljs/Rough))
+(defn LocalRough
+  "Re-implementation of the component provided by rough-cljs lib:
+  avoid the surrounding <svg></svg> tag."
+  [opts primitives]
+  (let [state (reagent/atom {})]
+    (reagent/create-class
+     {:display-name "RoughJS"
+      :component-did-mount
+      (fn [this]
+        (let [dummy-svg-opt {:svg {:width 200 :height 200}}
+              rough (rough-cljs/init-roughjs! dummy-svg-opt (rdom/dom-node this))]
+          (rough-cljs/draw rough (rdom/dom-node this) primitives)
+          (swap! state assoc :roughjs rough)))
+
+      :component-did-update
+      (fn [this _]
+        (let [new-argv (rest (reagent/argv this))
+              rough    (:roughjs @state)]
+          (rough-cljs/clean-element rough (rdom/dom-node this))
+          (rough-cljs/draw rough (rdom/dom-node this) (second new-argv))))
+
+      :reagent-render
+      (fn [_ _]
+        [:g])})))
+
+(def rough-cljs-memoized (memoize LocalRough))
 (def link-begin-end-memoized (memoize link-begin-end))
 
 (defn- draw-path
@@ -86,8 +96,7 @@
   ([{src-rx :rx src-ry :ry src-cx :cx src-cy :cy src-type :type :as src-b}
     {dst-rx :rx dst-ry :ry dst-cx :cx dst-cy :cy dst-type :type :as dst-b}
     event-property to-shadow?]
-   (let [svg-dummy-otp {:svg {:width 200 :height 200}}
-         key-str (link->key-str src-b dst-b)
+   (let [key-str (link->key-str src-b dst-b)
 
          [translated-src-cx translated-src-cy]
          (->> (map - [src-cx src-cy] [src-cx src-cy])
@@ -104,10 +113,12 @@
           int-src-rx int-src-ry translated-src-cx translated-src-cy src-type
           int-dst-rx int-dst-ry translated-dst-cx translated-dst-cy dst-type)
 
+         path-str (str "M" src-pt-x "," src-pt-y " L " dst-pt-x "," dst-pt-y)
+
          rough-path
          [rough-cljs-memoized
-          svg-dummy-otp
-          [[:path (str "M" src-pt-x "," src-pt-y " L " dst-pt-x "," dst-pt-y)]]]]
+          :dummy
+          [[:path path-str]]]]
      [:g (merge event-property
                 {:key key-str
                  :transform
