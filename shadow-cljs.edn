@@ -30,6 +30,13 @@
   {:target :browser
    :output-dir "public/js"
    :asset-path "/js"
+   ;; Documentation link:
+   ;; https://clojurescript.org/guides/self-hosting
+   :compiler-options {
+                      ;; :optimizations :advanced ;; :simple
+                      :static-fns true
+                      :source-map "public/js/cljs-runtime/mikado.app.js.map"
+                      }
    :modules {:main {:init-fn mikado.app/init!
                     :preloads [devtools.preload]}}
    :devtools {:http-root "public"
