@@ -141,10 +141,11 @@
 
 (defn- simulation-drag-init! [appstate event-queue]
   (let [sim (launch-simulation! appstate event-queue)]
-    (-> sim
-        (.alphaTarget 0.3)
-        (.alpha 0.5)
-        (.restart))))
+    (when-not (nil? sim)
+      (-> sim
+          (.alphaTarget 0.3)
+          (.alpha 0.5)
+          (.restart)))))
 
 (def in-drag? (atom false))
 (def drag-has-moved? (atom false))
