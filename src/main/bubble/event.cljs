@@ -31,8 +31,10 @@
     :create-bubble
     (let [[bubble-id new-cx new-cy] args]
       (if @simulation?
-        (let [new-state (state-write/simulation-create-bubble-and-link bubble-id)]
-          (simulation.core/launch-simulation! new-state event-queue))
+        (do
+          (simulation.core/update-app-state-bubble-position event-queue)
+          (let [new-state (state-write/simulation-create-bubble-and-link bubble-id)]
+            (simulation.core/launch-simulation! new-state event-queue)))
         (state-write/create-bubble-and-link! bubble-id new-cx new-cy)))
 
     :delete-bubble
@@ -60,30 +62,34 @@
       (state-write/move-bubbles! nodes-good-shape))
 
     :dragging-start
-    (let [[id] args
-          connected-graph (state-read/connected-graph (state-read/get-state) ROOT-BUBBLE-ID)
-          nb-nodes (-> connected-graph state-read/get-bubbles count)]
-      (when (and @simulation?
-                 (< 1 nb-nodes))
-        (simulation.core/simulation-drag-start! id)))
+    ;; (let [[id] args
+    ;;       connected-graph (state-read/connected-graph (state-read/get-state) ROOT-BUBBLE-ID)
+    ;;       nb-nodes (-> connected-graph state-read/get-bubbles count)]
+    ;;   (when (and @simulation?
+    ;;              (< 1 nb-nodes))
+    ;;     (simulation.core/simulation-drag-start! id)))
+    nil
 
     :dragging
-    (let [[id cx cy] args
-          connected-graph (state-read/connected-graph (state-read/get-state) ROOT-BUBBLE-ID)
-          nb-nodes (-> connected-graph state-read/get-bubbles count)]
-      (if (and @simulation?
-               (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID id)
-               (< 1 nb-nodes))
-        (simulation.core/simulation-drag! (state-read/get-state) id cx cy event-queue)
-        (state-write/move-bubble! id cx cy)))
+    ;; (let [[id cx cy] args
+    ;;       connected-graph (state-read/connected-graph (state-read/get-state) ROOT-BUBBLE-ID)
+    ;;       nb-nodes (-> connected-graph state-read/get-bubbles count)]
+    ;;   (if (and @simulation?
+    ;;            (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID id)
+    ;;            (< 1 nb-nodes))
+    ;;     (simulation.core/simulation-drag! (state-read/get-state) id cx cy event-queue)
+    ;;     (state-write/move-bubble! id cx cy)))
+    (let [[id cx cy] args]
+      (state-write/move-bubble! id cx cy))
 
     :dragging-end
-    (let [[id] args
-          connected-graph (state-read/connected-graph (state-read/get-state) ROOT-BUBBLE-ID)
-          nb-nodes (-> connected-graph state-read/get-bubbles count)]
-      (when (and @simulation?
-                 (< 1 nb-nodes))
-        (simulation.core/simulation-drag-end! id)))
+    ;; (let [[id] args
+    ;;       connected-graph (state-read/connected-graph (state-read/get-state) ROOT-BUBBLE-ID)
+    ;;       nb-nodes (-> connected-graph state-read/get-bubbles count)]
+    ;;   (when (and @simulation?
+    ;;              (< 1 nb-nodes))
+    ;;     (simulation.core/simulation-drag-end! id)))
+    nil
 
     :build-link-start
     (let [[id mouse-x mouse-y] args]

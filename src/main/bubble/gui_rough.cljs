@@ -2,6 +2,7 @@
   (:require
    [bubble.constant :as const]
    [bubble.event-factory :as event-factory]
+   [bubble.geometry :as geometry]
    [bubble.gui-common :as gui-common]
    [bubble.state-read :as state-read]
    [clojure.string :as string]
@@ -12,8 +13,8 @@
    ))
 
 (defn draw-building-link [bubble-src [mouse-x mouse-y]]
-  (let [th0 (gui-common/angle-between-bubble-position bubble-src mouse-x mouse-y)
-        [src-pt-x src-pt-y] (gui-common/border-point bubble-src th0 :source)
+  (let [th0 (geometry/angle-between-bubble-position bubble-src mouse-x mouse-y)
+        [src-pt-x src-pt-y] (geometry/border-point bubble-src th0 :source)
         ]
     (rough/line src-pt-x src-pt-y mouse-x mouse-y
                 {:rough-option {:stroke "black"
@@ -33,7 +34,7 @@
   ([src-rx src-ry src-cx src-cy src-type
     dst-rx dst-ry dst-cx dst-cy dst-type]
    {:post [(vector? %) (= 4 (count %))]}
-   (gui-common/incidental-border-points-between-bubbles
+   (geometry/incidental-border-points-between-bubbles
     src-rx src-ry src-cx src-cy src-type
     dst-rx dst-ry dst-cx dst-cy dst-type)))
 
@@ -129,8 +130,8 @@
 
 (defn- draw-arrowhead
   [src-b dst-b event-property]
-  (let [th0 (gui-common/angle-between-bubbles src-b dst-b)
-        [dst-pt-x dst-pt-y] (gui-common/border-point dst-b th0 :target)
+  (let [th0 (geometry/angle-between-bubbles src-b dst-b)
+        [dst-pt-x dst-pt-y] (geometry/border-point dst-b th0 :target)
         deg-th0 (/ (* th0 180) js/Math.PI)]
     (->
      (rough-path-memoized "M -10 -20 L 0 0 L 10 -20 L 0 -5 Z"
