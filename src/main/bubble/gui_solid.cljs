@@ -85,6 +85,7 @@
 ]
     [:g
      {:class "link"
+      :id (str src-id "-" dst-id)
       :transform (str "translate(" src-pt-x " " src-pt-y ") "
                       "rotate(" deg-th0 ")")
       }

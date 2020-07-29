@@ -3,6 +3,7 @@
    [bubble.camera :as camera]
    [bubble.constant :refer [ROOT-BUBBLE-ID]]
    [bubble.geometry :as geometry]
+   ;; [bubble.gui-solid :as gui-solid]
    [bubble.state-read :as state-read]
    [cljs.core.async :refer [put!]]
    [cljsjs.d3]
@@ -41,35 +42,38 @@
   (let [dist (graph-distance previous-nodes nodes)]
     (< dist threshold)))
 
-(defn- ticked [event-queue sim bubble-nodes link-nodes clj-graph]
+(defn- ticked [event-queue sim bubble-nodes-bis link-nodes-bis clj-graph]
   (fn tick []
-    (let [;; svg-node
-          ;; (-> js/d3
-          ;;     (.select "#app svg"))
-          ;; bubble-nodes
-          ;; (-> svg-node
-          ;;     (.select "#bubbles")
-          ;;     (.selectAll ".bubble"))
-          ;; link-nodes
-          ;; (-> svg-node
-          ;;     (.select "#links")
-          ;;     (.selectAll ".link"))
+    (let [svg-node
+          (-> js/d3
+              (.select "#app svg"))
+          bubble-nodes
+          (-> svg-node
+              (.select "#bubbles")
+              (.selectAll ".bubble"))
+          link-nodes
+          (-> svg-node
+              (.select "#links")
+              (.selectAll ".link"))
           ;; _ (js/console.log "sim link-nodes" link-nodes)
           ;; bubble-nodes nodes
           ;; link-nodes links
           computed-nodes (js-node->cljs-node (.nodes sim))
           computed-links (-> sim (.force "link") (.links))
-          ;; _ (js/console.log "nodes " nodes)
-          ;; _ (js/console.log "sim computed-links" computed-links)
+          ;; _ (js/console.log "computed-nodes " computed-nodes)
+          ;; _ (js/console.log "computed-links " computed-links)
           ]
+      ;; (js/console.log "nb node " (-> computed-nodes keys count))
       (.attr bubble-nodes "transform"
              (fn [_ i]
+               ;; (js/console.log "tick before i " i)
                (when (< i (-> computed-nodes keys count))
                  ;; (js/console.log "tick d " d)
-                 ;; (.log js/console "tick i " i)
+                 ;; (js/console.log "tick after  i " i)
                  ;; (.log js/console "tick nodes " nodes)
                  ;; (.log js/console "tick (.nodes sim) " (.nodes sim))
                  (let [node (aget (.nodes sim) i)
+                       ;; _ (js/console.log "tick node " node)
                        translation-x (.-x node)
                        translation-y (.-y node)]
                    (str "translate(" translation-x " " translation-y ")")))))
@@ -86,24 +90,51 @@
                  (let [
                        ;; _ (.log js/console "tick link nodes " link-nodes)
                        link (aget computed-links i)
-                       ;; _ (.log js/console "tick computed link " link)
+                       _ (.log js/console "tick computed link " link)
                        src-id (.. link -source -id)
                        src-cx (.. link -source -x)
                        src-cy (.. link -source -y)
                        dst-id (.. link -target -id)
                        dst-cx (.. link -target -x)
                        dst-cy (.. link -target -y)
+
+                       link-id (str src-id "-" dst-id)
+                       _ (js/console.log
+                          "link-id DOM "
+                          (.getElementById js/document link-id))
+                       ;; (rdom/render [component] (.getElementById js/document "app"))
+
+                       origin-src-b
+                       (-> clj-graph
+                           :bubbles
+                           (get src-id))
+                       origin-dst-b
+                       (-> clj-graph
+                           :bubbles
+                           (get dst-id))
+                       ;; _ (.log js/console "tick origin-src-b " origin-src-b)
+                       ;; _ (.log js/console "tick origin-dst-b " origin-dst-b)
+
+                       {origin-src-cx :cx origin-src-cy :cy} origin-src-b
+                       {origin-dst-cx :cx origin-dst-cy :cy} origin-dst-b
+
+                       origin-arrow-length
+                       (geometry/dist origin-src-cx origin-src-cy
+                                      origin-dst-cx origin-dst-cy)
+                       arrow-length
+                       (geometry/dist src-cx src-cy
+                                      dst-cx dst-cy)
+
+                       scale-x (/ arrow-length origin-arrow-length)
+                       ;; _ (js/console.log "scale-x " scale-x)
+
                        src-b
                        (merge
-                        (-> clj-graph
-                            :bubbles
-                            (get src-id))
+                        origin-src-b
                         {:cx src-cx :cy src-cy})
                        dst-b
                        (merge
-                        (-> clj-graph
-                            :bubbles
-                            (get dst-id))
+                        origin-dst-b
                         {:cx dst-cx :cy dst-cy})
                        ;; _ (js/console.log "src-id " src-id)
                        ;; _ (js/console.log "dst-id " dst-id)
@@ -115,12 +146,13 @@
                        (-> (geometry/angle-between-bubbles src-b dst-b)
                            geometry/radian->degree)
                        ]
-                   ;; (js/console.log "src-pt-x " src-pt-x)
-                   ;; (js/console.log "src-pt-y " src-pt-y)
                    (str "translate(" src-pt-x " " src-pt-y ") "
-                        "rotate(" th0 ")")
+                        "rotate(" th0 ") "
+                        ;; "scale(" scale-x ", 1)"
+                        )
                    ))))
 
+      ;; (.stop @current-simulation)
       ;; If the current graph is close enough to the previous one, stop the simulation
       (if (graph-converged? 0.01 @previous-nodes computed-nodes)
         (do

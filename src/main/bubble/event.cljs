@@ -38,10 +38,17 @@
         (state-write/create-bubble-and-link! bubble-id new-cx new-cy)))
 
     :delete-bubble
-    (let [[bubble-id] args
-          new-state (state-write/delete-bubble-and-update-link! bubble-id)]
-      (when @simulation?
-        (simulation.core/launch-simulation! new-state event-queue)))
+    ;; (let [[bubble-id] args
+    ;;       new-state (state-write/delete-bubble-and-update-link! bubble-id)]
+    ;;   (when @simulation?
+    ;;     (simulation.core/launch-simulation! new-state event-queue)))
+    (let [[bubble-id] args]
+      (if @simulation?
+        (do
+          (simulation.core/update-app-state-bubble-position event-queue)
+          (let [new-state (state-write/delete-bubble-and-update-link! bubble-id)]
+            (simulation.core/launch-simulation! new-state event-queue)))
+        (state-write/delete-bubble-and-update-link! bubble-id)))
 
     :delete-link
     (let [[src-id dst-id] args

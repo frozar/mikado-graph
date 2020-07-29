@@ -37,7 +37,7 @@
       {:pointer-events "bounding-box"
 
        :on-click
-       (build-link/build-link-start-fn id)
+       (build-link/build-link-start-fn event/event-queue id)
 
        :on-mouse-down
        (fn [evt]
@@ -76,7 +76,7 @@
        (fn [evt]
          ;; It must be a simple click
          (when (not (.-ctrlKey evt))
-           ((drag/dragging-fn id) evt))
+           ((drag/dragging-fn event/event-queue id) evt))
 
          ;; Avoid the propagation of the event to the parent canvas
          (.stopPropagation evt))
@@ -93,8 +93,8 @@
          ;; "
          [evt]
          (if (.-ctrlKey evt)
-           ((build-link/build-link-start-fn id) evt)
-           (build-link/build-link-end id)
+           ((build-link/build-link-start-fn event/event-queue id) evt)
+           (build-link/build-link-end event/event-queue id)
            )
          )
        })
