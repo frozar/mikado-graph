@@ -73,7 +73,7 @@
        (str "translate(" arrow-length " 0) "
             "rotate(" -90 ")")})]))
 
-(defn- draw-link
+(defn draw-link
   [src-b dst-b]
   (let [src-id (:id src-b)
         dst-id (:id dst-b)
@@ -81,8 +81,8 @@
         [src-pt-x src-pt-y _ _]
         (geometry/incidental-border-points-between-bubbles src-b dst-b)
         rad-th0 (geometry/angle-between-bubbles src-b dst-b)
-        deg-th0 (geometry/radian->degree rad-th0)
-]
+        deg-th0 (geometry/radian->degree rad-th0)]
+    ;; (js/console.log "1 draw-link (str src-id dst-id) " (str src-id "-" dst-id))
     [:g
      {:class "link"
       :id (str src-id "-" dst-id)
@@ -95,6 +95,7 @@
 
 (defn draw-links [couples_bubble]
   (when (seq couples_bubble)
+    ;; (js/console.log "0 draw-links couples_bubble " couples_bubble)
     [:g
      {:id "links"}
      (doall

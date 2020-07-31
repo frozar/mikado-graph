@@ -2,17 +2,16 @@
   (:require
    [bubble.camera :as camera]
    [bubble.constant :refer [ROOT-BUBBLE-ID]]
+   [bubble.state-gui :refer [event-queue]]
    [bubble.state-read :as state-read]
    [bubble.state-write :as state-write]
-   [cljs.core.async :refer [chan put! <! go-loop]]
+   [cljs.core.async :refer [put! <! go-loop]]
    [goog.events :as events]
    [simulation.core]
    )
   (:import
    [goog.events EventType]
    ))
-
-(def event-queue (chan))
 
 ;; TODO: try to get ride of this variable
 (def interaction (atom nil))
@@ -180,10 +179,3 @@
 (defn window-keydown-evt-off []
   (events/unlisten js/window EventType.KEYDOWN window-keydown-evt)
   )
-
-(defn prevent-default
-  ([] (prevent-default (fn [])))
-  ([func]
-   (fn [evt]
-     (.preventDefault evt)
-     (func))))

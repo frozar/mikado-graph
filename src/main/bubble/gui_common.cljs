@@ -2,7 +2,8 @@
   (:require
    [bubble.camera :as camera]
    [bubble.constant :as const]
-   [bubble.event :as event]
+   ;; [bubble.event :as event]
+   [bubble.state-gui :refer [event-queue]]
    [cljs.core.async :refer [put!]]
    [clojure.string :as string]
    [reagent.core :as reagent]
@@ -71,7 +72,7 @@
         radial-offset 40
         new-rx (-> width (/ 2) (+ radial-offset))
         new-ry (-> height (/ 2) (+ radial-offset))]
-    (put! event/event-queue [:resize-bubble id new-rx new-ry])
+    (put! event-queue [:resize-bubble id new-rx new-ry])
     )
   )
 
@@ -79,13 +80,13 @@
   "Create the input textarea tag to receive text updates."
   [{:keys [id rx ry cx cy text] :as bubble}]
   (let [stop
-        #(put! event/event-queue [:disable-edition id])
+        #(put! event-queue [:disable-edition id])
 
         save
         (fn [text-inside-textarea]
           (let [input-text (-> text-inside-textarea str clojure.string/trim)]
             (if-not (empty? input-text)
-              (put! event/event-queue [:save-text id input-text])
+              (put! event-queue [:save-text id input-text])
               )
             (stop)))
 

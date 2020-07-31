@@ -4,6 +4,7 @@
    [bubble.constant :as const]
    [bubble.coordinate :as coord]
    [bubble.event :as event]
+   [bubble.event-util :as event-util]
    [bubble.gui-solid :as gui-solid]
    [bubble.gui-rough :as gui-rough]
    [bubble.pan :as pan]
@@ -84,10 +85,10 @@
            }
 
           :on-context-menu
-          (event/prevent-default)
+          (event-util/prevent-default)
 
           :on-drag-start
-          (event/prevent-default)
+          (event-util/prevent-default)
 
           :on-mouse-down
           (let [if-left-click
