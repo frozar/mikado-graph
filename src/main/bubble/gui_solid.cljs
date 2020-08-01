@@ -36,6 +36,8 @@
         (geometry/incidental-border-points-between-bubbles src-b dst-b)
         arrow-length (geometry/dist src-pt-x src-pt-y dst-pt-x dst-pt-y)
         path-str (str "M 0,0 L " arrow-length ",0")]
+    ;; (js/console.log "arrow-length " arrow-length)
+    ;; (js/console.log "path-str " path-str)
     [:path
      (merge
       event-property
