@@ -84,6 +84,12 @@
               (.selectAll ".link"))
           computed-nodes (js-node->cljs-node (.nodes sim))
           computed-links (-> sim (.force "link") (.links))
+          line-nodes (-> js/d3
+                         (.select "#app svg")
+                         (.select "#links")
+                         (.selectAll ".link")
+                         (.select "line"))
+
           ]
       (.attr
        bubble-nodes "transform"
@@ -96,7 +102,8 @@
 
       (.attr
        link-nodes "transform"
-       (fn [_ i]
+       nil
+       #_(fn [_ i]
          (when (< i (.-length computed-links))
            (let [link (aget computed-links i)
 
@@ -107,40 +114,172 @@
 
                  th0 (-> (geometry/angle-between-bubbles src-b dst-b)
                          geometry/radian->degree)]
-             (str "translate(" src-pt-x " " src-pt-y ") "
-                  "rotate(" th0 ")")))))
+             #_(str "translate(" src-pt-x " " src-pt-y ") "
+                  "rotate(" th0 ")")
+             ""))))
 
-      (.html
-       link-nodes
+      ;; (.html
+      ;;  link-nodes
+      ;;  (fn [_ i]
+      ;;    (when (< i (.-length computed-links))
+      ;;      (let [link (aget computed-links i)
+
+      ;;            [src-b dst-b] (get-bubbles clj-graph link)
+
+      ;;            on-fly (.createElement js/document "svg")
+      ;;            _ (rdom/render [gui-solid/draw-link src-b dst-b] on-fly)
+
+      ;;            childNodes (-> on-fly
+      ;;                           .-firstChild
+      ;;                           .-childNodes)
+      ;;            concatenation-innerHTML (->> childNodes
+      ;;                                         .-length
+      ;;                                         range
+      ;;                                         (map
+      ;;                                          (fn [i]
+      ;;                                            (->> i
+      ;;                                                 (aget childNodes)
+      ;;                                                 .-outerHTML)))
+      ;;                                         (apply str))]
+      ;;        concatenation-innerHTML))))
+
+      (let [path-present?
+            (-> js/d3
+                (.select "#app svg")
+                (.select "#links")
+                (.selectAll ".link")
+                (.selectAll "path")
+                (.node))]
+        (when-not (nil? path-present?)
+          (js/console.log "path-present?: " true)
+          (-> js/d3
+              (.select "#app svg")
+              (.select "#links")
+              (.selectAll ".link")
+              (.selectAll "path")
+              (.remove)
+              )
+          (-> js/d3
+              (.select "#app svg")
+              (.select "#links")
+              (.selectAll ".link")
+              (.append "line")
+              (.attr "stroke-width" 5)
+              (.attr "stroke" "black")
+              )))
+
+      ;; (js/console.log "ticked config link"
+      ;;                 (-> js/d3
+      ;;                     (.select "#app svg")
+      ;;                     (.select "#links")
+      ;;                     (.selectAll ".link")
+      ;;                     (.nodes)))
+
+      ;; (-> js/d3
+      ;;     (.select "#app svg")
+      ;;     (.select "#links")
+      ;;     (.selectAll ".link")
+      ;;     (.selectAll "path")
+      ;;     (.remove)
+      ;;     )
+
+      ;; (.attr
+      ;;  (-> js/d3
+      ;;      (.select "#app svg")
+      ;;      (.select "#links")
+      ;;      (.selectAll ".link")
+      ;;      (.select "line"))
+      ;;  "stroke-width"
+      ;;  5)
+      ;; (.attr
+      ;;  (-> js/d3
+      ;;      (.select "#app svg")
+      ;;      (.select "#links")
+      ;;      (.selectAll ".link")
+      ;;      (.select "line"))
+      ;;  "stroke"
+      ;;  "black")
+
+      (.attr
+       (-> js/d3
+           (.select "#app svg")
+           (.select "#links")
+           (.selectAll ".link")
+           (.select "line"))
+       "x1"
        (fn [_ i]
          (when (< i (.-length computed-links))
            (let [link (aget computed-links i)
 
                  [src-b dst-b] (get-bubbles clj-graph link)
 
-                 on-fly (.createElement js/document "svg")
-                 _ (rdom/render [gui-solid/draw-link src-b dst-b] on-fly)
+                 [src-pt-x _ _ _]
+                 (geometry/incidental-border-points-between-bubbles src-b dst-b)]
+             src-pt-x))))
+      (.attr
+       (-> js/d3
+           (.select "#app svg")
+           (.select "#links")
+           (.selectAll ".link")
+           (.select "line"))
+       "y1"
+       (fn [_ i]
+         (when (< i (.-length computed-links))
+           (let [link (aget computed-links i)
 
-                 childNodes (-> on-fly
-                                .-firstChild
-                                .-childNodes)
-                 concatenation-innerHTML (->> childNodes
-                                              .-length
-                                              range
-                                              (map
-                                               (fn [i]
-                                                 (->> i
-                                                      (aget childNodes)
-                                                      .-outerHTML)))
-                                              (apply str))]
-             concatenation-innerHTML))))
+                 [src-b dst-b] (get-bubbles clj-graph link)
+
+                 [_ src-pt-y _ _]
+                 (geometry/incidental-border-points-between-bubbles src-b dst-b)]
+             src-pt-y))))
+      (.attr
+       (-> js/d3
+           (.select "#app svg")
+           (.select "#links")
+           (.selectAll ".link")
+           (.select "line"))
+       "x2"
+       (fn [_ i]
+         (when (< i (.-length computed-links))
+           (let [link (aget computed-links i)
+
+                 [src-b dst-b] (get-bubbles clj-graph link)
+
+                 [_ _ dst-pt-x  _]
+                 (geometry/incidental-border-points-between-bubbles src-b dst-b)]
+             dst-pt-x))))
+      (.attr
+       (-> js/d3
+           (.select "#app svg")
+           (.select "#links")
+           (.selectAll ".link")
+           (.select "line"))
+       "y2"
+       (fn [_ i]
+         (when (< i (.-length computed-links))
+           (let [link (aget computed-links i)
+
+                 [src-b dst-b] (get-bubbles clj-graph link)
+
+                 [_ _ _ dst-pt-y]
+                 (geometry/incidental-border-points-between-bubbles src-b dst-b)]
+             dst-pt-y))))
 
       ;; (.stop @current-simulation)
       ;; (js/console.log "END")
       ;; If the current graph is close enough to the previous one, stop the simulation
       (if (graph-converged? 0.01 @previous-nodes computed-nodes)
         (do
-          (.debug js/console "TICK: DBG STOP SIMULATION")
+          (js/console.debug "TICK: DBG STOP SIMULATION")
+          (-> js/d3
+              (.select "#app svg")
+              (.select "#links")
+              (.selectAll ".link")
+              (.selectAll "line")
+              (.remove)
+              )
+          (js/console.debug "TICK: DBG AFTER REMOVE")
+          (js/console.debug "")
           ;; Update the global application state
           (put! event-queue [:simulation-move computed-nodes])
           (.stop @current-simulation)
@@ -189,6 +328,38 @@
         (.links (.-links graph)))
 
     (reset! previous-nodes (js-node->cljs-node (.nodes sim)))
+    ;; (-> js/d3
+    ;;     (.select "#app svg")
+    ;;     (.select "#links")
+    ;;     (.selectAll ".link")
+    ;;     (.remove)
+    ;;     (.append "line"))
+
+    ;; (-> js/d3
+    ;;     (.select "#app svg")
+    ;;     (.select "#links")
+    ;;     (.selectAll ".link")
+    ;;     (.selectAll "path")
+    ;;     (.remove)
+    ;;     )
+
+    ;; (-> js/d3
+    ;;     (.select "#app svg")
+    ;;     (.select "#links")
+    ;;     (.selectAll ".link")
+    ;;     (.select
+    ;;      (fn [_ i nodes]
+    ;;        ;; (js/console.log "this " this)
+    ;;        (js/console.log "node " (aget nodes i))))
+    ;;     )
+    ;; (rdom/unmount-component-at-node container)
+
+    ;; (-> js/d3
+    ;;     (.select "#app svg")
+    ;;     (.select "#links")
+    ;;     (.selectAll ".link")
+    ;;     (.append "line")
+    ;;     )
 
     sim))
 
@@ -211,6 +382,7 @@
         graph
         {:nodes (build-nodes-field connected-graph)
          :links (build-links-field connected-graph)}
+        ;; _ (js/console.log "graph links" (graph :links))
 
         nb-nodes (-> connected-graph state-read/get-bubbles count)
         barycenter (state-read/graph-barycenter connected-graph)

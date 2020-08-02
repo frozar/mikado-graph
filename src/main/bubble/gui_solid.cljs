@@ -75,8 +75,27 @@
        (str "translate(" arrow-length " 0) "
             "rotate(" -90 ")")})]))
 
-(defn draw-link
-  [src-b dst-b]
+;; (defn draw-link
+;;   [src-b dst-b]
+;;   (let [src-id (:id src-b)
+;;         dst-id (:id dst-b)
+;;         event-property (event-factory/event-property-factory :link src-id dst-id)
+;;         [src-pt-x src-pt-y _ _]
+;;         (geometry/incidental-border-points-between-bubbles src-b dst-b)
+;;         rad-th0 (geometry/angle-between-bubbles src-b dst-b)
+;;         deg-th0 (geometry/radian->degree rad-th0)]
+;;     ;; (js/console.log "1 draw-link (str src-id dst-id) " (str src-id "-" dst-id))
+;;     [:g
+;;      {:class "link"
+;;       :id (str src-id "-" dst-id)
+;;       :transform (str "translate(" src-pt-x " " src-pt-y ") "
+;;                       "rotate(" deg-th0 ")")
+;;       }
+;;      [draw-white-shadow-path src-b dst-b event-property]
+;;      [draw-path src-b dst-b event-property]
+;;      [draw-arrowhead src-b dst-b event-property]]))
+
+(defn- draw-link-render [src-b dst-b]
   (let [src-id (:id src-b)
         dst-id (:id dst-b)
         event-property (event-factory/event-property-factory :link src-id dst-id)
@@ -84,7 +103,7 @@
         (geometry/incidental-border-points-between-bubbles src-b dst-b)
         rad-th0 (geometry/angle-between-bubbles src-b dst-b)
         deg-th0 (geometry/radian->degree rad-th0)]
-    ;; (js/console.log "1 draw-link (str src-id dst-id) " (str src-id "-" dst-id))
+    ;; (js/console.log "IN draw-link-render")
     [:g
      {:class "link"
       :id (str src-id "-" dst-id)
@@ -94,6 +113,71 @@
      [draw-white-shadow-path src-b dst-b event-property]
      [draw-path src-b dst-b event-property]
      [draw-arrowhead src-b dst-b event-property]]))
+
+(defn draw-link
+  [src-b dst-b]
+  (reagent/create-class
+   {:display-name "bubble-link"
+
+    ;; :get-snapshot-before-update
+    ;; (fn [this old-argv new-argv]
+    ;;   (js/console.log ":get-snapshot-before-update")
+    ;;   (js/console.log "old-argv " old-argv)
+    ;;   (js/console.log "new-argv " new-argv)
+    ;;   ;; (reagent/force-update this true)
+    ;;   nil)
+
+    ;; :should-component-update
+    ;; (fn [this old-argv new-argv]
+    ;;   ;; (js/console.log ":should-component-update")
+    ;;   ;; (js/console.log "old-argv " old-argv)
+    ;;   ;; (js/console.log "new-argv " new-argv)
+    ;;   false)
+
+    ;; :component-did-mount
+    ;; (fn [this] (js/console.log ":component-did-mount"))
+
+    ;; :component-will-unmount
+    ;; (fn [this] (js/console.log ":component-will-unmount"))
+
+    ;; :component-did-catch
+    ;; (fn [this error info] (js/console.log ":component-did-catch"))
+
+    ;; :component-did-update
+    ;; (fn [this]
+    ;;   ;; (gui-common/update-bubble-size (rdom/dom-node this) bubble)
+    ;;   (js/console.log ":component-did-update")
+    ;;   (js/console.log "this " this)
+    ;;   ;; (reagent/flush)
+    ;;   ;; (reagent/force-update this true)
+    ;;   ;; (reagent/force-update this)
+    ;;   ;; (draw-link-render src-b dst-b)
+    ;;   )
+
+    :reagent-render
+    #_(draw-link-render src-b dst-b)
+    (fn [src-b dst-b]
+      ;; (js/console.log ":reagent-render")
+      (draw-link-render src-b dst-b))
+    #_(fn [src-b dst-b]
+      (let [src-id (:id src-b)
+            dst-id (:id dst-b)
+            event-property (event-factory/event-property-factory :link src-id dst-id)
+            [src-pt-x src-pt-y _ _]
+            (geometry/incidental-border-points-between-bubbles src-b dst-b)
+            rad-th0 (geometry/angle-between-bubbles src-b dst-b)
+            deg-th0 (geometry/radian->degree rad-th0)]
+        ;; (js/console.log "1 draw-link (str src-id dst-id) " (str src-id "-" dst-id))
+        [:g
+         {:class "link"
+          :id (str src-id "-" dst-id)
+          :transform (str "translate(" src-pt-x " " src-pt-y ") "
+                          "rotate(" deg-th0 ")")
+          }
+         [draw-white-shadow-path src-b dst-b event-property]
+         [draw-path src-b dst-b event-property]
+         [draw-arrowhead src-b dst-b event-property]]))}))
+
 
 (defn draw-links [couples_bubble]
   (when (seq couples_bubble)

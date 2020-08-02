@@ -1,12 +1,14 @@
 (ns bubble.event
   (:require
    [bubble.camera :as camera]
+   [bubble.core :as bubble]
    [bubble.constant :refer [ROOT-BUBBLE-ID]]
    [bubble.state-gui :refer [event-queue]]
    [bubble.state-read :as state-read]
    [bubble.state-write :as state-write]
    [cljs.core.async :refer [put! <! go-loop]]
    [goog.events :as events]
+   [reagent.dom :as rdom]
    [simulation.core]
    )
   (:import
@@ -65,7 +67,10 @@
                 (fn [{:keys [id x y]}]
                   [id {:cx x :cy y}]))
                (into {}))]
-      (state-write/move-bubbles! nodes-good-shape))
+      (state-write/move-bubbles! nodes-good-shape)
+      (rdom/unmount-component-at-node (.getElementById js/document "app"))
+      (rdom/render [bubble/svg-canvas] (.getElementById js/document "app"))
+      (rdom/force-update-all))
 
     :dragging-start
     ;; (let [[id] args

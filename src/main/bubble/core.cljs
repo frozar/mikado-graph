@@ -3,7 +3,6 @@
    [bubble.camera :as camera]
    [bubble.constant :as const]
    [bubble.coordinate :as coord]
-   [bubble.event :as event]
    [bubble.event-util :as event-util]
    [bubble.gui-solid :as gui-solid]
    [bubble.gui-rough :as gui-rough]
