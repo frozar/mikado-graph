@@ -44,9 +44,7 @@
 (defn- graph-converged?
   "Return true if the speed of the fastest node of the graph is under a given 'threshold'."
   [threshold js-nodes]
-  (< (compute-max-square-speed js-nodes) threshold)
-  #_(let [dist (graph-distance previous-nodes nodes)]
-    (< dist threshold)))
+  (< (compute-max-square-speed js-nodes) threshold))
 
 (defn- get-bubbles [clj-graph link]
   (let [src-id (.. link -source -id)

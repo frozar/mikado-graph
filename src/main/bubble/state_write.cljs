@@ -152,8 +152,7 @@
      (-> appstate
          (add-bubble not-duplicated-id new-bubble)
          (add-link parent-bubble-id not-duplicated-id))
-     ))
-  )
+     )))
 
 (macro/BANG create-bubble-and-link)
 
