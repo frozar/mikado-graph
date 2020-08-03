@@ -15,7 +15,7 @@
    ))
 
 (def current-simulation (atom nil))
-(def previous-nodes (atom nil))
+;; (def previous-nodes (atom nil))
 (def is-running? (atom false))
 (def nodes-geometry (atom nil))
 
@@ -30,19 +30,22 @@
     (let [nodes (js-node->cljs-node (.nodes @current-simulation))]
       (put! event-queue [:simulation-move nodes]))))
 
-(def square-dist-memoized (memoize geometry/square-dist))
-
-(defn- graph-distance
-  "Return the sum of the square distances between each node of two graph."
-  [previous-nodes nodes]
-  (->>
-   (map square-dist-memoized previous-nodes nodes)
-   (apply +)))
+(defn- compute-max-square-speed [js-nodes]
+  (->> js-nodes
+       .-length
+       range
+       (map (fn [i] (aget js-nodes i)))
+       (map (fn [node]
+              (+
+               (* (.-vx node) (.-vx node))
+               (* (.-vy node) (.-vy node)))))
+       (apply max)))
 
 (defn- graph-converged?
-  "Return true if the distance between two graph is smaller than a given 'threshold'."
-  [threshold previous-nodes nodes]
-  (let [dist (graph-distance previous-nodes nodes)]
+  "Return true if the speed of the fastest node of the graph is under a given 'threshold'."
+  [threshold js-nodes]
+  (< (compute-max-square-speed js-nodes) threshold)
+  #_(let [dist (graph-distance previous-nodes nodes)]
     (< dist threshold)))
 
 (defn- get-bubbles [clj-graph link]
@@ -82,19 +85,23 @@
           (-> svg-node
               (.select "#links")
               (.selectAll ".link"))
-          computed-nodes (js-node->cljs-node (.nodes sim))
+          ;; computed-nodes (js-node->cljs-node (.nodes sim))
           computed-links (-> sim (.force "link") (.links))
-          line-nodes (-> js/d3
-                         (.select "#app svg")
-                         (.select "#links")
-                         (.selectAll ".link")
-                         (.select "line"))
-
+          ;; line-nodes (-> js/d3
+          ;;                (.select "#app svg")
+          ;;                (.select "#links")
+          ;;                (.selectAll ".link")
+          ;;                (.select "line"))
+          ;; max-square-speed (compute-max-square-speed (.nodes sim))
+          js-nodes (.nodes sim)
           ]
+      ;; (js/console.log "max-square-speed " max-square-speed)
+
       (.attr
        bubble-nodes "transform"
        (fn [_ i]
-         (when (< i (-> computed-nodes keys count))
+         (when (< i ;; (-> computed-nodes keys count)
+                  (.-length js-nodes))
            (let [node (aget (.nodes sim) i)
                  translation-x (.-x node)
                  translation-y (.-y node)]
@@ -164,7 +171,7 @@
               (.select "#links")
               (.selectAll ".link")
               (.append "line")
-              (.attr "stroke-width" 5)
+              (.attr "stroke-width" 2)
               (.attr "stroke" "black")
               )))
 
@@ -268,7 +275,7 @@
       ;; (.stop @current-simulation)
       ;; (js/console.log "END")
       ;; If the current graph is close enough to the previous one, stop the simulation
-      (if (graph-converged? 0.01 @previous-nodes computed-nodes)
+      (when (graph-converged? 5.0 (.nodes sim))
         (do
           (js/console.debug "TICK: DBG STOP SIMULATION")
           ;; (-> js/d3
@@ -281,12 +288,14 @@
           (js/console.debug "TICK: DBG AFTER REMOVE")
           (js/console.debug "")
           ;; Update the global application state
-          (put! event-queue [:simulation-move computed-nodes])
+          (put! event-queue [:simulation-move ;; computed-nodes
+                             (js-node->cljs-node js-nodes)])
           (.stop @current-simulation)
-          (reset! previous-nodes nil)
+          ;; (reset! previous-nodes nil)
           (reset! is-running? false))
         ;; Else, update the previous node positions
-        (reset! previous-nodes computed-nodes))
+        ;; (reset! previous-nodes computed-nodes)
+        )
       )))
 
 (defn- simulation [event-chan
@@ -327,7 +336,7 @@
         (.force "link")
         (.links (.-links graph)))
 
-    (reset! previous-nodes (js-node->cljs-node (.nodes sim)))
+    ;; (reset! previous-nodes (js-node->cljs-node (.nodes sim)))
     ;; (-> js/d3
     ;;     (.select "#app svg")
     ;;     (.select "#links")
