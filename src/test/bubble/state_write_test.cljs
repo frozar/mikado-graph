@@ -332,3 +332,30 @@
     (is (= cy0 -100))
     (is (= cx1 200))
     (is (= cy1 -200))))
+
+(deftest create-random-bubble-and-link_1-node
+  (let [appstate (#'sd/init-appstate)]
+    (is (=
+         (-> (#'sw/create-random-bubble-and-link appstate 1)
+             sr/get-bubbles
+             keys
+             count)
+         2))))
+
+(deftest create-random-bubble-and-link_2-node
+  (let [appstate (#'sd/init-appstate)]
+    (is (=
+         (-> (#'sw/create-random-bubble-and-link appstate 2)
+             sr/get-bubbles
+             keys
+             count)
+         3))))
+
+(deftest create-random-bubble-and-link_10-node
+  (let [appstate (#'sd/init-appstate)]
+    (is (=
+         (-> (#'sw/create-random-bubble-and-link appstate 10)
+             sr/get-bubbles
+             keys
+             count)
+         11))))

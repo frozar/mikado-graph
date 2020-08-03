@@ -72,7 +72,9 @@
       (rdom/render [bubble/svg-canvas] (.getElementById js/document "app"))
       ;; (rdom/force-update-all)
       (comment
-        (-> (state-read/get-bubbles) keys count))
+        (-> (state-read/get-bubbles) keys count)
+        (state-write/create-random-bubble-and-link! 120)
+        )
       )
 
     :dragging-start

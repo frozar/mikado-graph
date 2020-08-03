@@ -156,6 +156,20 @@
 
 (macro/BANG create-bubble-and-link)
 
+(defn- create-random-bubble-and-link [appstate n]
+  (loop [remaining-iteration n
+         current-appstate appstate]
+    (if (<= remaining-iteration 0)
+      current-appstate
+      (let [node-ids (-> current-appstate state-read/get-bubbles keys)
+            random-id (rand-nth node-ids)
+            [cx cy] (take 2 (repeatedly (fn [] (-> (rand 2000) (- 1000)))))]
+        (recur
+         (dec remaining-iteration)
+         (create-bubble-and-link current-appstate random-id cx cy))))))
+
+(macro/BANG create-random-bubble-and-link)
+
 (defn- get-epsilon
   "Generate a float in [-0.5 ; 0.5].
   Used to avoid the superposition of bubbles when 2 bubbles is successively added
