@@ -151,7 +151,7 @@
                 (.selectAll "path")
                 (.node))]
         (when-not (nil? path-present?)
-          (js/console.log "path-present?: " true)
+          ;; (js/console.log "path-present?: " true)
           (-> js/d3
               (.select "#app svg")
               (.select "#links")
@@ -271,13 +271,13 @@
       (if (graph-converged? 0.01 @previous-nodes computed-nodes)
         (do
           (js/console.debug "TICK: DBG STOP SIMULATION")
-          (-> js/d3
-              (.select "#app svg")
-              (.select "#links")
-              (.selectAll ".link")
-              (.selectAll "line")
-              (.remove)
-              )
+          ;; (-> js/d3
+          ;;     (.select "#app svg")
+          ;;     (.select "#links")
+          ;;     (.selectAll ".link")
+          ;;     (.selectAll "line")
+          ;;     (.remove)
+          ;;     )
           (js/console.debug "TICK: DBG AFTER REMOVE")
           (js/console.debug "")
           ;; Update the global application state

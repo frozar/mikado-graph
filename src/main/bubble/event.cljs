@@ -70,7 +70,10 @@
       (state-write/move-bubbles! nodes-good-shape)
       (rdom/unmount-component-at-node (.getElementById js/document "app"))
       (rdom/render [bubble/svg-canvas] (.getElementById js/document "app"))
-      (rdom/force-update-all))
+      ;; (rdom/force-update-all)
+      (comment
+        (-> (state-read/get-bubbles) keys count))
+      )
 
     :dragging-start
     ;; (let [[id] args
