@@ -3,21 +3,14 @@
    [bubble.camera :as camera]
    [bubble.constant :refer [ROOT-BUBBLE-ID]]
    [bubble.geometry :as geometry]
-   [bubble.gui-solid :as gui-solid]
    [bubble.state-read :as state-read]
    [cljs.core.async :refer [put!]]
-   [cljsjs.d3]
-   [clojure.edn :as edn]
-   [clojure.string :as string]
    [clojure.walk :as walk]
    ["/d3/gravity" :as gravity]
-   [reagent.dom :as rdom]
    ))
 
 (def current-simulation (atom nil))
-;; (def previous-nodes (atom nil))
 (def is-running? (atom false))
-(def nodes-geometry (atom nil))
 
 (defn- js-node->cljs-node [nodes]
   (-> nodes
@@ -69,232 +62,81 @@
                {:cx dst-cx :cy dst-cy})]
     [src-b dst-b]))
 
+(defn- compute-link-extremities [clj-graph computed-links i]
+  (when (< i (.-length computed-links))
+    (let [link (aget computed-links i)
+          [src-b dst-b] (get-bubbles clj-graph link)]
+      (geometry/incidental-border-points-between-bubbles src-b dst-b))))
+
 (defn- ticked [event-queue sim clj-graph]
   (fn tick []
-    ;; (js/console.log "BEGIN")
-    (let [svg-node
+    (let [bubble-selection
           (-> js/d3
-              (.select "#app svg"))
-          bubble-nodes
-          (-> svg-node
               (.select "#bubbles")
               (.selectAll ".bubble"))
-          link-nodes
-          (-> svg-node
+          link-selection
+          (-> js/d3
               (.select "#links")
               (.selectAll ".link"))
-          ;; computed-nodes (js-node->cljs-node (.nodes sim))
           computed-links (-> sim (.force "link") (.links))
-          ;; line-nodes (-> js/d3
-          ;;                (.select "#app svg")
-          ;;                (.select "#links")
-          ;;                (.selectAll ".link")
-          ;;                (.select "line"))
-          ;; max-square-speed (compute-max-square-speed (.nodes sim))
-          js-nodes (.nodes sim)
-          ]
-      ;; (js/console.log "max-square-speed " max-square-speed)
+          js-nodes (.nodes sim)]
 
       (.attr
-       bubble-nodes "transform"
+       bubble-selection "transform"
        (fn [_ i]
-         (when (< i ;; (-> computed-nodes keys count)
-                  (.-length js-nodes))
+         (when (< i (.-length js-nodes))
            (let [node (aget (.nodes sim) i)
                  translation-x (.-x node)
                  translation-y (.-y node)]
              (str "translate(" translation-x " " translation-y ")")))))
 
-      (.attr
-       link-nodes "transform"
-       nil
-       #_(fn [_ i]
-         (when (< i (.-length computed-links))
-           (let [link (aget computed-links i)
+      (.attr link-selection "transform" nil)
 
-                 [src-b dst-b] (get-bubbles clj-graph link)
-
-                 [src-pt-x src-pt-y _ _]
-                 (geometry/incidental-border-points-between-bubbles src-b dst-b)
-
-                 th0 (-> (geometry/angle-between-bubbles src-b dst-b)
-                         geometry/radian->degree)]
-             #_(str "translate(" src-pt-x " " src-pt-y ") "
-                  "rotate(" th0 ")")
-             ""))))
-
-      ;; (.html
-      ;;  link-nodes
-      ;;  (fn [_ i]
-      ;;    (when (< i (.-length computed-links))
-      ;;      (let [link (aget computed-links i)
-
-      ;;            [src-b dst-b] (get-bubbles clj-graph link)
-
-      ;;            on-fly (.createElement js/document "svg")
-      ;;            _ (rdom/render [gui-solid/draw-link src-b dst-b] on-fly)
-
-      ;;            childNodes (-> on-fly
-      ;;                           .-firstChild
-      ;;                           .-childNodes)
-      ;;            concatenation-innerHTML (->> childNodes
-      ;;                                         .-length
-      ;;                                         range
-      ;;                                         (map
-      ;;                                          (fn [i]
-      ;;                                            (->> i
-      ;;                                                 (aget childNodes)
-      ;;                                                 .-outerHTML)))
-      ;;                                         (apply str))]
-      ;;        concatenation-innerHTML))))
-
-      (let [path-present?
-            (-> js/d3
-                (.select "#app svg")
-                (.select "#links")
-                (.selectAll ".link")
-                (.selectAll "path")
-                (.node))]
-        (when-not (nil? path-present?)
-          ;; (js/console.log "path-present?: " true)
-          (-> js/d3
-              (.select "#app svg")
-              (.select "#links")
-              (.selectAll ".link")
-              (.selectAll "path")
-              (.remove)
-              )
-          (-> js/d3
-              (.select "#app svg")
-              (.select "#links")
-              (.selectAll ".link")
+      ;; At the first run of the tick function, remove the path tag inside link node
+      ;; (the arrow in solid rendering mode)
+      (let [path-selection
+            (-> link-selection
+                (.selectAll "path"))
+            path-present? (not (nil? (-> path-selection (.node))))
+            ]
+        (when path-present?
+          (.remove path-selection)
+          (-> link-selection
               (.append "line")
               (.attr "stroke-width" 2)
-              (.attr "stroke" "black")
-              )))
+              (.attr "stroke" "black"))))
 
-      ;; (js/console.log "ticked config link"
-      ;;                 (-> js/d3
-      ;;                     (.select "#app svg")
-      ;;                     (.select "#links")
-      ;;                     (.selectAll ".link")
-      ;;                     (.nodes)))
-
-      ;; (-> js/d3
-      ;;     (.select "#app svg")
-      ;;     (.select "#links")
-      ;;     (.selectAll ".link")
-      ;;     (.selectAll "path")
-      ;;     (.remove)
-      ;;     )
-
-      ;; (.attr
-      ;;  (-> js/d3
-      ;;      (.select "#app svg")
-      ;;      (.select "#links")
-      ;;      (.selectAll ".link")
-      ;;      (.select "line"))
-      ;;  "stroke-width"
-      ;;  5)
-      ;; (.attr
-      ;;  (-> js/d3
-      ;;      (.select "#app svg")
-      ;;      (.select "#links")
-      ;;      (.selectAll ".link")
-      ;;      (.select "line"))
-      ;;  "stroke"
-      ;;  "black")
-
-      (.attr
-       (-> js/d3
-           (.select "#app svg")
-           (.select "#links")
-           (.selectAll ".link")
-           (.select "line"))
-       "x1"
-       (fn [_ i]
-         (when (< i (.-length computed-links))
-           (let [link (aget computed-links i)
-
-                 [src-b dst-b] (get-bubbles clj-graph link)
-
-                 [src-pt-x _ _ _]
-                 (geometry/incidental-border-points-between-bubbles src-b dst-b)]
-             src-pt-x))))
-      (.attr
-       (-> js/d3
-           (.select "#app svg")
-           (.select "#links")
-           (.selectAll ".link")
-           (.select "line"))
-       "y1"
-       (fn [_ i]
-         (when (< i (.-length computed-links))
-           (let [link (aget computed-links i)
-
-                 [src-b dst-b] (get-bubbles clj-graph link)
-
-                 [_ src-pt-y _ _]
-                 (geometry/incidental-border-points-between-bubbles src-b dst-b)]
-             src-pt-y))))
-      (.attr
-       (-> js/d3
-           (.select "#app svg")
-           (.select "#links")
-           (.selectAll ".link")
-           (.select "line"))
-       "x2"
-       (fn [_ i]
-         (when (< i (.-length computed-links))
-           (let [link (aget computed-links i)
-
-                 [src-b dst-b] (get-bubbles clj-graph link)
-
-                 [_ _ dst-pt-x  _]
-                 (geometry/incidental-border-points-between-bubbles src-b dst-b)]
-             dst-pt-x))))
-      (.attr
-       (-> js/d3
-           (.select "#app svg")
-           (.select "#links")
-           (.selectAll ".link")
-           (.select "line"))
-       "y2"
-       (fn [_ i]
-         (when (< i (.-length computed-links))
-           (let [link (aget computed-links i)
-
-                 [src-b dst-b] (get-bubbles clj-graph link)
-
-                 [_ _ _ dst-pt-y]
-                 (geometry/incidental-border-points-between-bubbles src-b dst-b)]
-             dst-pt-y))))
+      (let [line-selection
+            (-> link-selection
+                (.select "line"))]
+        (.attr line-selection "x1"
+               (fn [_ i]
+                 (let [[x1 _ _ _] (compute-link-extremities clj-graph computed-links i)]
+                   x1)))
+        (.attr line-selection "y1"
+               (fn [_ i]
+                 (let [[_ y1 _ _] (compute-link-extremities clj-graph computed-links i)]
+                   y1)))
+        (.attr line-selection "x2"
+               (fn [_ i]
+                 (let [[_ _ x2 _] (compute-link-extremities clj-graph computed-links i)]
+                   x2)))
+        (.attr line-selection "y2"
+               (fn [_ i]
+                 (let [[_ _ _ y2] (compute-link-extremities clj-graph computed-links i)]
+                   y2))))
 
       ;; (.stop @current-simulation)
-      ;; (js/console.log "END")
-      ;; If the current graph is close enough to the previous one, stop the simulation
+      ;; If the nodes of the graph nearly don't move, stop the simulation
       (when (graph-converged? 5.0 (.nodes sim))
-        (do
-          (js/console.debug "TICK: DBG STOP SIMULATION")
-          ;; (-> js/d3
-          ;;     (.select "#app svg")
-          ;;     (.select "#links")
-          ;;     (.selectAll ".link")
-          ;;     (.selectAll "line")
-          ;;     (.remove)
-          ;;     )
-          (js/console.debug "TICK: DBG AFTER REMOVE")
-          (js/console.debug "")
-          ;; Update the global application state
-          (put! event-queue [:simulation-move ;; computed-nodes
-                             (js-node->cljs-node js-nodes)])
-          (.stop @current-simulation)
-          ;; (reset! previous-nodes nil)
-          (reset! is-running? false))
-        ;; Else, update the previous node positions
-        ;; (reset! previous-nodes computed-nodes)
-        )
-      )))
+        (js/console.debug "TICK: DBG STOP SIMULATION")
+        (js/console.debug "")
+        ;; Update the global application state
+        (put! event-queue [:simulation-move (js-node->cljs-node js-nodes)])
+        (when @current-simulation
+          (.stop @current-simulation))
+        (reset! is-running? false)
+        ))))
 
 (defn- simulation [event-chan
                    cx-svg-user cy-svg-user
@@ -324,49 +166,15 @@
                         (.strength (* 0.125 500))
                         (.fixId "root")))
             (.nodes (.-nodes graph))
-            (.on "end" (fn [] (js/console.debug "ON EVENT: END OF SIM")))
             )]
 
     (-> sim
-        (.on "tick" (ticked event-chan sim clj-graph)))
+        (.on "tick" (ticked event-chan sim clj-graph))
+        (.on "end" (fn [] (js/console.debug "ON EVENT: END OF SIM"))))
 
     (-> sim
         (.force "link")
         (.links (.-links graph)))
-
-    ;; (reset! previous-nodes (js-node->cljs-node (.nodes sim)))
-    ;; (-> js/d3
-    ;;     (.select "#app svg")
-    ;;     (.select "#links")
-    ;;     (.selectAll ".link")
-    ;;     (.remove)
-    ;;     (.append "line"))
-
-    ;; (-> js/d3
-    ;;     (.select "#app svg")
-    ;;     (.select "#links")
-    ;;     (.selectAll ".link")
-    ;;     (.selectAll "path")
-    ;;     (.remove)
-    ;;     )
-
-    ;; (-> js/d3
-    ;;     (.select "#app svg")
-    ;;     (.select "#links")
-    ;;     (.selectAll ".link")
-    ;;     (.select
-    ;;      (fn [_ i nodes]
-    ;;        ;; (js/console.log "this " this)
-    ;;        (js/console.log "node " (aget nodes i))))
-    ;;     )
-    ;; (rdom/unmount-component-at-node container)
-
-    ;; (-> js/d3
-    ;;     (.select "#app svg")
-    ;;     (.select "#links")
-    ;;     (.selectAll ".link")
-    ;;     (.append "line")
-    ;;     )
 
     sim))
 
@@ -389,7 +197,6 @@
         graph
         {:nodes (build-nodes-field connected-graph)
          :links (build-links-field connected-graph)}
-        ;; _ (js/console.log "graph links" (graph :links))
 
         nb-nodes (-> connected-graph state-read/get-bubbles count)
         barycenter (state-read/graph-barycenter connected-graph)
@@ -407,7 +214,6 @@
               (simulation event-queue cx cy
                           (clj->js graph)
                           connected-graph)))))
-
 
 ;; ;; BEGIN: DRAG SECTION
 

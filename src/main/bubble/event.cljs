@@ -70,10 +70,9 @@
       (state-write/move-bubbles! nodes-good-shape)
       (rdom/unmount-component-at-node (.getElementById js/document "app"))
       (rdom/render [bubble/svg-canvas] (.getElementById js/document "app"))
-      ;; (rdom/force-update-all)
       (comment
         (-> (state-read/get-bubbles) keys count)
-        (state-write/create-random-bubble-and-link! 120)
+        (state-write/create-random-bubble-and-link! 50)
         )
       )
 
