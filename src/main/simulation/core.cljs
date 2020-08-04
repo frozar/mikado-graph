@@ -70,25 +70,23 @@
 
 (defn- ticked [event-queue sim clj-graph]
   (fn tick []
-    (let [bubble-selection
+    (let [js-nodes (.nodes sim)
+          computed-links (-> sim (.force "link") (.links))
+          bubble-selection
           (-> js/d3
               (.select "#bubbles")
-              (.selectAll ".bubble"))
+              (.selectAll ".bubble")
+              (.data js-nodes))
           link-selection
           (-> js/d3
               (.select "#links")
-              (.selectAll ".link"))
-          computed-links (-> sim (.force "link") (.links))
-          js-nodes (.nodes sim)]
-
+              (.selectAll ".link"))]
       (.attr
        bubble-selection "transform"
-       (fn [_ i]
-         (when (< i (.-length js-nodes))
-           (let [node (aget (.nodes sim) i)
-                 translation-x (.-x node)
-                 translation-y (.-y node)]
-             (str "translate(" translation-x " " translation-y ")")))))
+       (fn [d]
+         (let [translation-x (.-x d)
+               translation-y (.-y d)]
+           (str "translate(" translation-x " " translation-y ")"))))
 
       (.attr link-selection "transform" nil)
 
@@ -130,7 +128,6 @@
       ;; If the nodes of the graph nearly don't move, stop the simulation
       (when (graph-converged? 5.0 (.nodes sim))
         (js/console.debug "TICK: DBG STOP SIMULATION")
-        (js/console.debug "")
         ;; Update the global application state
         (put! event-queue [:simulation-move (js-node->cljs-node js-nodes)])
         (when @current-simulation
