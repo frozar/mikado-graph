@@ -5,6 +5,7 @@
    ;; [bubble.coordinate :as coord]
    [bubble.constant :refer [ROOT-BUBBLE-ID]]
    [bubble.event-state]
+   [bubble.simulation-to-bubble :as simulation-to-bubble]
    [bubble.state-gui :refer [event-queue]]
    [bubble.state-read :as state-read]
    [bubble.state-write :as state-write]
@@ -35,7 +36,8 @@
     (let [[bubble-id new-cx new-cy] args]
       (if @bubble.event-state/simulation?
         (do
-          (simulation.core/update-app-state-bubble-position event-queue)
+          ;;(simulation.core/update-app-state-bubble-position event-queue)
+          (simulation-to-bubble/update-app-state-bubble-position)
           (let [new-state (state-write/simulation-create-bubble-and-link bubble-id)]
             (simulation.core/launch-simulation! new-state event-queue)))
         (state-write/create-bubble-and-link! bubble-id new-cx new-cy)))
@@ -48,7 +50,8 @@
     (let [[bubble-id] args]
       (if @bubble.event-state/simulation?
         (do
-          (simulation.core/update-app-state-bubble-position event-queue)
+          ;; (simulation.core/update-app-state-bubble-position event-queue)
+          (simulation-to-bubble/update-app-state-bubble-position)
           (let [new-state (state-write/delete-bubble-and-update-link! bubble-id)]
             (simulation.core/launch-simulation! new-state event-queue)))
         (state-write/delete-bubble-and-update-link! bubble-id)))

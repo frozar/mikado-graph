@@ -8,9 +8,11 @@
    [cljsjs.d3]
    [clojure.walk :as walk]
    ["/d3/gravity" :as gravity]
+   [simulation.state :refer [current-simulation] ;; :as state
+    ]
    ))
 
-(def current-simulation (atom nil))
+;; (def current-simulation (atom nil))
 (def is-running? (atom false))
 
 (defn- js-node->cljs-node [nodes]
@@ -18,20 +20,20 @@
       js->clj
       walk/keywordize-keys))
 
-(defn update-app-state-bubble-position [event-queue]
-  ;; (js/console.log "@is-running? " @is-running?)
-  (when (and
-         (not (nil? @current-simulation))
-         @is-running?)
-    (let [nodes (js-node->cljs-node (.nodes @current-simulation))]
-      (put! event-queue [:simulation-move nodes]))))
+;; (defn update-app-state-bubble-position [event-queue]
+;;   ;; (js/console.log "@is-running? " @is-running?)
+;;   (when (and
+;;          (not (nil? @current-simulation))
+;;          @is-running?)
+;;     (let [nodes (js-node->cljs-node (.nodes @current-simulation))]
+;;       (put! event-queue [:simulation-move nodes]))))
 
-(defn update-app-state-bubble-position-soft [event-queue]
-  ;; (js/console.log "@is-running? " @is-running?)
-  (when (not (nil? @current-simulation))
-    (let [nodes (js-node->cljs-node (.nodes @current-simulation))]
-      (js/console.log "send command simulation-move-soft")
-      (put! event-queue [:simulation-move-soft nodes]))))
+;; (defn update-app-state-bubble-position-soft [event-queue]
+;;   ;; (js/console.log "@is-running? " @is-running?)
+;;   (when (not (nil? @current-simulation))
+;;     (let [nodes (js-node->cljs-node (.nodes @current-simulation))]
+;;       (js/console.log "send command simulation-move-soft")
+;;       (put! event-queue [:simulation-move-soft nodes]))))
 
 (defn- compute-max-square-speed [js-nodes]
   (->> js-nodes
@@ -137,7 +139,10 @@
 
       ;; (.stop @current-simulation)
       ;; If the nodes of the graph nearly don't move, stop the simulation
-      (when (graph-converged? 1.0 (.nodes sim))
+      (when (and (graph-converged? 1.0 (.nodes sim))
+                 (< (.alpha sim) (* 2 (.alphaTarget sim))))
+        (js/console.debug "sim alpha      : " (.alpha sim))
+        (js/console.debug "sim alphaTarget: " (.alphaTarget sim))
         (js/console.debug "TICK: DBG STOP SIMULATION")
         ;; Update the global application state
         (put! event-queue [:simulation-move (js-node->cljs-node js-nodes)])
@@ -290,7 +295,7 @@
 (def drag-has-moved? (atom false))
 
 (defn simulation-drag! [appstate dragged-node-id node-cx node-cy event-queue]
-  (js/console.log "drag drag! " node-cx node-cy)
+  ;; (js/console.log "drag drag! " node-cx node-cy)
   (let [;; sim (if @drag-has-moved?
         ;;       @current-simulation
         ;;       (do
@@ -328,6 +333,7 @@
     (simulation-set-node-position sim dragged-node-id nil nil)
     (-> sim
         (.alpha 0.3)
-        (.alphaTarget 0))))
+        (.alphaTarget 0)
+        (.restart))))
 
 ;; ;; END: DRAG SECTION

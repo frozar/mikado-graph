@@ -7,12 +7,13 @@
    [bubble.state-read :as state-read]
    [cljs.core.async :refer [put!]]
    [goog.events :as events]
-   [simulation.core]
+   ;; [simulation.core]
+   [bubble.simulation-to-bubble]
    )
   (:import
    [goog.events EventType]))
 
-(defn- refresh [event-queue simulation?-atom bubble-id]
+(defn- update-bubble-position [simulation?-atom bubble-id]
   (let [connected-graph (state-read/connected-graph (state-read/get-state) ROOT-BUBBLE-ID)
         nb-nodes (-> connected-graph state-read/get-bubbles count)]
     ;; (js/console.log "drag-move-fn (< 1 nb-nodes) " (< 1 nb-nodes))
@@ -20,8 +21,9 @@
              (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID bubble-id)
              (< 1 nb-nodes))
       (do
-        (js/console.log "BEFORE update soft")
-        (simulation.core/update-app-state-bubble-position-soft event-queue)
+        (js/console.log "BEFORE update app state bubble position")
+        ;; (simulation.core/update-app-state-bubble-position-soft event-queue)
+        (bubble.simulation-to-bubble/update-app-state-bubble-position)
         (state-read/get-bubble bubble-id))
       (state-read/get-bubble bubble-id)))
   )
@@ -29,7 +31,7 @@
 (defn drag-move-fn [event-queue simulation?-atom bubble-id]
   (let [{init-bubble-cx :cx init-bubble-cy :cy}
         ;; (state-read/get-bubble bubble-id)
-        (refresh event-queue simulation?-atom bubble-id)
+        (update-bubble-position simulation?-atom bubble-id)
         init-mouse-x (atom nil)
         init-mouse-y (atom nil)]
     (fn [evt]
