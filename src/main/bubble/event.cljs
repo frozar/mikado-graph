@@ -2,7 +2,9 @@
   (:require
    [bubble.camera :as camera]
    [bubble.core :as bubble]
+   ;; [bubble.coordinate :as coord]
    [bubble.constant :refer [ROOT-BUBBLE-ID]]
+   [bubble.event-state]
    [bubble.state-gui :refer [event-queue]]
    [bubble.state-read :as state-read]
    [bubble.state-write :as state-write]
@@ -18,8 +20,8 @@
 ;; TODO: try to get ride of this variable
 (def interaction (atom nil))
 
-;; Store the settings if simulation is enable or not
-(def simulation? (atom true))
+;; ;; Store the settings if simulation is enable or not
+;; (def simulation? (atom true))
 
 (def print-debug? false)
 
@@ -31,7 +33,7 @@
 
     :create-bubble
     (let [[bubble-id new-cx new-cy] args]
-      (if @simulation?
+      (if @bubble.event-state/simulation?
         (do
           (simulation.core/update-app-state-bubble-position event-queue)
           (let [new-state (state-write/simulation-create-bubble-and-link bubble-id)]
@@ -41,10 +43,10 @@
     :delete-bubble
     ;; (let [[bubble-id] args
     ;;       new-state (state-write/delete-bubble-and-update-link! bubble-id)]
-    ;;   (when @simulation?
+    ;;   (when @bubble.event-state/simulation?
     ;;     (simulation.core/launch-simulation! new-state event-queue)))
     (let [[bubble-id] args]
-      (if @simulation?
+      (if @bubble.event-state/simulation?
         (do
           (simulation.core/update-app-state-bubble-position event-queue)
           (let [new-state (state-write/delete-bubble-and-update-link! bubble-id)]
@@ -54,10 +56,29 @@
     :delete-link
     (let [[src-id dst-id] args
           new-state (state-write/delete-link! src-id dst-id)]
-      (when (and @simulation?
+      (when (and @bubble.event-state/simulation?
                  (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID src-id)
                  (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID dst-id))
         (simulation.core/launch-simulation! new-state event-queue)))
+
+    :simulation-move-soft
+    (let [[nodes] args
+          nodes-good-shape
+          (->> nodes
+               (map
+                (fn [{:keys [id x y]}]
+                  [id {:cx x :cy y}]))
+               (into {}))]
+      ;; (js/console.log "nodes-good-shape " nodes-good-shape)
+      (state-write/move-bubbles! nodes-good-shape)
+      (js/console.log "update soft DONE")
+      ;; (rdom/unmount-component-at-node (.getElementById js/document "app"))
+      ;; (rdom/render [bubble/svg-canvas] (.getElementById js/document "app"))
+      ;; (comment
+      ;;   (-> (state-read/get-bubbles) keys count)
+      ;;   (state-write/create-random-bubble-and-link! 50)
+      ;;   )
+      )
 
     :simulation-move
     (let [[nodes] args
@@ -80,21 +101,24 @@
     (let [[id] args
           connected-graph (state-read/connected-graph (state-read/get-state) ROOT-BUBBLE-ID)
           nb-nodes (-> connected-graph state-read/get-bubbles count)]
-      (when (and @simulation?
+      ;; (js/console.log "dragging-start @bubble.event-state/simulation? " @bubble.event-state/simulation?)
+      (when (and @bubble.event-state/simulation?
                  (< 1 nb-nodes))
-        (simulation.core/simulation-drag-start! id)))
+        (simulation.core/simulation-drag-start! (state-read/get-state) event-queue id)))
     ;; nil
 
     :dragging
     (let [[id cx cy] args
           connected-graph (state-read/connected-graph (state-read/get-state) ROOT-BUBBLE-ID)
           nb-nodes (-> connected-graph state-read/get-bubbles count)]
-      (if (and @simulation?
+      ;; (js/console.log "dragging @bubble.event-state/simulation? " @bubble.event-state/simulation?)
+      ;; (js/console.log "id cx cy " id cx cy)
+      (if (and @bubble.event-state/simulation?
                (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID id)
                (< 1 nb-nodes))
         (do
           ;; (js/console.log "event drag! id " cx cy)
-          (simulation.core/update-app-state-bubble-position event-queue)
+          ;; (simulation.core/update-app-state-bubble-position event-queue)
           (simulation.core/simulation-drag! (state-read/get-state) id cx cy event-queue))
         (state-write/move-bubble! id cx cy)
         ))
@@ -106,7 +130,8 @@
     (let [[id] args
           connected-graph (state-read/connected-graph (state-read/get-state) ROOT-BUBBLE-ID)
           nb-nodes (-> connected-graph state-read/get-bubbles count)]
-      (when (and @simulation?
+      ;; (js/console.log "dragging-end @bubble.event-state/simulation? " @bubble.event-state/simulation?)
+      (when (and @bubble.event-state/simulation?
                  (< 1 nb-nodes))
         (simulation.core/simulation-drag-end! id)))
     ;; nil
@@ -124,7 +149,7 @@
     :build-link-end
     (let [[id] args
           new-state (state-write/building-link-end! id)]
-      (when (and @simulation?
+      (when (and @bubble.event-state/simulation?
                  (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID id))
         (simulation.core/launch-simulation! new-state event-queue))
       (state-write/reset-build-link!)
@@ -180,8 +205,8 @@
 
     "s"
     (when (not= @interaction "edition")
-      (.debug js/console "@simulation? " (not @simulation?))
-      (swap! simulation? not))
+      (.debug js/console "@bubble.event-state/simulation? " (not @bubble.event-state/simulation?))
+      (swap! bubble.event-state/simulation? not))
 
     nil
     ))
