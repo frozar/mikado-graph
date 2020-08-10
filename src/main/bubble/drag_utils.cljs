@@ -28,40 +28,43 @@
       (state-read/get-bubble bubble-id)))
   )
 
-(defn drag-move-fn [event-queue simulation?-atom first-run?-atom bubble-id]
+(defn drag-move-fn [event-queue simulation?-atom run-at-least-once?-atom bubble-id]
   (let [{init-bubble-cx :cx init-bubble-cy :cy}
-        ;; (state-read/get-bubble bubble-id)
         (update-bubble-position simulation?-atom bubble-id)
-        init-mouse-x (atom nil)
-        init-mouse-y (atom nil)]
+        init-mouse-x-svg-px (atom nil)
+        init-mouse-y-svg-px (atom nil)
+        ;; nb-call (atom 0)
+        ]
     (fn [evt]
-      ;; (js/console.log "IN drag-move")
+      ;; (js/console.log "IN drag-move " @nb-call)
+      ;; (swap! nb-call inc)
       ;; (js/console.log "simulation? " @bubble.event-state/simulation?)
       ;; (js/console.log "simulation? " @simulation?-atom)
-      (when @first-run?-atom
-        (reset! first-run?-atom false)
-        (js/console.log "in first run")
+      (when-not @run-at-least-once?-atom
+        (reset! run-at-least-once?-atom true)
+        ;; (js/console.log "in first run")
         (put! event-queue [:dragging-start bubble-id])
         )
 
-      (let [[mouse-x mouse-y]
+      (let [[mouse-x-svg-px mouse-y-svg-px]
             (coord/win-px->svg-px [(.-clientX evt) (.-clientY evt)])]
-        (when (or (nil? @init-mouse-x)
-                  (nil? @init-mouse-y))
-          (reset! init-mouse-x mouse-x)
-          (reset! init-mouse-y mouse-y)
+        (when (or (nil? @init-mouse-x-svg-px)
+                  (nil? @init-mouse-y-svg-px))
+          (reset! init-mouse-x-svg-px mouse-x-svg-px)
+          (reset! init-mouse-y-svg-px mouse-y-svg-px)
           )
-        (let [scaled-vec-trans-x (camera/scale-dist (- mouse-x @init-mouse-x))
-              scaled-vec-trans-y (camera/scale-dist (- mouse-y @init-mouse-y))]
+        (let [scaled-vec-trans-x (camera/scale-dist (- mouse-x-svg-px @init-mouse-x-svg-px))
+              scaled-vec-trans-y (camera/scale-dist (- mouse-y-svg-px @init-mouse-y-svg-px))]
           (put! event-queue
                 [:dragging
                  bubble-id
                  (+ init-bubble-cx scaled-vec-trans-x)
                  (+ init-bubble-cy scaled-vec-trans-y)]))))))
 
-(defn drag-end-fn [event-queue bubble-id drag-move drag-end-atom on-end]
+(defn drag-end-fn [event-queue run-at-least-once?-atom bubble-id drag-move drag-end-atom on-end]
   (fn []
-    (put! event-queue [:dragging-end bubble-id])
+    (when @run-at-least-once?-atom
+      (put! event-queue [:dragging-end bubble-id]))
     (events/unlisten js/window EventType.MOUSEMOVE drag-move)
     (events/unlisten js/window EventType.MOUSEUP @drag-end-atom)
     (on-end)))
@@ -70,10 +73,10 @@
   ([event-queue bubble-id] (dragging event-queue bubble-id (fn []) (fn [])))
   ([event-queue bubble-id on-start on-end]
    ;; (js/console.log "DRAGGING bubble.event-state/simulation? " @bubble.event-state/simulation?)
-   (let [first-run? (atom true)
-         drag-move (drag-move-fn event-queue bubble.event-state/simulation? first-run? bubble-id)
+   (let [run-at-least-once? (atom false)
+         drag-move (drag-move-fn event-queue bubble.event-state/simulation? run-at-least-once? bubble-id)
          drag-end-atom (atom nil)
-         drag-end (drag-end-fn event-queue bubble-id drag-move drag-end-atom on-end)]
+         drag-end (drag-end-fn event-queue run-at-least-once? bubble-id drag-move drag-end-atom on-end)]
      ;; (js/console.log "IN dragging")
      (on-start)
      ;; (put! event-queue [:dragging-start bubble-id])
