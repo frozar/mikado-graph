@@ -19,11 +19,9 @@
     (if (and @simulation?-atom
              (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID bubble-id)
              (< 1 nb-nodes))
-      (do
-        ;; (js/console.log "BEFORE update app state bubble position")
-        ;; TODO: avoid the modification of the global state here
-        (bubble.simulation-to-bubble/update-app-state-bubble-position)
-        (state-read/get-bubble bubble-id))
+      (-> (state-read/get-state)
+          (bubble.simulation-to-bubble/update-app-state-bubble-position)
+          (state-read/get-bubble bubble-id))
       (state-read/get-bubble bubble-id)))
   )
 

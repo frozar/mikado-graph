@@ -36,22 +36,16 @@
     (let [[bubble-id new-cx new-cy] args]
       (if @bubble.event-state/simulation?
         (do
-          ;; (simulation.core/update-app-state-bubble-position event-queue)
-          (simulation-to-bubble/update-app-state-bubble-position)
+          (simulation-to-bubble/update-app-state-bubble-position!)
           (let [new-state (state-write/simulation-create-bubble-and-link bubble-id)]
             (simulation.core/launch-simulation! new-state event-queue)))
         (state-write/create-bubble-and-link! bubble-id new-cx new-cy)))
 
     :delete-bubble
-    ;; (let [[bubble-id] args
-    ;;       new-state (state-write/delete-bubble-and-update-link! bubble-id)]
-    ;;   (when @bubble.event-state/simulation?
-    ;;     (simulation.core/launch-simulation! new-state event-queue)))
     (let [[bubble-id] args]
       (if @bubble.event-state/simulation?
         (do
-          ;; (simulation.core/update-app-state-bubble-position event-queue)
-          (simulation-to-bubble/update-app-state-bubble-position)
+          (simulation-to-bubble/update-app-state-bubble-position!)
           (let [new-state (state-write/delete-bubble-and-update-link! bubble-id)]
             (simulation.core/launch-simulation! new-state event-queue)))
         (state-write/delete-bubble-and-update-link! bubble-id)))
