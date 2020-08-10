@@ -166,25 +166,15 @@
                    )
           ;; (js/console.log "IN when")
           ;; (js/console.log "links-dom-child-element " links-dom-child-element)
-          (doall
-           ;; delete all child node
-           (map
-            (fn [child-nodes]
-              ;; (js/console.log "child-nodes " child-nodes)
-              ;; child-nodes
-              (-> child-nodes
-                  (.forEach (fn [child-node]
-                              ;; (js/console.log "child-node " child-node)
-                              (.remove child-node))
-                            ))
-              )
-            links-dom-child-element
-            ))
+          (doseq [child-nodes links-dom-child-element]
+            (-> child-nodes
+                (.forEach (fn [child-node]
+                            ;; (js/console.log "child-node " child-node)
+                            (.remove child-node))
+                          )))
 
-          ;; ;; add lines
-          (-> js/d3
-              (.select "#links")
-              (.selectAll ".link")
+          ;; add lines
+          (-> link-selection
               (.append "line")
               (.attr "stroke-width" 2)
               (.attr "stroke" "black"))
@@ -194,7 +184,6 @@
       ;; (js/console.log "")
 
       (.attr link-selection "transform" nil)
-
 
       (let [line-selection
             (-> link-selection

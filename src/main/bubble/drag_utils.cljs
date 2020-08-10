@@ -21,11 +21,31 @@
              (< 1 nb-nodes))
       (do
         ;; (js/console.log "BEFORE update app state bubble position")
-        ;; (simulation.core/update-app-state-bubble-position-soft event-queue)
+        ;; TODO: avoid the modification of the global state here
         (bubble.simulation-to-bubble/update-app-state-bubble-position)
         (state-read/get-bubble bubble-id))
       (state-read/get-bubble bubble-id)))
   )
+
+(defn- delete-links-dom-content []
+  (let [links-dom-element
+        (js/document.getElementsByClassName "link")
+        links-dom-child-element
+        (map
+         (fn [idx]
+           (-> links-dom-element
+               (.item idx)
+               (.-childNodes)))
+         (range (.-length links-dom-element)))]
+    ;; (js/console.log "IN when")
+    ;; (js/console.log "links-dom-child-element " links-dom-child-element)
+    (doseq [child-nodes links-dom-child-element]
+      (-> child-nodes
+          (.forEach (fn [child-node]
+                      ;; (js/console.log "child-node " child-node)
+                      (.remove child-node))
+                    )))
+    ))
 
 (defn drag-move-fn [event-queue simulation?-atom run-at-least-once?-atom bubble-id]
   (let [{init-bubble-cx :cx init-bubble-cy :cy}
@@ -37,7 +57,8 @@
       ;; (js/console.log "simulation? " @bubble.event-state/simulation?)
       ;; (js/console.log "simulation? " @simulation?-atom)
       (when-not @run-at-least-once?-atom
-        (reset! run-at-least-once?-atom true))
+        (reset! run-at-least-once?-atom true)
+        (delete-links-dom-content))
 
       (let [[mouse-x-svg-px mouse-y-svg-px]
             (coord/win-px->svg-px [(.-clientX evt) (.-clientY evt)])]
