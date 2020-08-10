@@ -2,4 +2,4 @@
   (:require
    [cljs.core.async :refer [chan]]))
 
-(def event-queue (chan 10))
+(def event-queue (chan))

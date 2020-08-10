@@ -177,7 +177,7 @@
   []
   (- (rand 1) 0.5))
 
-(defn simulation-create-bubble-and-link [parent-bubble-id]
+(defn simulation-create-bubble-and-link! [parent-bubble-id]
   (let [{cx-parent :cx
          cy-parent :cy} (state-read/get-bubble parent-bubble-id)
         new-cx-parent (+ cx-parent (get-epsilon))

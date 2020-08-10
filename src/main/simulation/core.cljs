@@ -12,7 +12,6 @@
     ]
    ))
 
-;; (def current-simulation (atom nil))
 (def is-running? (atom false))
 
 (defn- js-node->cljs-node [nodes]
@@ -21,19 +20,11 @@
       walk/keywordize-keys))
 
 (defn update-app-state-bubble-position [event-queue]
-  ;; (js/console.log "@is-running? " @is-running?)
   (when (and
          (not (nil? @current-simulation))
          @is-running?)
     (let [nodes (js-node->cljs-node (.nodes @current-simulation))]
       (put! event-queue [:simulation-move nodes]))))
-
-;; (defn update-app-state-bubble-position-soft [event-queue]
-;;   ;; (js/console.log "@is-running? " @is-running?)
-;;   (when (not (nil? @current-simulation))
-;;     (let [nodes (js-node->cljs-node (.nodes @current-simulation))]
-;;       (js/console.log "send command simulation-move-soft")
-;;       (put! event-queue [:simulation-move-soft nodes]))))
 
 (defn- compute-max-square-speed [js-nodes]
   (->> js-nodes
@@ -74,12 +65,6 @@
                {:cx dst-cx :cy dst-cy})]
     [src-b dst-b]))
 
-(defn- compute-link-extremities [clj-graph computed-links i]
-  (when (< i (.-length computed-links))
-    (let [link (aget computed-links i)
-          [src-b dst-b] (get-bubbles clj-graph link)]
-      (geometry/incidental-border-points-between-bubbles src-b dst-b))))
-
 (defn- ticked [event-queue sim clj-graph]
   (fn tick []
     ;; (js/console.debug "begin tick")
@@ -105,42 +90,6 @@
 
       ;; At the first run of the tick function, remove the path tag inside link node
       ;; (the arrow in solid rendering mode)
-      ;; (let [path-selection
-      ;;       (-> link-selection
-      ;;           (.selectAll "path"))
-      ;;       path-present? (not (nil? (-> path-selection (.node))))
-      ;;       ]
-      ;;   (when path-present?
-      ;;     (.remove path-selection)
-      ;;     (-> link-selection
-      ;;         (.append "line")
-      ;;         (.attr "stroke-width" 2)
-      ;;         (.attr "stroke" "black"))))
-
-      ;; (let [line-selection
-      ;;       (-> link-selection
-      ;;           (.selectAll "line"))
-      ;;       line-present? (not (nil? (-> line-selection (.node))))
-      ;;       ]
-      ;;   (when-not line-present?
-      ;;     (-> link-selection
-      ;;         (.append "line")
-      ;;         (.attr "stroke-width" 2)
-      ;;         (.attr "stroke" "black"))))
-
-      ;; (let [links-dom-element
-      ;;       (js/document.getElementsByClassName "link")]
-      ;;   (js/console.log "links-dom-element"
-      ;;                   (map
-      ;;                    (fn [idx]
-      ;;                      (-> links-dom-element
-      ;;                          (.item idx)
-      ;;                          (.-childNodes)))
-      ;;                    (range (.-length links-dom-element))))
-      ;;   )
-
-      ;; (empty? (filter (fn [n] (not (= n 1))) [0 0]))
-
       (let [links-dom-element
             (js/document.getElementsByClassName "link")
             links-dom-child-element
@@ -155,60 +104,59 @@
         ;;  "count children "
         ;;  (->> links-dom-child-element
         ;;       (map (fn [child-nodes] (.-length child-nodes)))
-        ;;       ;;(filter (fn [n] (not (= n 1))))
         ;;       ))
         (when (->> links-dom-child-element
                    (map (fn [child-nodes] (.-length child-nodes)))
                    (filter (fn [n] (not (= n 1))))
-                   ;; any?
                    empty?
-                   #(not %)
-                   )
+                   #(not %))
           ;; (js/console.log "IN when")
-          ;; (js/console.log "links-dom-child-element " links-dom-child-element)
+          ;; Delete DOM node link content
           (doseq [child-nodes links-dom-child-element]
             (-> child-nodes
                 (.forEach (fn [child-node]
-                            ;; (js/console.log "child-node " child-node)
                             (.remove child-node))
                           )))
 
-          ;; add lines
+          ;; Add lines
           (-> link-selection
               (.append "line")
               (.attr "stroke-width" 2)
-              (.attr "stroke" "black"))
+              (.attr "stroke" "black"))))
 
-          )
-        )
-      ;; (js/console.log "")
+      (.attr
+       link-selection
+       "transform"
+       (fn [_ i]
+         (when (< i (.-length computed-links))
+           (let [link (aget computed-links i)
+                 [src-b dst-b] (get-bubbles clj-graph link)
 
-      (.attr link-selection "transform" nil)
+                 [src-pt-x src-pt-y _ _]
+                 (geometry/incidental-border-points-between-bubbles src-b dst-b)
+                 rad-th0 (geometry/angle-between-bubbles src-b dst-b)
+                 deg-th0 (geometry/radian->degree rad-th0)]
+             (str "translate(" src-pt-x " " src-pt-y ") "
+                  "rotate(" deg-th0 ")")))))
 
       (let [line-selection
             (-> link-selection
                 (.select "line"))]
-        (.attr line-selection "x1"
-               (fn [_ i]
-                 (let [[x1 _ _ _] (compute-link-extremities clj-graph computed-links i)]
-                   x1)))
-        (.attr line-selection "y1"
-               (fn [_ i]
-                 (let [[_ y1 _ _] (compute-link-extremities clj-graph computed-links i)]
-                   y1)))
-        (.attr line-selection "x2"
-               (fn [_ i]
-                 (let [[_ _ x2 _] (compute-link-extremities clj-graph computed-links i)]
-                   x2)))
-        (.attr line-selection "y2"
-               (fn [_ i]
-                 (let [[_ _ _ y2] (compute-link-extremities clj-graph computed-links i)]
-                   y2))))
+        (-> line-selection
+            (.attr "x1" 0)
+            (.attr "y1" 0)
+            (.attr "y2" 0)
+            (.attr
+             "x2"
+             (fn [_ i]
+               (when (< i (.-length computed-links))
+                 (let [link (aget computed-links i)
+                       [src-b dst-b] (get-bubbles clj-graph link)
+                       [x1 y1 x2 y2] (geometry/incidental-border-points-between-bubbles src-b dst-b)
+                       arrow-length (geometry/dist x1 y1 x2 y2)]
+                   arrow-length))))))
 
       ;; (.stop @current-simulation)
-      ;; (comment
-      ;;   (.tick @current-simulation)
-      ;;   )
       ;; If the nodes of the graph nearly don't move, stop the simulation
       (when (graph-converged? 1.0 (.nodes sim))
         (js/console.debug "TICK: DBG STOP SIMULATION")
