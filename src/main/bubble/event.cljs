@@ -81,16 +81,6 @@
         )
       )
 
-    :dragging-start
-    (let [[id] args
-          connected-graph (state-read/connected-graph (state-read/get-state) ROOT-BUBBLE-ID)
-          nb-nodes (-> connected-graph state-read/get-bubbles count)]
-      ;; (js/console.log "dragging-start @bubble.event-state/simulation? " @bubble.event-state/simulation?)
-      (when (and @bubble.event-state/simulation?
-                 (< 1 nb-nodes))
-        (simulation.core/simulation-drag-start! (state-read/get-state) event-queue id)))
-    ;; nil
-
     :dragging
     (let [[id cx cy] args
           connected-graph (state-read/connected-graph (state-read/get-state) ROOT-BUBBLE-ID)

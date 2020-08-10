@@ -319,11 +319,6 @@
        first
        second))
 
-(defn- get-js-node [sim node-id]
-  (let [js-nodes         (.nodes sim)
-        idx-dragged-node (get-idx-by-id-js-node js-nodes node-id)]
-    (aget js-nodes idx-dragged-node)))
-
 (defn simulation-set-node-position [sim node-id fx fy]
   (let [js-nodes         (.nodes sim)
         idx-dragged-node (get-idx-by-id-js-node js-nodes node-id)
@@ -332,86 +327,18 @@
       (set! (.-fx js-node) fx)
       (set! (.-fy js-node) fy))))
 
-(defn simulation-set-node-in-place [sim node-id]
-  (let [js-nodes         (.nodes sim)
-        idx-dragged-node (get-idx-by-id-js-node js-nodes node-id)
-        js-node (aget js-nodes idx-dragged-node)]
-    (when js-node
-      (let [fx (.-x js-node)
-            fy (.-y js-node)]
-        ;; (simulation-set-node-position sim dragged-node-id fx fy)
-        (set! (.-fx js-node) fx)
-        (set! (.-fy js-node) fy)
-        ))))
-
-(defn- simulation-drag-init! [appstate event-queue]
-  (let [sim (launch-simulation! appstate event-queue)]
-    (when-not (nil? sim)
-      (-> sim
-          (.alpha 1)
-          (.alphaTarget 0.3)
-          (.restart)))))
-
-(def in-drag? (atom false))
-
-(defn simulation-drag-start! [appstate event-queue dragged-node-id]
-  (js/console.log "drag start! " @current-simulation)
-  #_(when-not (nil? @current-simulation)
-    (reset! in-drag? true)
-    (-> @current-simulation
-        (.alpha 1)
-        (.alphaTarget 0.3)
-        (.restart))
-    (simulation-set-node-in-place @current-simulation dragged-node-id))
-  (let [sim (if (nil? @current-simulation)
-              (simulation-drag-init! appstate event-queue)
-              @current-simulation)]
-    (reset! in-drag? true)
-    (-> sim
-        (.alpha 1)
-        (.alphaTarget 0.3)
-        (.restart))
-    (simulation-set-node-in-place @current-simulation dragged-node-id))
-  )
-
-(def drag-has-moved? (atom false))
-
 (defn simulation-drag! [appstate dragged-node-id node-cx node-cy event-queue]
-  ;; (js/console.log "drag drag! " node-cx node-cy)
-  (let [;; sim (if @drag-has-moved?
-        ;;       @current-simulation
-        ;;       (do
-        ;;         (reset! drag-has-moved? true)
-        ;;         (simulation-drag-init! appstate event-queue)))
-        sim (if (nil? @current-simulation)
-              (simulation-drag-init! appstate event-queue)
-              @current-simulation)
-        ;; js-node (get-js-node sim dragged-node-id)
-        ]
-    ;; (js/console.log "DBG " (.nodes sim))
+  (let [sim (if (nil? @current-simulation)
+              (launch-simulation! appstate event-queue)
+              @current-simulation)]
+    (simulation-set-node-position sim dragged-node-id node-cx node-cy)
     (-> sim
         (.alpha 1)
         (.alphaTarget 0.3)
-        (.restart))
-    (simulation-set-node-position sim dragged-node-id node-cx node-cy)))
+        (.restart))))
 
 (defn simulation-drag-end! [dragged-node-id]
-  ;; (js/console.log "drag end!")
-  ;; (when @drag-has-moved?
-  ;;   (reset! in-drag? false)
-  ;;   (reset! drag-has-moved? false)
-  ;;   (let [sim @current-simulation
-  ;;         ;; js-node (get-js-node sim dragged-node-id)
-  ;;         ]
-  ;;     (simulation-set-node-position sim dragged-node-id nil nil)
-  ;;     (-> sim
-  ;;         (.alpha 0.3)
-  ;;         (.alphaTarget 0))))
-  (reset! in-drag? false)
-  ;; (reset! drag-has-moved? false)
-  (let [sim @current-simulation
-        ;; js-node (get-js-node sim dragged-node-id)
-        ]
+  (let [sim @current-simulation]
     (simulation-set-node-position sim dragged-node-id nil nil)
     (-> sim
         (.alpha 0.3)

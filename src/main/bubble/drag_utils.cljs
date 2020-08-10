@@ -4,11 +4,10 @@
    [bubble.constant :refer [ROOT-BUBBLE-ID]]
    [bubble.coordinate :as coord]
    [bubble.event-state]
+   [bubble.simulation-to-bubble]
    [bubble.state-read :as state-read]
    [cljs.core.async :refer [put!]]
    [goog.events :as events]
-   ;; [simulation.core]
-   [bubble.simulation-to-bubble]
    )
   (:import
    [goog.events EventType]))
@@ -32,19 +31,13 @@
   (let [{init-bubble-cx :cx init-bubble-cy :cy}
         (update-bubble-position simulation?-atom bubble-id)
         init-mouse-x-svg-px (atom nil)
-        init-mouse-y-svg-px (atom nil)
-        ;; nb-call (atom 0)
-        ]
+        init-mouse-y-svg-px (atom nil)]
     (fn [evt]
-      ;; (js/console.log "IN drag-move " @nb-call)
-      ;; (swap! nb-call inc)
+      ;; (js/console.log "IN drag-move ")
       ;; (js/console.log "simulation? " @bubble.event-state/simulation?)
       ;; (js/console.log "simulation? " @simulation?-atom)
       (when-not @run-at-least-once?-atom
-        (reset! run-at-least-once?-atom true)
-        ;; (js/console.log "in first run")
-        (put! event-queue [:dragging-start bubble-id])
-        )
+        (reset! run-at-least-once?-atom true))
 
       (let [[mouse-x-svg-px mouse-y-svg-px]
             (coord/win-px->svg-px [(.-clientX evt) (.-clientY evt)])]
@@ -79,7 +72,6 @@
          drag-end (drag-end-fn event-queue run-at-least-once? bubble-id drag-move drag-end-atom on-end)]
      ;; (js/console.log "IN dragging")
      (on-start)
-     ;; (put! event-queue [:dragging-start bubble-id])
      (reset! drag-end-atom drag-end)
      (events/listen js/window EventType.MOUSEMOVE drag-move)
      (events/listen js/window EventType.MOUSEUP drag-end))))
