@@ -21,14 +21,14 @@
              (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID bubble-id)
              (< 1 nb-nodes))
       (do
-        (js/console.log "BEFORE update app state bubble position")
+        ;; (js/console.log "BEFORE update app state bubble position")
         ;; (simulation.core/update-app-state-bubble-position-soft event-queue)
         (bubble.simulation-to-bubble/update-app-state-bubble-position)
         (state-read/get-bubble bubble-id))
       (state-read/get-bubble bubble-id)))
   )
 
-(defn drag-move-fn [event-queue simulation?-atom bubble-id]
+(defn drag-move-fn [event-queue simulation?-atom first-run?-atom bubble-id]
   (let [{init-bubble-cx :cx init-bubble-cy :cy}
         ;; (state-read/get-bubble bubble-id)
         (update-bubble-position simulation?-atom bubble-id)
@@ -38,6 +38,11 @@
       ;; (js/console.log "IN drag-move")
       ;; (js/console.log "simulation? " @bubble.event-state/simulation?)
       ;; (js/console.log "simulation? " @simulation?-atom)
+      (when @first-run?-atom
+        (reset! first-run?-atom false)
+        (js/console.log "in first run")
+        (put! event-queue [:dragging-start bubble-id])
+        )
 
       (let [[mouse-x mouse-y]
             (coord/win-px->svg-px [(.-clientX evt) (.-clientY evt)])]
@@ -65,12 +70,13 @@
   ([event-queue bubble-id] (dragging event-queue bubble-id (fn []) (fn [])))
   ([event-queue bubble-id on-start on-end]
    ;; (js/console.log "DRAGGING bubble.event-state/simulation? " @bubble.event-state/simulation?)
-   (let [drag-move (drag-move-fn event-queue  bubble.event-state/simulation? bubble-id)
+   (let [first-run? (atom true)
+         drag-move (drag-move-fn event-queue bubble.event-state/simulation? first-run? bubble-id)
          drag-end-atom (atom nil)
          drag-end (drag-end-fn event-queue bubble-id drag-move drag-end-atom on-end)]
      ;; (js/console.log "IN dragging")
      (on-start)
-     (put! event-queue [:dragging-start bubble-id])
+     ;; (put! event-queue [:dragging-start bubble-id])
      (reset! drag-end-atom drag-end)
      (events/listen js/window EventType.MOUSEMOVE drag-move)
      (events/listen js/window EventType.MOUSEUP drag-end))))

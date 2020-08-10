@@ -20,13 +20,13 @@
       js->clj
       walk/keywordize-keys))
 
-;; (defn update-app-state-bubble-position [event-queue]
-;;   ;; (js/console.log "@is-running? " @is-running?)
-;;   (when (and
-;;          (not (nil? @current-simulation))
-;;          @is-running?)
-;;     (let [nodes (js-node->cljs-node (.nodes @current-simulation))]
-;;       (put! event-queue [:simulation-move nodes]))))
+(defn update-app-state-bubble-position [event-queue]
+  ;; (js/console.log "@is-running? " @is-running?)
+  (when (and
+         (not (nil? @current-simulation))
+         @is-running?)
+    (let [nodes (js-node->cljs-node (.nodes @current-simulation))]
+      (put! event-queue [:simulation-move nodes]))))
 
 ;; (defn update-app-state-bubble-position-soft [event-queue]
 ;;   ;; (js/console.log "@is-running? " @is-running?)
@@ -82,6 +82,7 @@
 
 (defn- ticked [event-queue sim clj-graph]
   (fn tick []
+    ;; (js/console.debug "begin tick")
     (let [js-nodes (.nodes sim)
           computed-links (-> sim (.force "link") (.links))
           bubble-selection
@@ -94,6 +95,7 @@
           (-> js/d3
               (.select "#links")
               (.selectAll ".link"))]
+
       (.attr
        bubble-selection "transform"
        (fn [d]
@@ -101,21 +103,98 @@
                translation-y (.-y d)]
            (str "translate(" translation-x " " translation-y ")"))))
 
-      (.attr link-selection "transform" nil)
-
       ;; At the first run of the tick function, remove the path tag inside link node
       ;; (the arrow in solid rendering mode)
-      (let [path-selection
-            (-> link-selection
-                (.selectAll "path"))
-            path-present? (not (nil? (-> path-selection (.node))))
-            ]
-        (when path-present?
-          (.remove path-selection)
-          (-> link-selection
+      ;; (let [path-selection
+      ;;       (-> link-selection
+      ;;           (.selectAll "path"))
+      ;;       path-present? (not (nil? (-> path-selection (.node))))
+      ;;       ]
+      ;;   (when path-present?
+      ;;     (.remove path-selection)
+      ;;     (-> link-selection
+      ;;         (.append "line")
+      ;;         (.attr "stroke-width" 2)
+      ;;         (.attr "stroke" "black"))))
+
+      ;; (let [line-selection
+      ;;       (-> link-selection
+      ;;           (.selectAll "line"))
+      ;;       line-present? (not (nil? (-> line-selection (.node))))
+      ;;       ]
+      ;;   (when-not line-present?
+      ;;     (-> link-selection
+      ;;         (.append "line")
+      ;;         (.attr "stroke-width" 2)
+      ;;         (.attr "stroke" "black"))))
+
+      ;; (let [links-dom-element
+      ;;       (js/document.getElementsByClassName "link")]
+      ;;   (js/console.log "links-dom-element"
+      ;;                   (map
+      ;;                    (fn [idx]
+      ;;                      (-> links-dom-element
+      ;;                          (.item idx)
+      ;;                          (.-childNodes)))
+      ;;                    (range (.-length links-dom-element))))
+      ;;   )
+
+      ;; (empty? (filter (fn [n] (not (= n 1))) [0 0]))
+
+      (let [links-dom-element
+            (js/document.getElementsByClassName "link")
+            links-dom-child-element
+            (map
+             (fn [idx]
+               (-> links-dom-element
+                   (.item idx)
+                   (.-childNodes)))
+             (range (.-length links-dom-element)))]
+        ;; (js/console.log "links-dom-child-element " links-dom-child-element)
+        ;; (js/console.log
+        ;;  "count children "
+        ;;  (->> links-dom-child-element
+        ;;       (map (fn [child-nodes] (.-length child-nodes)))
+        ;;       ;;(filter (fn [n] (not (= n 1))))
+        ;;       ))
+        (when (->> links-dom-child-element
+                   (map (fn [child-nodes] (.-length child-nodes)))
+                   (filter (fn [n] (not (= n 1))))
+                   ;; any?
+                   empty?
+                   #(not %)
+                   )
+          ;; (js/console.log "IN when")
+          ;; (js/console.log "links-dom-child-element " links-dom-child-element)
+          (doall
+           ;; delete all child node
+           (map
+            (fn [child-nodes]
+              ;; (js/console.log "child-nodes " child-nodes)
+              ;; child-nodes
+              (-> child-nodes
+                  (.forEach (fn [child-node]
+                              ;; (js/console.log "child-node " child-node)
+                              (.remove child-node))
+                            ))
+              )
+            links-dom-child-element
+            ))
+
+          ;; ;; add lines
+          (-> js/d3
+              (.select "#links")
+              (.selectAll ".link")
               (.append "line")
               (.attr "stroke-width" 2)
-              (.attr "stroke" "black"))))
+              (.attr "stroke" "black"))
+
+          )
+        )
+      ;; (js/console.log "")
+
+      (.attr link-selection "transform" nil)
+
 
       (let [line-selection
             (-> link-selection
@@ -138,11 +217,11 @@
                    y2))))
 
       ;; (.stop @current-simulation)
+      ;; (comment
+      ;;   (.tick @current-simulation)
+      ;;   )
       ;; If the nodes of the graph nearly don't move, stop the simulation
-      (when (and (graph-converged? 1.0 (.nodes sim))
-                 (< (.alpha sim) (* 2 (.alphaTarget sim))))
-        (js/console.debug "sim alpha      : " (.alpha sim))
-        (js/console.debug "sim alphaTarget: " (.alphaTarget sim))
+      (when (graph-converged? 1.0 (.nodes sim))
         (js/console.debug "TICK: DBG STOP SIMULATION")
         ;; Update the global application state
         (put! event-queue [:simulation-move (js-node->cljs-node js-nodes)])
@@ -183,7 +262,10 @@
 
     (-> sim
         (.on "tick" (ticked event-chan sim clj-graph))
-        (.on "end" (fn [] (js/console.debug "ON EVENT: END OF SIM"))))
+        (.on "end"
+             (fn []
+               (js/console.debug "ON EVENT: END OF SIM")
+               (update-app-state-bubble-position event-chan))))
 
     (-> sim
         (.force "link")

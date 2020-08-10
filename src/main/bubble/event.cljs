@@ -36,7 +36,7 @@
     (let [[bubble-id new-cx new-cy] args]
       (if @bubble.event-state/simulation?
         (do
-          ;;(simulation.core/update-app-state-bubble-position event-queue)
+          ;; (simulation.core/update-app-state-bubble-position event-queue)
           (simulation-to-bubble/update-app-state-bubble-position)
           (let [new-state (state-write/simulation-create-bubble-and-link bubble-id)]
             (simulation.core/launch-simulation! new-state event-queue)))
@@ -63,25 +63,6 @@
                  (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID src-id)
                  (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID dst-id))
         (simulation.core/launch-simulation! new-state event-queue)))
-
-    :simulation-move-soft
-    (let [[nodes] args
-          nodes-good-shape
-          (->> nodes
-               (map
-                (fn [{:keys [id x y]}]
-                  [id {:cx x :cy y}]))
-               (into {}))]
-      ;; (js/console.log "nodes-good-shape " nodes-good-shape)
-      (state-write/move-bubbles! nodes-good-shape)
-      (js/console.log "update soft DONE")
-      ;; (rdom/unmount-component-at-node (.getElementById js/document "app"))
-      ;; (rdom/render [bubble/svg-canvas] (.getElementById js/document "app"))
-      ;; (comment
-      ;;   (-> (state-read/get-bubbles) keys count)
-      ;;   (state-write/create-random-bubble-and-link! 50)
-      ;;   )
-      )
 
     :simulation-move
     (let [[nodes] args
