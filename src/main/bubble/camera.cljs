@@ -204,7 +204,7 @@
   (put! event-queue
         [:mouse-wheel (..  evt -event_ -wheelDeltaY) (.-clientX evt) (.-clientY evt)]))
 
-(defn mouse-wheel-evt-fn []
+(defn mouse-wheel-evt-on []
   (events/listen js/window EventType.WHEEL mouse-wheel-evt))
 
 (defn mouse-wheel-evt-off []
@@ -219,7 +219,7 @@
   (put! event-queue
         [:resize (.-innerWidth js/window) (.-innerHeight js/window)]))
 
-(defn window-resize-evt-fn []
+(defn window-resize-evt-on []
   (events/listen js/window EventType.RESIZE window-resize-evt))
 
 (defn window-resize-evt-off []

@@ -152,10 +152,23 @@
      (-> appstate
          (add-bubble not-duplicated-id new-bubble)
          (add-link parent-bubble-id not-duplicated-id))
-     ))
-  )
+     )))
 
 (macro/BANG create-bubble-and-link)
+
+(defn- create-random-bubble-and-link [appstate n]
+  (loop [remaining-iteration n
+         current-appstate appstate]
+    (if (<= remaining-iteration 0)
+      current-appstate
+      (let [node-ids (-> current-appstate state-read/get-bubbles keys)
+            random-id (rand-nth node-ids)
+            [cx cy] (take 2 (repeatedly (fn [] (-> (rand 2000) (- 1000)))))]
+        (recur
+         (dec remaining-iteration)
+         (create-bubble-and-link current-appstate random-id cx cy))))))
+
+(macro/BANG create-random-bubble-and-link)
 
 (defn- get-epsilon
   "Generate a float in [-0.5 ; 0.5].
@@ -164,7 +177,7 @@
   []
   (- (rand 1) 0.5))
 
-(defn simulation-create-bubble-and-link [parent-bubble-id]
+(defn simulation-create-bubble-and-link! [parent-bubble-id]
   (let [{cx-parent :cx
          cy-parent :cy} (state-read/get-bubble parent-bubble-id)
         new-cx-parent (+ cx-parent (get-epsilon))

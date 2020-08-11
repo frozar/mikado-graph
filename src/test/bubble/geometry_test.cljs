@@ -1,6 +1,6 @@
-(ns bubble.gui-common-test
+(ns bubble.geometry-test
   (:require
-   [bubble.gui-common :as g]
+   [bubble.geometry :as g]
    [cljs.test :refer (deftest testing is)]
    ))
 

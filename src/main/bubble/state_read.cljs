@@ -147,10 +147,20 @@
             (conj node-visited current-id)]
         (recur update-node-to-explore update-node-visited)))))
 
+(defn- sort-key-to-keep [hashmap key-to-keep]
+  (->> hashmap
+       (filter (fn [[k _]]
+                 (some #{k} key-to-keep)))
+       (into {})
+       keys
+       vec))
+
 (defn connected-graph
   ([id] (connected-graph @appstate id))
   ([appstate id]
-   (let [nodes-to-keep (connected-nodes appstate id)]
+   (let [nodes-to-keep
+         (->> (connected-nodes appstate id)
+              (sort-key-to-keep (:bubbles appstate)))]
      (-> appstate
          (update :bubbles #(select-keys % nodes-to-keep))
          (update :links #(filterv (fn [{:keys [src dst]}]
