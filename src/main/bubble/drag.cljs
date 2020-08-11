@@ -16,6 +16,7 @@
   (let [connected-graph (state-read/connected-graph (state-read/get-state) ROOT-BUBBLE-ID)
         nb-nodes (-> connected-graph state-read/get-bubbles count)]
     ;; (js/console.log "drag-move-fn (< 1 nb-nodes) " (< 1 nb-nodes))
+    ;; (js/console.log "update-bubble-position @simulation?-atom " @simulation?-atom)
     (if (and @simulation?-atom
              (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID bubble-id)
              (< 1 nb-nodes))
@@ -54,7 +55,8 @@
       ;; (js/console.log "simulation? " @simulation?-atom)
       (when-not @run-at-least-once?-atom
         (reset! run-at-least-once?-atom true)
-        (delete-links-dom-content))
+        (when @simulation?-atom
+          (delete-links-dom-content)))
 
       (let [[mouse-x-svg-px mouse-y-svg-px]
             (coord/win-px->svg-px [(.-clientX evt) (.-clientY evt)])]
