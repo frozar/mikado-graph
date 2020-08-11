@@ -3,7 +3,6 @@
    [bubble.state :refer [appstate]]
    [bubble.bubble :as bubble]
    [clojure.set :as cljset]
-   [debux.cs.core :refer-macros [clog clogn dbg dbgn break]]
    ))
 
 ;; Read application state

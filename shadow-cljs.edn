@@ -16,7 +16,6 @@
 
   ;; dev dependencies
   [binaryage/devtools "1.0.0"]
-  [philoskim/debux "0.6.5"]
   ]
 
  :builds
@@ -32,17 +31,27 @@
    :asset-path "/js"
    ;; Documentation link:
    ;; https://clojurescript.org/guides/self-hosting
-   :compiler-options {
-                      ;; :optimizations :advanced ;; :simple
-                      :static-fns true
-                      :source-map "public/js/cljs-runtime/mikado.app.js.map"
-                      }
+   ;; :compiler-options {
+   ;;                    ;; :optimizations :advanced ;; :simple
+   ;;                    :optimizations :advanced ;; :simple
+   ;;                    ;; :static-fns true
+   ;;                    ;; :source-map "public/js/cljs-runtime/mikado.app.js.map"
+   ;;                    }
    :modules {:main {:init-fn mikado.app/init!
-                    :preloads [devtools.preload]}}
+                    ;; :preloads [devtools.preload]
+                    }}
    :devtools {:http-root "public"
               :http-port 8080
               :autoload true
               :repl-init-ns mikado.app
               :repl-pprint true
-              :preloads [devtools.preload]}}
+              ;; :preloads [devtools.preload]
+              }
+
+   ;; Here is some dev-specific config
+   :dev {:compiler-options {:optimizations :simple}}
+
+   ;; Here is some production config
+   :release {:compiler-options {:optimizations :simple}}
+   }
   }}

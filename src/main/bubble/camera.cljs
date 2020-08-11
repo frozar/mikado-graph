@@ -5,8 +5,7 @@
    [clojure.string :as string]
    [reagent.core :as reagent]
    [goog.events :as events]
-   [cljs.core.async :refer [chan put! take! <! go go-loop close! timeout]]
-   [debux.cs.core :refer-macros [clog clogn dbg dbgn break]]
+   [cljs.core.async :refer [chan put! <! go-loop]]
    )
   (:import
    [goog.events EventType]
