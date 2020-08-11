@@ -55,6 +55,12 @@
                      (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID dst-id))
             (simulation.core/launch-simulation! new-state state-gui/event-queue)))
 
+        :trigger-simulation
+        (simulation.core/launch-simulation! (state-read/get-state) state-gui/event-queue)
+
+        :stop-simulation
+        (simulation.core/stop-simulation! state-gui/event-queue)
+
         :simulation-move
         (let [[nodes] args
               nodes-good-shape
@@ -183,7 +189,10 @@
     "s"
     (when (not= @interaction "edition")
       (.debug js/console "@state-gui/simulation? " (not @state-gui/simulation?))
-      (swap! state-gui/simulation? not))
+      (swap! state-gui/simulation? not)
+      (if @state-gui/simulation?
+        (put! state-gui/event-queue [:trigger-simulation])
+        (put! state-gui/event-queue [:stop-simulation])))
 
     nil
     ))

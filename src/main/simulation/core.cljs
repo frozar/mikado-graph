@@ -167,7 +167,7 @@
         (reset! is-running? false)
         ))))
 
-(defn- simulation [event-chan
+(defn- simulation [event-queue
                    cx-svg-user cy-svg-user
                    graph
                    clj-graph]
@@ -198,11 +198,11 @@
             )]
 
     (-> sim
-        (.on "tick" (ticked event-chan sim clj-graph))
+        (.on "tick" (ticked event-queue sim clj-graph))
         (.on "end"
              (fn []
                (js/console.debug "ON EVENT: END OF SIM")
-               (update-app-state-bubble-position event-chan))))
+               (update-app-state-bubble-position event-queue))))
 
     (-> sim
         (.force "link")
@@ -246,6 +246,12 @@
               (simulation event-queue cx cy
                           (clj->js graph)
                           connected-graph)))))
+
+(defn stop-simulation! [event-queue]
+  (when @current-simulation
+    (.stop @current-simulation))
+  (update-app-state-bubble-position event-queue)
+  (reset! is-running? false))
 
 ;; ;; BEGIN: DRAG SECTION
 
