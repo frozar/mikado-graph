@@ -23,21 +23,6 @@
                                 :roughnessGain 1
                                 :seed 0}})))
 
-(defn- link-begin-end
-  "Return a vector of shape:
-  [src-pt-x src-pt-y dst-pt-x dst-pt-y]"
-  ([{src-rx :rx src-ry :ry src-cx :cx src-cy :cy src-type :type}
-    {dst-rx :rx dst-ry :ry dst-cx :cx dst-cy :cy dst-type :type}]
-   (link-begin-end
-    src-rx src-ry src-cx src-cy src-type
-    dst-rx dst-ry dst-cx dst-cy dst-type))
-  ([src-rx src-ry src-cx src-cy src-type
-    dst-rx dst-ry dst-cx dst-cy dst-type]
-   {:post [(vector? %) (= 4 (count %))]}
-   (geometry/incidental-border-points-between-bubbles
-    src-rx src-ry src-cx src-cy src-type
-    dst-rx dst-ry dst-cx dst-cy dst-type)))
-
 (defn- link->key-str [src-b dst-b]
   (let [src-id (:id src-b)
         dst-id (:id dst-b)]
@@ -89,7 +74,6 @@
         [:g])})))
 
 (def rough-cljs-memoized (memoize LocalRough))
-(def link-begin-end-memoized (memoize link-begin-end))
 
 (defn- draw-path
   ([src-b dst-b event-property]
@@ -99,68 +83,63 @@
     event-property to-shadow?]
    (let [key-str (link->key-str src-b dst-b)
 
-         [translated-src-cx translated-src-cy]
-         (->> (map - [src-cx src-cy] [src-cx src-cy])
-              (map int))
-         [translated-dst-cx translated-dst-cy]
-         (->> (map - [dst-cx dst-cy] [src-cx src-cy])
-              (map int))
-
-         [int-src-rx int-src-ry] (map int [src-rx src-ry])
-         [int-dst-rx int-dst-ry] (map int [dst-rx dst-ry])
-
          [src-pt-x src-pt-y dst-pt-x dst-pt-y]
-         (link-begin-end-memoized
-          int-src-rx int-src-ry translated-src-cx translated-src-cy src-type
-          int-dst-rx int-dst-ry translated-dst-cx translated-dst-cy dst-type)
-
-         path-str (str "M" src-pt-x "," src-pt-y " L " dst-pt-x "," dst-pt-y)
+         (geometry/incidental-border-points-between-bubbles
+          src-rx src-ry src-cx src-cy src-type
+          dst-rx dst-ry dst-cx dst-cy dst-type)
+         arrow-length (geometry/dist src-pt-x src-pt-y dst-pt-x dst-pt-y)
+         path-str (str "M 0,0 L " arrow-length ",0")
 
          rough-path
          [rough-cljs-memoized
           :dummy
           [[:path path-str]]]]
      [:g (merge event-property
-                {:key key-str
-                 :transform
-                 (str "translate(" src-cx " " src-cy ")")})
+                {:key key-str})
       rough-path])))
 
 (def rough-path-memoized (memoize rough/path))
 
 (defn- draw-arrowhead
   [src-b dst-b event-property]
-  (let [th0 (geometry/angle-between-bubbles src-b dst-b)
-        [dst-pt-x dst-pt-y] (geometry/border-point dst-b th0 :target)
-        deg-th0 (/ (* th0 180) js/Math.PI)]
+  (let [[src-pt-x src-pt-y dst-pt-x dst-pt-y]
+        (geometry/incidental-border-points-between-bubbles src-b dst-b)
+        arrow-length (geometry/dist src-pt-x src-pt-y dst-pt-x dst-pt-y)]
     (->
      (rough-path-memoized "M -10 -20 L 0 0 L 10 -20 L 0 -5 Z"
                           {:rough-option {:stroke "black"
                                           :strokeWidth 1}})
      (assoc 1 (merge event-property
                      {:transform
-                      (str "translate(" dst-pt-x " " dst-pt-y ") "
-                           "rotate("(+ deg-th0 -90)")")})))))
+                      (str "translate(" arrow-length " 0) "
+                           "rotate(" -90 ")")})))))
 
 (defn- draw-link
   [src-b dst-b]
   (let [src-id (:id src-b)
         dst-id (:id dst-b)
-        event-property (event-factory/event-property-factory :link src-id dst-id)]
+        event-property (event-factory/event-property-factory :link src-id dst-id)
+        [src-pt-x src-pt-y _ _]
+        (geometry/incidental-border-points-between-bubbles src-b dst-b)
+        rad-th0 (geometry/angle-between-bubbles src-b dst-b)
+        deg-th0 (geometry/radian->degree rad-th0)]
     [:g
-     {:class "arrow"}
+     {:class "link"
+      :id (str src-id "-" dst-id)
+      :transform (str "translate(" src-pt-x " " src-pt-y ") "
+                      "rotate(" deg-th0 ")")
+      }
      [draw-path src-b dst-b event-property]
      [draw-arrowhead src-b dst-b event-property]]))
 
 (defn draw-links [couples_bubble]
   (when (seq couples_bubble)
-    [:<>
+    [:g
+     {:id "links"}
      (doall
       (for [[src-b dst-b] couples_bubble]
         ^{:key (str (link->key-str src-b dst-b) "-link")}
-        [:g
-         {:class "graph_link"}
-         [draw-link src-b dst-b]]))]))
+        [draw-link src-b dst-b]))]))
 
 (defn- draw-pencil-button
   [{:keys [cx cy]} ry show-button?
@@ -189,10 +168,7 @@
      ;; Pointer of the pencil
      [:line {:x1 (+ min-bound -5) :y1 (+ max-bound -5) :x2 (+ min-bound 5) :y2 (+ max-bound 5)}]
      [:line {:x1 (+ min-bound -5) :y1 (+ max-bound -5) :x2 (+ min-bound -5) :y2 (+ max-bound 5)}]
-     [:line {:x1 (+ min-bound 5) :y1 (+ max-bound 5) :x2 (+ min-bound -5) :y2 (+ max-bound 5)}]
-     ]
-    )
-  )
+     [:line {:x1 (+ min-bound 5) :y1 (+ max-bound 5) :x2 (+ min-bound -5) :y2 (+ max-bound 5)}]]))
 
 (defn- draw-link-button
   [{:keys [cx cy]} ry show-button?
@@ -213,8 +189,7 @@
      (for [i (map #(* 2 %) (range 3))]
        (let [start (* 7 i)
              end (* 7 (inc i))]
-         ^{:key (str i)} [:line {:x1 start :y1 start :x2 end :y2 end}]))
-     ]))
+         ^{:key (str i)} [:line {:x1 start :y1 start :x2 end :y2 end}]))]))
 
 (defn- draw-delete-button
   [{:keys [cx cy]} ry show-button?
@@ -233,16 +208,14 @@
              :visibility (if show-button? "visible" "hidden")
              })
      [:line {:x1 min-bound :y1 min-bound :x2 max-bound :y2 max-bound}]
-     [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound}]])
-  )
+     [:line {:x1 max-bound :y1 min-bound :x2 min-bound :y2 max-bound}]]))
 
 (defn- draw-validation-button
   [{:keys [cx cy]} ry show-button?
    event-properties]
   (let [length 30
         x-offset cx
-        y-offset (+ cy ry length 10)
-        ]
+        y-offset (+ cy ry length 10)]
     [:path
      (merge event-properties
             {:class "button"
@@ -251,10 +224,7 @@
              :transform (str "translate(" x-offset "," y-offset ")")
              :visibility (if show-button? "visible" "hidden")
              :fill "none"
-             :d (str "M " (- 0 (/ length 2)) "," (- 0 (/ length 2)) " L 0,0 L " length "," (- 0 length))
-             })
-     ])
-  )
+             :d (str "M " (- 0 (/ length 2)) "," (- 0 (/ length 2)) " L 0,0 L " length "," (- 0 length))})]))
 
 (defn- add-button [{:keys [type ry] :as bubble} show-button?]
   (condp = type
@@ -280,15 +250,14 @@
 
     nil))
 
-(defn get-text-y [{:keys [cy text]} font-size]
+(defn get-text-y [{:keys [text]} font-size]
   (let [nb-lines (-> text string/split-lines count)
         y-offset (-> nb-lines dec (* font-size) (/ 2))
         ]
-    (- cy y-offset)
-    ))
+    (- 0 y-offset)))
 
 (defn- bubble-text-background-or-foreground
-  [{:keys [id cx cy text] :as bubble} event-property font-size tspan-style]
+  [{:keys [id text] :as bubble} event-property font-size tspan-style]
   [:text
    (merge event-property
           {:class "label"
@@ -298,13 +267,14 @@
    [:<>
     (for [[idx tspan-text]
           (map-indexed (fn [i text] [i text]) (string/split-lines text))]
-      (let [tspan-id (str id cy idx "back")
+      (let [tspan-id (str id idx "back")
             dy-value (if (= idx 0) 0 "1.2em")
             ]
         [:tspan
          (merge tspan-style
                 {:key tspan-id
-                 :x cx :dy dy-value})
+                 :x 0
+                 :dy dy-value})
          tspan-text]))]])
 
 (defn- bubble-text
@@ -341,7 +311,7 @@
 (def ellipse-memoized (memoize rough/ellipse))
 
 (defn- draw-ellipse
-  [{:keys [cx cy done? type]} rx ry event-property fill?]
+  [{:keys [done? type]} rx ry event-property fill?]
   (->
    (ellipse-memoized
     0 0 (* 2 rx) (* 2 ry)
@@ -358,11 +328,12 @@
       (if (= type const/ROOT-BUBBLE-TYPE)
         10
         6)}})
-   (assoc 1 (merge event-property {:transform (str "translate(" cx " " cy ")")}))))
+   (assoc 1 event-property)
+   ))
 
-(defn- draw-bubble [{:keys [id type rx ry edition?] :as bubble}]
+(defn- draw-bubble []
   (let [show-button? (reagent/atom false)]
-    (fn [{:keys [id type rx ry edition?] :as bubble}]
+    (fn [{:keys [id type cx cy rx ry edition?] :as bubble}]
       (let [offset (if (type const/ROOT-BUBBLE-TYPE) const/ROOT-BUBBLE-OFFSET 0)
             event-property (event-factory/event-property-factory
                             :ellipse
@@ -371,6 +342,7 @@
         [:g
          {:class "bubble"
           :key (str id "-group")
+          :transform (str "translate(" cx " " cy ")")
           :pointer-events "bounding-box"
           :on-mouse-over
           (fn []
@@ -399,10 +371,10 @@
             [bubble-text bubble (event-factory/event-property-factory :text bubble)]])]))))
 
 (defn draw-bubbles [bubbles]
-  [:<>
+  [:g
+   {:id "bubbles"}
    (doall
     (for [[bubble-id bubble] bubbles]
       ^{:key bubble-id}
       [draw-bubble bubble]
-      )
-    )])
+      ))])
