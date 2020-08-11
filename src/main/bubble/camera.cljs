@@ -2,16 +2,15 @@
   (:require
    [bubble.coordinate :as coord]
    [bubble.state-read :as state-read]
+   [bubble.camera-state :refer [event-queue]]
    [clojure.string :as string]
    [reagent.core :as reagent]
    [goog.events :as events]
-   [cljs.core.async :refer [chan put! <! go-loop]]
+   [cljs.core.async :refer [put! <! go-loop]]
    )
   (:import
    [goog.events EventType]
    ))
-
-(def event-queue (chan))
 
 ;; BEGIN CAMERA SECTION
 (defn init-camera
@@ -420,33 +419,42 @@
   (should-center?)
   (reset-pan-environment!))
 
-(go-loop [[event & args] (<! event-queue)]
-  (case event
-    :pan-start
-    (do
-      (home-evt-stop-background!)
-      (let [[mouse-pos-win-px] args]
-        (pan-start mouse-pos-win-px)))
+(defn handle-event []
+  (let [keep-listening? (atom true)]
+    (go-loop [[event & args] (<! event-queue)]
+      (case event
+        :pan-start
+        (do
+          (home-evt-stop-background!)
+          (let [[mouse-pos-win-px] args]
+            (pan-start mouse-pos-win-px)))
 
-    :pan-move
-    (let [[mouse-pos-win-px] args]
-      (pan-move mouse-pos-win-px))
+        :pan-move
+        (let [[mouse-pos-win-px] args]
+          (pan-move mouse-pos-win-px))
 
-    :pan-stop
-    (pan-stop)
+        :pan-stop
+        (pan-stop)
 
-    :mouse-wheel
-    (do
-      (home-evt-stop-background!)
-      (let [[wheel-delta-y win-px-x win-px-y] args]
-        (mouse-wheel wheel-delta-y win-px-x win-px-y)))
+        :mouse-wheel
+        (do
+          (home-evt-stop-background!)
+          (let [[wheel-delta-y win-px-x win-px-y] args]
+            (mouse-wheel wheel-delta-y win-px-x win-px-y)))
 
-    :home
-    (home-evt)
+        :home
+        (home-evt)
 
-    :resize
-    (let [[width height] args]
-      (window-resize width height))
-    )
-  (recur (<! event-queue)))
+        :resize
+        (let [[width height] args]
+          (window-resize width height))
+
+        :stop-listening
+        (reset! keep-listening? false)
+        )
+
+      ;; If a :stop-listening message is received, exit.
+      ;; Useful in the development mode for the hot reload
+      (when @keep-listening?
+        (recur (<! event-queue))))))
 ;; END CAMERA EVENT QUEUE

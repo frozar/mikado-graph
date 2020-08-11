@@ -7,7 +7,8 @@
    [bubble.camera :as camera]
    [bubble.core :as bubble]
    [bubble.event :as event]
-   [bubble.state-gui :refer [event-queue]]
+   [bubble.state-gui :as state-gui]
+   [bubble.camera-state :as camera-state]
    [cljs.core.async :refer [put!]]
    [reagent.dom :as rdom]
    ))
@@ -18,6 +19,7 @@
   ;; Trigger the event loop listening
   (event/handle-event)
   (event/window-keydown-evt-on)
+  (camera/handle-event)
   (camera/window-resize-evt-on)
   (camera/mouse-wheel-evt-on)
   [bubble/svg-canvas])
@@ -27,8 +29,9 @@
 
 (defn ^:dev/before-load unlisten-global-event []
   ;; Stop the event loop listening
-  (put! event-queue [:stop-listening])
+  (put! state-gui/event-queue [:stop-listening])
   (event/window-keydown-evt-off)
+  (put! camera-state/event-queue [:stop-listening])
   (camera/window-resize-evt-off)
   (camera/mouse-wheel-evt-off)
   )
