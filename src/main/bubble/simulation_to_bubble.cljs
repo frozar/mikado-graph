@@ -5,7 +5,7 @@
    [simulation.state :refer [current-simulation]]
    ))
 
-(defn- js-node->cljs-node [nodes]
+(defn js-node->cljs-node [nodes]
   (-> nodes
       js->clj
       walk/keywordize-keys))

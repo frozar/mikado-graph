@@ -4,27 +4,11 @@
    [bubble.constant :refer [ROOT-BUBBLE-ID]]
    [bubble.geometry :as geometry]
    [bubble.state-read :as state-read]
-   [cljs.core.async :refer [put!]]
+   [bubble.simulation-to-bubble-and-dom :as simulation-to-bubble-and-dom]
    [cljsjs.d3]
-   [clojure.walk :as walk]
    ["/d3/gravity" :as gravity]
-   [simulation.state :refer [current-simulation] ;; :as state
-    ]
+   [simulation.state :refer [current-simulation]]
    ))
-
-(def is-running? (atom false))
-
-(defn- js-node->cljs-node [nodes]
-  (-> nodes
-      js->clj
-      walk/keywordize-keys))
-
-(defn update-app-state-bubble-position [event-queue]
-  (when (and
-         (not (nil? @current-simulation))
-         @is-running?)
-    (let [nodes (js-node->cljs-node (.nodes @current-simulation))]
-      (put! event-queue [:simulation-move nodes]))))
 
 (defn- compute-max-square-speed [js-nodes]
   (->> js-nodes
@@ -65,7 +49,7 @@
                {:cx dst-cx :cy dst-cy})]
     [src-b dst-b]))
 
-(defn- ticked [event-queue sim clj-graph]
+(defn- ticked [sim clj-graph]
   (fn tick []
     ;; (js/console.debug "begin tick")
     (let [js-nodes (.nodes sim)
@@ -161,14 +145,11 @@
       (when (graph-converged? 1.0 (.nodes sim))
         (js/console.debug "TICK: DBG STOP SIMULATION")
         ;; Update the global application state
-        (put! event-queue [:simulation-move (js-node->cljs-node js-nodes)])
+        (simulation-to-bubble-and-dom/update-app-state-bubble-position-and-remount!)
         (when @current-simulation
-          (.stop @current-simulation))
-        (reset! is-running? false)
-        ))))
+          (.stop @current-simulation))))))
 
-(defn- simulation [event-chan
-                   cx-svg-user cy-svg-user
+(defn- simulation [cx-svg-user cy-svg-user
                    graph
                    clj-graph]
   (let [sim
@@ -198,11 +179,12 @@
             )]
 
     (-> sim
-        (.on "tick" (ticked event-chan sim clj-graph))
+        (.on "tick" (ticked sim clj-graph))
         (.on "end"
              (fn []
                (js/console.debug "ON EVENT: END OF SIM")
-               (update-app-state-bubble-position event-chan))))
+               (simulation-to-bubble-and-dom/update-app-state-bubble-position-and-remount!)
+               )))
 
     (-> sim
         (.force "link")
@@ -224,7 +206,7 @@
    []
    (state-read/get-links appstate)))
 
-(defn launch-simulation! [appstate event-queue]
+(defn launch-simulation! [appstate]
   (let [connected-graph (state-read/connected-graph appstate ROOT-BUBBLE-ID)
         graph
         {:nodes (build-nodes-field connected-graph)
@@ -241,13 +223,17 @@
     (when @current-simulation
       (.stop @current-simulation))
     (when (< 1 nb-nodes)
-      (reset! is-running? true)
       (reset! current-simulation
-              (simulation event-queue cx cy
+              (simulation cx cy
                           (clj->js graph)
                           connected-graph)))))
 
-;; ;; BEGIN: DRAG SECTION
+(defn stop-simulation! []
+  (when @current-simulation
+    (.stop @current-simulation))
+  (simulation-to-bubble-and-dom/update-app-state-bubble-position-and-remount!))
+
+;; BEGIN: DRAG SECTION
 
 (defn- get-idx-by-id-js-node [nodes id]
   (->> nodes
@@ -264,9 +250,9 @@
       (set! (.-fx js-node) fx)
       (set! (.-fy js-node) fy))))
 
-(defn simulation-drag! [appstate dragged-node-id node-cx node-cy event-queue]
+(defn simulation-drag! [appstate dragged-node-id node-cx node-cy]
   (let [sim (if (nil? @current-simulation)
-              (launch-simulation! appstate event-queue)
+              (launch-simulation! appstate)
               @current-simulation)]
     (simulation-set-node-position sim dragged-node-id node-cx node-cy)
     (-> sim
@@ -282,4 +268,4 @@
         (.alphaTarget 0)
         (.restart))))
 
-;; ;; END: DRAG SECTION
+;; END: DRAG SECTION
