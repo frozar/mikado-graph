@@ -35,7 +35,7 @@
             (do
               (simulation-to-bubble/update-app-state-bubble-position!)
               (let [new-state (state-write/simulation-create-bubble-and-link! bubble-id)]
-                (simulation.core/launch-simulation! new-state state-gui/event-queue)))
+                (simulation.core/launch-simulation! new-state)))
             (state-write/create-bubble-and-link! bubble-id new-cx new-cy)))
 
         :delete-bubble
@@ -44,7 +44,7 @@
             (do
               (simulation-to-bubble/update-app-state-bubble-position!)
               (let [new-state (state-write/delete-bubble-and-update-link! bubble-id)]
-                (simulation.core/launch-simulation! new-state state-gui/event-queue)))
+                (simulation.core/launch-simulation! new-state)))
             (state-write/delete-bubble-and-update-link! bubble-id)))
 
         :delete-link
@@ -53,13 +53,13 @@
           (when (and @state-gui/simulation?
                      (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID src-id)
                      (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID dst-id))
-            (simulation.core/launch-simulation! new-state state-gui/event-queue)))
+            (simulation.core/launch-simulation! new-state)))
 
         :trigger-simulation
-        (simulation.core/launch-simulation! (state-read/get-state) state-gui/event-queue)
+        (simulation.core/launch-simulation! (state-read/get-state))
 
         :stop-simulation
-        (simulation.core/stop-simulation! state-gui/event-queue)
+        (simulation.core/stop-simulation!)
 
         :simulation-move
         (let [[nodes] args
@@ -95,8 +95,7 @@
                    (< 1 nb-nodes))
             (do
               ;; (js/console.log "event drag! id " cx cy)
-              ;; (simulation.core/update-app-state-bubble-position state-gui/event-queue)
-              (simulation.core/simulation-drag! (state-read/get-state) id cx cy state-gui/event-queue))
+              (simulation.core/simulation-drag! (state-read/get-state) id cx cy))
             (state-write/move-bubble! id cx cy)
             ))
         #_(let [[id cx cy] args]
@@ -128,7 +127,7 @@
               new-state (state-write/building-link-end! id)]
           (when (and @state-gui/simulation?
                      (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID id))
-            (simulation.core/launch-simulation! new-state state-gui/event-queue))
+            (simulation.core/launch-simulation! new-state))
           (state-write/reset-build-link!)
           (reset! interaction nil))
 
