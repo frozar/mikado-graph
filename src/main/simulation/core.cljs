@@ -12,17 +12,13 @@
     ]
    ))
 
-(def is-running? (atom false))
-
 (defn- js-node->cljs-node [nodes]
   (-> nodes
       js->clj
       walk/keywordize-keys))
 
 (defn update-app-state-bubble-position [event-queue]
-  (when (and
-         (not (nil? @current-simulation))
-         @is-running?)
+  (when-not (nil? @current-simulation)
     (let [nodes (js-node->cljs-node (.nodes @current-simulation))]
       (put! event-queue [:simulation-move nodes]))))
 
@@ -161,11 +157,9 @@
       (when (graph-converged? 1.0 (.nodes sim))
         (js/console.debug "TICK: DBG STOP SIMULATION")
         ;; Update the global application state
-        (put! event-queue [:simulation-move (js-node->cljs-node js-nodes)])
+        (update-app-state-bubble-position event-queue)
         (when @current-simulation
-          (.stop @current-simulation))
-        (reset! is-running? false)
-        ))))
+          (.stop @current-simulation))))))
 
 (defn- simulation [event-queue
                    cx-svg-user cy-svg-user
@@ -241,7 +235,6 @@
     (when @current-simulation
       (.stop @current-simulation))
     (when (< 1 nb-nodes)
-      (reset! is-running? true)
       (reset! current-simulation
               (simulation event-queue cx cy
                           (clj->js graph)
@@ -250,10 +243,9 @@
 (defn stop-simulation! [event-queue]
   (when @current-simulation
     (.stop @current-simulation))
-  (update-app-state-bubble-position event-queue)
-  (reset! is-running? false))
+  (update-app-state-bubble-position event-queue))
 
-;; ;; BEGIN: DRAG SECTION
+;; BEGIN: DRAG SECTION
 
 (defn- get-idx-by-id-js-node [nodes id]
   (->> nodes
@@ -288,4 +280,4 @@
         (.alphaTarget 0)
         (.restart))))
 
-;; ;; END: DRAG SECTION
+;; END: DRAG SECTION
