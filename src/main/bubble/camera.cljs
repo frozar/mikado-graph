@@ -358,6 +358,27 @@
 
         new-camera (update-camera current-camera {:cx new-cx :cy new-cy})]
     [new-camera next-x'-svg-px]))
+
+(defn- move-camera-without-motion-solver
+  [initial-camera initial-mouse-svg-px target-mouse-svg-px
+   current-camera]
+  (let [target-translation-vec-svg-px
+        (map - initial-mouse-svg-px target-mouse-svg-px)
+
+        {cx0-svg-user :cx cy0-svg-user :cy} initial-camera
+
+        center-initial-camera-svg-px
+        (svg-user->svg-px current-camera [cx0-svg-user cy0-svg-user])
+
+        center-next-camera-svg-px
+        (map + center-initial-camera-svg-px target-translation-vec-svg-px)
+
+        ;; center-next-camera-svg-user
+        [new-cx new-cy]
+        (svg-px->svg-user current-camera center-next-camera-svg-px)
+
+        new-camera (update-camera current-camera {:cx new-cx :cy new-cy})]
+    new-camera))
 ;; END CAMERA MOTION
 
 ;; BEGIN PANNING ENVIRONMENT
@@ -398,14 +419,8 @@
 ;; END PANNING ENVIRONMENT
 
 ;; BEGIN CAMERA EVENT QUEUE
-(defn pan-start [mouse-pos-win-px]
-  (let [mouse-pos-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
-    (set-pan-environment! mouse-pos-svg-px)
-    (pan-start-background!)))
-
-(defn pan-move [mouse-pos-win-px]
-  (let [current-mouse-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
-    (reset! target-mouse-svg-px current-mouse-svg-px)))
+(comment
+  (swap! camera update-camera {:zoom 1}))
 
 (defn should-center?
   "If the graph is no more visible, call the home event to 'center'
@@ -414,8 +429,33 @@
   (when (not (in-pan-limit? @camera min-graph-portion))
     (put! event-queue [:home])))
 
-(defn pan-stop []
+(defn pan-start-animated [mouse-pos-win-px]
+  (let [mouse-pos-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
+    (set-pan-environment! mouse-pos-svg-px)
+    (pan-start-background!)))
+
+(defn pan-move-animated [mouse-pos-win-px]
+  (let [current-mouse-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
+    (reset! target-mouse-svg-px current-mouse-svg-px)))
+
+(defn pan-stop-animated []
   (pan-stop-background!)
+  (should-center?)
+  (reset-pan-environment!))
+
+(defn pan-start [mouse-pos-win-px]
+  (let [mouse-pos-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
+    (set-pan-environment! mouse-pos-svg-px)))
+
+(defn pan-move [mouse-pos-win-px]
+  (let [current-mouse-svg-px (coord/win-px->svg-px mouse-pos-win-px)
+        new-camera
+        (move-camera-without-motion-solver
+         @initial-camera @initial-mouse-svg-px current-mouse-svg-px
+         @camera)]
+    (set-camera! new-camera)))
+
+(defn pan-stop []
   (should-center?)
   (reset-pan-environment!))
 
