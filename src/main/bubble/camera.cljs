@@ -2,16 +2,15 @@
   (:require
    [bubble.coordinate :as coord]
    [bubble.state-read :as state-read]
+   [bubble.camera-state :refer [event-queue]]
    [clojure.string :as string]
    [reagent.core :as reagent]
    [goog.events :as events]
-   [cljs.core.async :refer [chan put! <! go-loop]]
+   [cljs.core.async :refer [put! <! go-loop]]
    )
   (:import
    [goog.events EventType]
    ))
-
-(def event-queue (chan))
 
 ;; BEGIN CAMERA SECTION
 (defn init-camera
@@ -114,7 +113,7 @@
 (defn- in-zoom-limit?
   "Check the arbitrary limit of zoom in/out"
   [camera]
-  (and (< 0.05 (area-ratio-min-bubble<->viewBox camera))
+  (and (< 0.001 (area-ratio-min-bubble<->viewBox camera))
        (< (area-ratio-min-bubble<->viewBox camera) 50)))
 
 (defn- bbox-area [{left :left right :right top :top bottom :bottom}]
@@ -126,11 +125,18 @@
 
 (defn in-pan-limit?
   "Check if the graph is still enough in the displayed viewBox. Typically,
-  if less than 30% of the graph is displayed, return false."
-  [camera minimal-ratio]
+  if the intersection area (between graph and view) represents less than 20% of
+  the view bbox area, than return false."
+  [camera minimal-intersect-over-graph minimal-intersect-over-view]
   (let [{width :width height :height
          view-left :min-x view-top :min-y} (camera->viewBox camera)
         [view-right view-bottom] (map + [view-left view-top] [width height])
+        view-bbox
+        {:left view-left
+         :right view-right
+         :top view-top
+         :bottom view-bottom}
+
         {graph-left :left graph-right :right
          graph-top :top graph-bottom :bottom} (state-read/graph-bbox)
 
@@ -141,10 +147,14 @@
          :bottom (min view-bottom graph-bottom)}
 
         intersection-bbox-area (bbox-area intersection-bbox)
+        view-bbox-area (bbox-area view-bbox)
+        graph-bbox-area (state-read/graph-bbox-area)
 
-        area-ratio (* 100 (/ intersection-bbox-area (state-read/graph-bbox-area)))]
-    (< minimal-ratio area-ratio)
-    ))
+        intersect-over-view-ratio (* 100 (/ intersection-bbox-area view-bbox-area))
+        intersect-over-graph-ratio (* 100 (/ intersection-bbox-area graph-bbox-area))]
+    (or (= view-bbox intersection-bbox)
+        (< minimal-intersect-over-view intersect-over-view-ratio)
+        (< minimal-intersect-over-graph intersect-over-graph-ratio))))
 
 (defn set-camera! [new-camera]
   (let [is-in-zoom-limit (in-zoom-limit? new-camera)]
@@ -359,6 +369,27 @@
 
         new-camera (update-camera current-camera {:cx new-cx :cy new-cy})]
     [new-camera next-x'-svg-px]))
+
+(defn- move-camera-without-motion-solver
+  [initial-camera initial-mouse-svg-px target-mouse-svg-px
+   current-camera]
+  (let [target-translation-vec-svg-px
+        (map - initial-mouse-svg-px target-mouse-svg-px)
+
+        {cx0-svg-user :cx cy0-svg-user :cy} initial-camera
+
+        center-initial-camera-svg-px
+        (svg-user->svg-px current-camera [cx0-svg-user cy0-svg-user])
+
+        center-next-camera-svg-px
+        (map + center-initial-camera-svg-px target-translation-vec-svg-px)
+
+        ;; center-next-camera-svg-user
+        [new-cx new-cy]
+        (svg-px->svg-user current-camera center-next-camera-svg-px)
+
+        new-camera (update-camera current-camera {:cx new-cx :cy new-cy})]
+    new-camera))
 ;; END CAMERA MOTION
 
 ;; BEGIN PANNING ENVIRONMENT
@@ -367,7 +398,8 @@
 (def initial-mouse-svg-px (atom nil))
 (def target-mouse-svg-px (atom [0 0]))
 (def panning-background-id (atom nil))
-(def min-graph-portion 20)
+(def minimal-intersect-over-view 20)
+(def minimal-intersect-over-graph 20)
 
 (defn- move-camera! []
   (let [[new-camera x'-svg-px]
@@ -399,54 +431,89 @@
 ;; END PANNING ENVIRONMENT
 
 ;; BEGIN CAMERA EVENT QUEUE
-(defn pan-start [mouse-pos-win-px]
+(defn should-trigger-home-evt?
+  "If the graph is no more visible, call the home event to 'center'
+  the view around the graph."
+  []
+  (when (not (in-pan-limit? @camera minimal-intersect-over-graph minimal-intersect-over-view))
+    (put! event-queue [:home])))
+
+(defmulti panning (fn [panning-type panning-action _] [panning-type panning-action]))
+
+(defmethod panning [:standard :start]
+  [_ _ mouse-pos-win-px]
+  (let [mouse-pos-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
+    (set-pan-environment! mouse-pos-svg-px)))
+
+(defmethod panning [:standard :move]
+  [_ _ mouse-pos-win-px]
+  (let [current-mouse-svg-px (coord/win-px->svg-px mouse-pos-win-px)
+        new-camera
+        (move-camera-without-motion-solver
+         @initial-camera @initial-mouse-svg-px current-mouse-svg-px
+         @camera)]
+    (set-camera! new-camera)))
+
+(defmethod panning [:standard :stop]
+  [_ _ _]
+  (should-trigger-home-evt?)
+  (reset-pan-environment!))
+
+(defmethod panning [:animated :start]
+  [_ _ mouse-pos-win-px]
   (let [mouse-pos-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
     (set-pan-environment! mouse-pos-svg-px)
     (pan-start-background!)))
 
-(defn pan-move [mouse-pos-win-px]
+(defmethod panning [:animated :move]
+  [_ _ mouse-pos-win-px]
   (let [current-mouse-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
     (reset! target-mouse-svg-px current-mouse-svg-px)))
 
-(defn should-center?
-  "If the graph is no more visible, call the home event to 'center'
-  the view around the graph."
-  []
-  (when (not (in-pan-limit? @camera min-graph-portion))
-    (put! event-queue [:home])))
-
-(defn pan-stop []
+(defmethod panning [:animated :stop]
+  [_ _ _]
   (pan-stop-background!)
-  (should-center?)
+  (should-trigger-home-evt?)
   (reset-pan-environment!))
 
-(go-loop [[event & args] (<! event-queue)]
-  (case event
-    :pan-start
-    (do
-      (home-evt-stop-background!)
-      (let [[mouse-pos-win-px] args]
-        (pan-start mouse-pos-win-px)))
+(defn handle-event []
+  (let [keep-listening? (atom true)
+        panning-type :standard]
+    (go-loop [[event & args] (<! event-queue)]
+      (case event
+        :pan-start
+        (do
+          (home-evt-stop-background!)
+          (let [[mouse-pos-win-px] args]
+            (panning panning-type :start mouse-pos-win-px)
+            ))
 
-    :pan-move
-    (let [[mouse-pos-win-px] args]
-      (pan-move mouse-pos-win-px))
+        :pan-move
+        (let [[mouse-pos-win-px] args]
+          (panning panning-type :move mouse-pos-win-px))
 
-    :pan-stop
-    (pan-stop)
+        :pan-stop
+        (panning panning-type :stop nil)
 
-    :mouse-wheel
-    (do
-      (home-evt-stop-background!)
-      (let [[wheel-delta-y win-px-x win-px-y] args]
-        (mouse-wheel wheel-delta-y win-px-x win-px-y)))
+        :mouse-wheel
+        (do
+          (home-evt-stop-background!)
+          (let [[wheel-delta-y win-px-x win-px-y] args]
+            (mouse-wheel wheel-delta-y win-px-x win-px-y)))
 
-    :home
-    (home-evt)
+        :home
+        (home-evt)
 
-    :resize
-    (let [[width height] args]
-      (window-resize width height))
-    )
-  (recur (<! event-queue)))
+        :resize
+        (let [[width height] args]
+          (window-resize width height))
+
+        :stop-listening
+        (reset! keep-listening? false)
+        )
+
+      ;; If a :stop-listening message is received, exit.
+      ;; Useful in the development mode for the hot reload
+      (when @keep-listening?
+        (recur (<! event-queue))))))
 ;; END CAMERA EVENT QUEUE

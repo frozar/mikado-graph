@@ -1,6 +1,6 @@
 (ns bubble.pan
   (:require
-   [bubble.camera :as camera]
+   [bubble.camera-state :as camera-state]
    [cljs.core.async :refer [put!]]
    [goog.events :as events]
    )
@@ -11,19 +11,19 @@
 (defn pan-move []
   (fn [evt]
     (let [mouse-pos-win-px [(.-clientX evt) (.-clientY evt)]]
-      (put! camera/event-queue [:pan-move mouse-pos-win-px]))))
+      (put! camera-state/event-queue [:pan-move mouse-pos-win-px]))))
 
 (defn pan-end [pan-move ref-to-pan-end-atom on-end]
   (fn []
     (events/unlisten js/window EventType.MOUSEMOVE pan-move)
     (events/unlisten js/window EventType.MOUSEUP @ref-to-pan-end-atom)
-    (put! camera/event-queue [:pan-stop])
+    (put! camera-state/event-queue [:pan-stop])
     (on-end)
     ))
 
 (defn pan-start [evt]
   (let [mouse-pos-win-px [(.-clientX evt) (.-clientY evt)]]
-    (put! camera/event-queue [:pan-start mouse-pos-win-px])))
+    (put! camera-state/event-queue [:pan-start mouse-pos-win-px])))
 
 (defn panning
   ([evt] (panning evt (fn []) (fn [])))

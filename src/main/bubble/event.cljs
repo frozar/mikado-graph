@@ -1,6 +1,6 @@
 (ns bubble.event
   (:require
-   [bubble.camera :as camera]
+   [bubble.camera-state :as camera-state]
    [bubble.core :as bubble]
    [bubble.constant :refer [ROOT-BUBBLE-ID]]
    [bubble.simulation-to-bubble :as simulation-to-bubble]
@@ -74,7 +74,7 @@
           (rdom/render [bubble/svg-canvas] (.getElementById js/document "app"))
           (comment
             (-> (state-read/get-bubbles) keys count)
-            (state-write/create-random-bubble-and-link! 50)
+            (state-write/create-random-bubble-and-link! 100)
             )
           )
 
@@ -183,7 +183,7 @@
 
     "Home"
     (when (not= @interaction "edition")
-      (put! camera/event-queue [:home]))
+      (put! camera-state/event-queue [:home]))
 
     "s"
     (when (not= @interaction "edition")
