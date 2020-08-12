@@ -113,7 +113,7 @@
 (defn- in-zoom-limit?
   "Check the arbitrary limit of zoom in/out"
   [camera]
-  (and (< 0.05 (area-ratio-min-bubble<->viewBox camera))
+  (and (< 0.001 (area-ratio-min-bubble<->viewBox camera))
        (< (area-ratio-min-bubble<->viewBox camera) 50)))
 
 (defn- bbox-area [{left :left right :right top :top bottom :bottom}]

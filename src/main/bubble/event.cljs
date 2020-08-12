@@ -74,7 +74,7 @@
           (rdom/render [bubble/svg-canvas] (.getElementById js/document "app"))
           (comment
             (-> (state-read/get-bubbles) keys count)
-            (state-write/create-random-bubble-and-link! 50)
+            (state-write/create-random-bubble-and-link! 100)
             )
           )
 
