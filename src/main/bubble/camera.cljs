@@ -125,11 +125,18 @@
 
 (defn in-pan-limit?
   "Check if the graph is still enough in the displayed viewBox. Typically,
-  if less than 30% of the graph is displayed, return false."
-  [camera minimal-ratio]
+  if the intersection area (between graph and view) represents less than 20% of
+  the view bbox area, than return false."
+  [camera minimal-intersect-over-graph minimal-intersect-over-view]
   (let [{width :width height :height
          view-left :min-x view-top :min-y} (camera->viewBox camera)
         [view-right view-bottom] (map + [view-left view-top] [width height])
+        view-bbox
+        {:left view-left
+         :right view-right
+         :top view-top
+         :bottom view-bottom}
+
         {graph-left :left graph-right :right
          graph-top :top graph-bottom :bottom} (state-read/graph-bbox)
 
@@ -140,10 +147,14 @@
          :bottom (min view-bottom graph-bottom)}
 
         intersection-bbox-area (bbox-area intersection-bbox)
+        view-bbox-area (bbox-area view-bbox)
+        graph-bbox-area (state-read/graph-bbox-area)
 
-        area-ratio (* 100 (/ intersection-bbox-area (state-read/graph-bbox-area)))]
-    (< minimal-ratio area-ratio)
-    ))
+        intersect-over-view-ratio (* 100 (/ intersection-bbox-area view-bbox-area))
+        intersect-over-graph-ratio (* 100 (/ intersection-bbox-area graph-bbox-area))]
+    (or (= view-bbox intersection-bbox)
+        (< minimal-intersect-over-view intersect-over-view-ratio)
+        (< minimal-intersect-over-graph intersect-over-graph-ratio))))
 
 (defn set-camera! [new-camera]
   (let [is-in-zoom-limit (in-zoom-limit? new-camera)]
@@ -387,7 +398,8 @@
 (def initial-mouse-svg-px (atom nil))
 (def target-mouse-svg-px (atom [0 0]))
 (def panning-background-id (atom nil))
-(def min-graph-portion 20)
+(def minimal-intersect-over-view 20)
+(def minimal-intersect-over-graph 20)
 
 (defn- move-camera! []
   (let [[new-camera x'-svg-px]
@@ -419,11 +431,11 @@
 ;; END PANNING ENVIRONMENT
 
 ;; BEGIN CAMERA EVENT QUEUE
-(defn should-center?
+(defn should-trigger-home-evt?
   "If the graph is no more visible, call the home event to 'center'
   the view around the graph."
   []
-  (when (not (in-pan-limit? @camera min-graph-portion))
+  (when (not (in-pan-limit? @camera minimal-intersect-over-graph minimal-intersect-over-view))
     (put! event-queue [:home])))
 
 (defmulti panning (fn [panning-type panning-action _] [panning-type panning-action]))
@@ -444,7 +456,7 @@
 
 (defmethod panning [:standard :stop]
   [_ _ _]
-  (should-center?)
+  (should-trigger-home-evt?)
   (reset-pan-environment!))
 
 (defmethod panning [:animated :start]
@@ -461,7 +473,7 @@
 (defmethod panning [:animated :stop]
   [_ _ _]
   (pan-stop-background!)
-  (should-center?)
+  (should-trigger-home-evt?)
   (reset-pan-environment!))
 
 (defn handle-event []
