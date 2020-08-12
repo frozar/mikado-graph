@@ -419,9 +419,6 @@
 ;; END PANNING ENVIRONMENT
 
 ;; BEGIN CAMERA EVENT QUEUE
-(comment
-  (swap! camera update-camera {:zoom 1}))
-
 (defn should-center?
   "If the graph is no more visible, call the home event to 'center'
   the view around the graph."
@@ -429,25 +426,15 @@
   (when (not (in-pan-limit? @camera min-graph-portion))
     (put! event-queue [:home])))
 
-(defn pan-start-animated [mouse-pos-win-px]
-  (let [mouse-pos-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
-    (set-pan-environment! mouse-pos-svg-px)
-    (pan-start-background!)))
+(defmulti panning (fn [panning-type panning-action _] [panning-type panning-action]))
 
-(defn pan-move-animated [mouse-pos-win-px]
-  (let [current-mouse-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
-    (reset! target-mouse-svg-px current-mouse-svg-px)))
-
-(defn pan-stop-animated []
-  (pan-stop-background!)
-  (should-center?)
-  (reset-pan-environment!))
-
-(defn pan-start [mouse-pos-win-px]
+(defmethod panning [:standard :start]
+  [_ _ mouse-pos-win-px]
   (let [mouse-pos-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
     (set-pan-environment! mouse-pos-svg-px)))
 
-(defn pan-move [mouse-pos-win-px]
+(defmethod panning [:standard :move]
+  [_ _ mouse-pos-win-px]
   (let [current-mouse-svg-px (coord/win-px->svg-px mouse-pos-win-px)
         new-camera
         (move-camera-without-motion-solver
@@ -455,26 +442,46 @@
          @camera)]
     (set-camera! new-camera)))
 
-(defn pan-stop []
+(defmethod panning [:standard :stop]
+  [_ _ _]
+  (should-center?)
+  (reset-pan-environment!))
+
+(defmethod panning [:animated :start]
+  [_ _ mouse-pos-win-px]
+  (let [mouse-pos-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
+    (set-pan-environment! mouse-pos-svg-px)
+    (pan-start-background!)))
+
+(defmethod panning [:animated :move]
+  [_ _ mouse-pos-win-px]
+  (let [current-mouse-svg-px (coord/win-px->svg-px mouse-pos-win-px)]
+    (reset! target-mouse-svg-px current-mouse-svg-px)))
+
+(defmethod panning [:animated :stop]
+  [_ _ _]
+  (pan-stop-background!)
   (should-center?)
   (reset-pan-environment!))
 
 (defn handle-event []
-  (let [keep-listening? (atom true)]
+  (let [keep-listening? (atom true)
+        panning-type :standard]
     (go-loop [[event & args] (<! event-queue)]
       (case event
         :pan-start
         (do
           (home-evt-stop-background!)
           (let [[mouse-pos-win-px] args]
-            (pan-start mouse-pos-win-px)))
+            (panning panning-type :start mouse-pos-win-px)
+            ))
 
         :pan-move
         (let [[mouse-pos-win-px] args]
-          (pan-move mouse-pos-win-px))
+          (panning panning-type :move mouse-pos-win-px))
 
         :pan-stop
-        (pan-stop)
+        (panning panning-type :stop nil)
 
         :mouse-wheel
         (do
