@@ -1,10 +1,10 @@
 (ns simulation.core
   (:require
-   [bubble.camera :as camera]
    [bubble.constant :refer [ROOT-BUBBLE-ID]]
    [bubble.geometry :as geometry]
    [bubble.state-read :as state-read]
    [bubble.simulation-to-bubble-and-dom :as simulation-to-bubble-and-dom]
+   [camera.core :as camera]
    [cljsjs.d3]
    ["/d3/gravity" :as gravity]
    [simulation.state :refer [current-simulation]]

@@ -1,11 +1,11 @@
 (ns bubble.drag
   (:require
-   [bubble.camera :as camera]
    [bubble.constant :refer [ROOT-BUBBLE-ID]]
    [bubble.coordinate :as coord]
    [bubble.simulation-to-bubble]
    [bubble.gui.state :as gui-state]
    [bubble.state-read :as state-read]
+   [camera.core :as camera]
    [cljs.core.async :refer [put!]]
    [goog.events :as events]
    )

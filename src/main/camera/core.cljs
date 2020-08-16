@@ -1,4 +1,4 @@
-(ns bubble.camera
+(ns camera.core
   (:require
    [bubble.coordinate :as coord]
    [bubble.state-read :as state-read]

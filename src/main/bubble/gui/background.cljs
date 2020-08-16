@@ -1,6 +1,6 @@
 (ns bubble.gui.background
   (:require
-   [bubble.camera :as camera]
+   [camera.core :as camera]
    ))
 
 (defn- intern-discret-range [base [x0 x1]]
