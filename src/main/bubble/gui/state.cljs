@@ -4,3 +4,4 @@
 
 (def event-queue (chan))
 (def simulation? (atom true))
+(def current-interaction (atom nil))
