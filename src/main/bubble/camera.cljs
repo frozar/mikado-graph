@@ -2,40 +2,24 @@
   (:require
    [bubble.coordinate :as coord]
    [bubble.state-read :as state-read]
-   [bubble.camera-state :refer [event-queue]]
-   [clojure.string :as string]
-   [reagent.core :as reagent]
-   [goog.events :as events]
+   [bubble.camera-state :as state]
    [cljs.core.async :refer [put! <! go-loop]]
+   [clojure.string :as string]
+   [goog.events :as events]
    )
   (:import
    [goog.events EventType]
    ))
 
 ;; BEGIN CAMERA SECTION
-(defn init-camera
-  ([]
-   (let [width (.-innerWidth js/window)
-         height (.-innerHeight js/window)]
-     (init-camera width height)))
-  ([width height]
-   {:cx (/ width 2.)
-    :cy (/ height 2.)
-    :width width
-    :height height
-    :zoom 1.}))
-
-(defonce camera
-  (reagent/atom (init-camera)))
-
 (defn get-state []
-  @camera)
+  @state/camera)
 
 (defn state-center []
-  (select-keys @camera [:cx :cy]))
+  (select-keys @state/camera [:cx :cy]))
 
 (defn state-dimension []
-  (select-keys @camera [:width :height]))
+  (select-keys @state/camera [:width :height]))
 
 (defn- camera->viewBox
   "Return the viewBox SVG property. Coord express in SVG user space."
@@ -47,7 +31,7 @@
     {:width width :height height :min-x min-x :min-y min-y}))
 
 (defn camera->view-bbox
-  ([] (camera->view-bbox @camera))
+  ([] (camera->view-bbox @state/camera))
   ([camera]
    (let [{width :width height :height
           view-left :min-x view-top :min-y} (camera->viewBox camera)
@@ -64,7 +48,7 @@
          height :height
          min-x :min-x
          min-y :min-y}
-        (camera->viewBox @camera)]
+        (camera->viewBox @state/camera)]
     (string/join " " [min-x min-y width height])))
 
 (defn camera-viewBox-area [camera]
@@ -109,14 +93,14 @@
 
 (defn update-camera
   ([hashmap]
-   (update-camera @camera hashmap))
+   (update-camera @state/camera hashmap))
   ([camera hashmap]
    (merge camera hashmap)))
 
 (defn dist-svg-px->dist-svg-user
   "Convert distance from SVG pixel space to SVG user space"
   ([dist]
-   (dist-svg-px->dist-svg-user @camera dist))
+   (dist-svg-px->dist-svg-user @state/camera dist))
   ([camera dist]
    (let [zoom (:zoom camera)]
      (/ dist zoom))))
@@ -124,7 +108,7 @@
 (defn dist-svg-user->dist-svg-px
   "Convert distance from SVG user space to SVG pixel space"
   ([dist]
-   (dist-svg-user->dist-svg-px @camera dist))
+   (dist-svg-user->dist-svg-px @state/camera dist))
   ([camera dist]
    (let [zoom (:zoom camera)]
      (* dist zoom))))
@@ -183,7 +167,7 @@
 (defn set-camera! [new-camera]
   (let [is-in-zoom-limit (in-zoom-limit? new-camera)]
     (when is-in-zoom-limit
-      (reset! camera new-camera))))
+      (reset! state/camera new-camera))))
 ;; END CAMERA SECTION
 
 ;; BEGIN COORDINATE CONVERTION
@@ -217,7 +201,7 @@
 
 (defn win-px->svg-user
   "From window pixel position, convert to svg user position."
-  ([pt-win-px] (win-px->svg-user @camera pt-win-px))
+  ([pt-win-px] (win-px->svg-user @state/camera pt-win-px))
   ([camera pt-win-px]
    (let [svg-px (coord/win-px->svg-px pt-win-px)
 
@@ -230,11 +214,11 @@
   (let [reduction-speed-factor 5
         scale (.pow js/Math 1.005 (/ wheel-delta-y reduction-speed-factor))
         svg-px (coord/win-px->svg-px [win-px-x win-px-y])
-        new-camera (apply-zoom @camera scale svg-px)]
+        new-camera (apply-zoom @state/camera scale svg-px)]
     (set-camera! new-camera)))
 
 (defn- mouse-wheel-evt [evt]
-  (put! event-queue
+  (put! state/event-queue
         [:mouse-wheel (..  evt -event_ -wheelDeltaY) (.-clientX evt) (.-clientY evt)]))
 
 (defn mouse-wheel-evt-on []
@@ -245,11 +229,11 @@
 
 (defn- window-resize [width height]
   (let [new-camera
-        (apply-resize @camera width height)]
+        (apply-resize @state/camera width height)]
     (set-camera! new-camera)))
 
 (defn- window-resize-evt []
-  (put! event-queue
+  (put! state/event-queue
         [:resize (.-innerWidth js/window) (.-innerHeight js/window)]))
 
 (defn window-resize-evt-on []
@@ -261,7 +245,7 @@
 (defn- target-dimension->zoom
   "From a target width and height for the camera, compute the zoom associated"
   [target-dimension]
-  (let [camera-dimension [(@camera :width) (@camera :height)]
+  (let [camera-dimension [(@state/camera :width) (@state/camera :height)]
         zooms (map / camera-dimension target-dimension)
         weakest_zoom (apply min zooms)]
     weakest_zoom))
@@ -331,7 +315,7 @@
       (home-evt-stop-background!)
       (let [[new-camera x'-svg-user]
             (move-home-camera target-camera
-                              @camera @home-camera-velocity)
+                              @state/camera @home-camera-velocity)
             ]
         (set-camera! new-camera)
         (reset! home-camera-velocity x'-svg-user)))))
@@ -349,7 +333,7 @@
         target-dimension [(* border-factor width) (* border-factor height)]
         weakest_zoom (target-dimension->zoom target-dimension)
 
-        target-camera (update-camera @camera {:cx cx :cy cy :zoom weakest_zoom})
+        target-camera (update-camera @state/camera {:cx cx :cy cy :zoom weakest_zoom})
         ]
     (home-evt-start-background! target-camera)
     ))
@@ -428,7 +412,7 @@
 (defn- move-camera! []
   (let [[new-camera x'-svg-px]
         (move-camera @initial-camera @initial-mouse-svg-px @target-mouse-svg-px
-                     @camera @camera-velocity)]
+                     @state/camera @camera-velocity)]
     (set-camera! new-camera)
     (reset! camera-velocity x'-svg-px)))
 
@@ -442,7 +426,7 @@
   (reset! panning-background-id nil))
 
 (defn- set-pan-environment! [mouse-pos-svg-px]
-  (reset! initial-camera @camera)
+  (reset! initial-camera @state/camera)
   (reset! initial-mouse-svg-px mouse-pos-svg-px)
   (reset! camera-velocity [0 0])
   (reset! target-mouse-svg-px mouse-pos-svg-px))
@@ -459,8 +443,8 @@
   "If the graph is no more visible, call the home event to 'center'
   the view around the graph."
   []
-  (when (not (in-pan-limit? @camera minimal-intersect-over-graph minimal-intersect-over-view))
-    (put! event-queue [:home])))
+  (when (not (in-pan-limit? @state/camera minimal-intersect-over-graph minimal-intersect-over-view))
+    (put! state/event-queue [:home])))
 
 (defmulti panning (fn [panning-type panning-action _] [panning-type panning-action]))
 
@@ -475,7 +459,7 @@
         new-camera
         (move-camera-without-motion-solver
          @initial-camera @initial-mouse-svg-px current-mouse-svg-px
-         @camera)]
+         @state/camera)]
     (set-camera! new-camera)))
 
 (defmethod panning [:standard :stop]
@@ -503,7 +487,7 @@
 (defn handle-event []
   (let [keep-listening? (atom true)
         panning-type :standard]
-    (go-loop [[event & args] (<! event-queue)]
+    (go-loop [[event & args] (<! state/event-queue)]
       (case event
         :pan-start
         (do
@@ -539,5 +523,5 @@
       ;; If a :stop-listening message is received, exit.
       ;; Useful in the development mode for the hot reload
       (when @keep-listening?
-        (recur (<! event-queue))))))
+        (recur (<! state/event-queue))))))
 ;; END CAMERA EVENT QUEUE
