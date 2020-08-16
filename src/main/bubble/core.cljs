@@ -5,8 +5,8 @@
    [bubble.coordinate :as coord]
    [bubble.event-util :as event-util]
    [bubble.gui.background :as background]
-   [bubble.gui-solid :as gui-solid]
-   [bubble.gui-rough :as gui-rough]
+   [bubble.gui.rough :as rough]
+   [bubble.gui.solid :as solid]
    [bubble.pan :as pan]
    [bubble.state-read :as state-read]
    [reagent.core :as reagent]
@@ -16,14 +16,14 @@
 (defn- which-renderer [rendering-style]
   (condp = rendering-style
     const/REDERING-STYLE-SOLID
-    [gui-solid/draw-building-link
-     gui-solid/draw-links
-     gui-solid/draw-bubbles]
+    [solid/draw-building-link
+     solid/draw-links
+     solid/draw-bubbles]
 
     const/REDERING-STYLE-ROUGH
-    [gui-rough/draw-building-link
-     gui-rough/draw-links
-     gui-rough/draw-bubbles]
+    [rough/draw-building-link
+     rough/draw-links
+     rough/draw-bubbles]
     )
   )
 

@@ -1,4 +1,4 @@
-(ns bubble.gui-common
+(ns bubble.gui.common
   (:require
    [bubble.camera :as camera]
    [bubble.constant :as const]

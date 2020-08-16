@@ -1,9 +1,9 @@
-(ns bubble.gui-rough
+(ns bubble.gui.rough
   (:require
    [bubble.constant :as const]
    [bubble.event-factory :as event-factory]
    [bubble.geometry :as geometry]
-   [bubble.gui-common :as gui-common]
+   [bubble.gui.common :as common]
    [bubble.state-read :as state-read]
    [clojure.string :as string]
    [reagent.core :as reagent]
@@ -284,7 +284,7 @@
 
     :component-did-mount
     (fn [this]
-      (gui-common/update-bubble-size (rdom/dom-node this) bubble))
+      (common/update-bubble-size (rdom/dom-node this) bubble))
 
     :reagent-render
     (fn [{:keys [initial-state?] :as bubble} event-property]
@@ -366,7 +366,7 @@
            nil)
 
          (if edition?
-           [gui-common/bubble-input bubble]
+           [common/bubble-input bubble]
            [:<>
             [bubble-text bubble (event-factory/event-property-factory :text bubble)]])]))))
 
