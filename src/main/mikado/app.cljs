@@ -8,7 +8,7 @@
    [bubble.core :as bubble]
    [bubble.event :as event]
    [bubble.gui.state :as gui-state]
-   [bubble.camera-state :as camera-state]
+   [camera.state :as camera-state]
    [cljs.core.async :refer [put!]]
    [reagent.dom :as rdom]
    ))

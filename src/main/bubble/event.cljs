@@ -1,12 +1,12 @@
 (ns bubble.event
   (:require
-   [bubble.camera-state :as camera-state]
    [bubble.core :as bubble]
    [bubble.constant :refer [ROOT-BUBBLE-ID]]
    [bubble.gui.state :as gui-state]
    [bubble.simulation-to-bubble :as simulation-to-bubble]
    [bubble.state-read :as state-read]
    [bubble.state-write :as state-write]
+   [camera.state :as camera-state]
    [cljs.core.async :refer [put! <! go-loop]]
    [goog.events :as events]
    [reagent.dom :as rdom]

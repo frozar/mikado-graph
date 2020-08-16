@@ -1,4 +1,4 @@
-(ns bubble.camera-state
+(ns camera.state
   (:require
    [cljs.core.async :refer [chan]]
    [reagent.core :as reagent]

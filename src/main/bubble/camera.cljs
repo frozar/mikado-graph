@@ -2,7 +2,7 @@
   (:require
    [bubble.coordinate :as coord]
    [bubble.state-read :as state-read]
-   [bubble.camera-state :as state]
+   [camera.state :as state]
    [cljs.core.async :refer [put! <! go-loop]]
    [clojure.string :as string]
    [goog.events :as events]
