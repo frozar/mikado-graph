@@ -2,7 +2,7 @@
   (:require
    [bubble.camera :as camera]
    [bubble.constant :as const]
-   [bubble.state-gui :refer [event-queue]]
+   [bubble.gui.state :refer [event-queue]]
    [cljs.core.async :refer [put!]]
    [clojure.string :as string]
    [reagent.core :as reagent]
