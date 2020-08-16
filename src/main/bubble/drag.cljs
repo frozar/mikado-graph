@@ -65,8 +65,8 @@
           (reset! init-mouse-x-svg-px mouse-x-svg-px)
           (reset! init-mouse-y-svg-px mouse-y-svg-px)
           )
-        (let [scaled-vec-trans-x (camera/scale-dist (- mouse-x-svg-px @init-mouse-x-svg-px))
-              scaled-vec-trans-y (camera/scale-dist (- mouse-y-svg-px @init-mouse-y-svg-px))]
+        (let [scaled-vec-trans-x (camera/dist-svg-px->dist-svg-user (- mouse-x-svg-px @init-mouse-x-svg-px))
+              scaled-vec-trans-y (camera/dist-svg-px->dist-svg-user (- mouse-y-svg-px @init-mouse-y-svg-px))]
           (put! event-queue
                 [:dragging
                  bubble-id

@@ -28,6 +28,9 @@
 (defonce camera
   (reagent/atom (init-camera)))
 
+(defn get-state []
+  @camera)
+
 (defn state-center []
   (select-keys @camera [:cx :cy]))
 
@@ -35,7 +38,7 @@
   (select-keys @camera [:width :height]))
 
 (defn- camera->viewBox
-  "Return the viewBox SVG property, in SVG user land coord."
+  "Return the viewBox SVG property. Coord express in SVG user space."
   [camera]
   (let [width  (/ (:width camera)  (:zoom camera))
         height (/ (:height camera) (:zoom camera))
@@ -110,12 +113,21 @@
   ([camera hashmap]
    (merge camera hashmap)))
 
-(defn scale-dist
+(defn dist-svg-px->dist-svg-user
+  "Convert distance from SVG pixel space to SVG user space"
   ([dist]
-   (scale-dist @camera dist))
+   (dist-svg-px->dist-svg-user @camera dist))
   ([camera dist]
    (let [zoom (:zoom camera)]
      (/ dist zoom))))
+
+(defn dist-svg-user->dist-svg-px
+  "Convert distance from SVG user space to SVG pixel space"
+  ([dist]
+   (dist-svg-user->dist-svg-px @camera dist))
+  ([camera dist]
+   (let [zoom (:zoom camera)]
+     (* dist zoom))))
 
 (defn area-ratio-min-bubble<->viewBox
   "Return the pourcentage of the smallest bubble over the viewBox area."
