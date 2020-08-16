@@ -8,6 +8,7 @@
    [bubble.event :as event]
    [bubble.gui.state :as gui-state]
    [camera.core :as camera-core]
+   [camera.event :as camera-event]
    [camera.state :as camera-state]
    [cljs.core.async :refer [put!]]
    [reagent.dom :as rdom]
@@ -19,7 +20,7 @@
   ;; Trigger the event loop listening
   (event/handle-event)
   (event/window-keydown-evt-on)
-  (camera-core/handle-event)
+  (camera-event/handle-event)
   (camera-core/window-resize-evt-on)
   (camera-core/mouse-wheel-evt-on)
   [bubble/svg-canvas])

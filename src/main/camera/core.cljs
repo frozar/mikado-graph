@@ -210,7 +210,7 @@
      )))
 ;; END COORDINATE CONVERTION
 
-(defn- mouse-wheel [wheel-delta-y win-px-x win-px-y]
+(defn mouse-wheel [wheel-delta-y win-px-x win-px-y]
   (let [reduction-speed-factor 5
         scale (.pow js/Math 1.005 (/ wheel-delta-y reduction-speed-factor))
         svg-px (coord/win-px->svg-px [win-px-x win-px-y])
@@ -227,7 +227,7 @@
 (defn mouse-wheel-evt-off []
   (events/unlisten js/window EventType.WHEEL mouse-wheel-evt))
 
-(defn- window-resize [width height]
+(defn window-resize [width height]
   (let [new-camera
         (apply-resize @state/camera width height)]
     (set-camera! new-camera)))
@@ -297,7 +297,7 @@
   (reset! home-camera-velocity [0 0 0])
   (reset! home-initial-time (current-time)))
 
-(defn- home-evt-stop-background! []
+(defn home-evt-stop-background! []
   (when @home-evt-background-id
     (js/clearInterval @home-evt-background-id))
   (reset! home-evt-background-id nil)
@@ -484,44 +484,44 @@
   (should-trigger-home-evt?)
   (reset-pan-environment!))
 
-(defn handle-event []
-  (let [keep-listening? (atom true)
-        panning-type :standard]
-    (go-loop [[event & args] (<! state/event-queue)]
-      (case event
-        :pan-start
-        (do
-          (home-evt-stop-background!)
-          (let [[mouse-pos-win-px] args]
-            (panning panning-type :start mouse-pos-win-px)
-            ))
+;; (defn handle-event []
+;;   (let [keep-listening? (atom true)
+;;         panning-type :standard]
+;;     (go-loop [[event & args] (<! state/event-queue)]
+;;       (case event
+;;         :pan-start
+;;         (do
+;;           (home-evt-stop-background!)
+;;           (let [[mouse-pos-win-px] args]
+;;             (panning panning-type :start mouse-pos-win-px)
+;;             ))
 
-        :pan-move
-        (let [[mouse-pos-win-px] args]
-          (panning panning-type :move mouse-pos-win-px))
+;;         :pan-move
+;;         (let [[mouse-pos-win-px] args]
+;;           (panning panning-type :move mouse-pos-win-px))
 
-        :pan-stop
-        (panning panning-type :stop nil)
+;;         :pan-stop
+;;         (panning panning-type :stop nil)
 
-        :mouse-wheel
-        (do
-          (home-evt-stop-background!)
-          (let [[wheel-delta-y win-px-x win-px-y] args]
-            (mouse-wheel wheel-delta-y win-px-x win-px-y)))
+;;         :mouse-wheel
+;;         (do
+;;           (home-evt-stop-background!)
+;;           (let [[wheel-delta-y win-px-x win-px-y] args]
+;;             (mouse-wheel wheel-delta-y win-px-x win-px-y)))
 
-        :home
-        (home-evt)
+;;         :home
+;;         (home-evt)
 
-        :resize
-        (let [[width height] args]
-          (window-resize width height))
+;;         :resize
+;;         (let [[width height] args]
+;;           (window-resize width height))
 
-        :stop-listening
-        (reset! keep-listening? false)
-        )
+;;         :stop-listening
+;;         (reset! keep-listening? false)
+;;         )
 
-      ;; If a :stop-listening message is received, exit.
-      ;; Useful in the development mode for the hot reload
-      (when @keep-listening?
-        (recur (<! state/event-queue))))))
+;;       ;; If a :stop-listening message is received, exit.
+;;       ;; Useful in the development mode for the hot reload
+;;       (when @keep-listening?
+;;         (recur (<! state/event-queue))))))
 ;; END CAMERA EVENT QUEUE
