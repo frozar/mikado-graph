@@ -1,8 +1,8 @@
-(ns bubble.gui-common
+(ns bubble.gui.common
   (:require
    [bubble.camera :as camera]
    [bubble.constant :as const]
-   [bubble.state-gui :refer [event-queue]]
+   [bubble.gui.state :refer [event-queue]]
    [cljs.core.async :refer [put!]]
    [clojure.string :as string]
    [reagent.core :as reagent]
@@ -13,8 +13,8 @@
   "Center the textarea field against the surrounding bubble"
   [dom-node
    width-atom height-atom top-left-x-atom top-left-y-atom]
-  (let [width  (camera/scale-dist (.-width (.getBoundingClientRect dom-node)))
-        height (camera/scale-dist (.-height (.getBoundingClientRect dom-node)))
+  (let [width  (camera/dist-svg-px->dist-svg-user (.-width (.getBoundingClientRect dom-node)))
+        height (camera/dist-svg-px->dist-svg-user (.-height (.getBoundingClientRect dom-node)))
         ]
     (reset! width-atom width)
     (reset! height-atom height)
@@ -64,8 +64,8 @@
   )
 
 (defn update-bubble-size [dom-node {:keys [id]}]
-  (let [width  (camera/scale-dist (.-width (.getBoundingClientRect dom-node)))
-        height (camera/scale-dist (.-height (.getBoundingClientRect dom-node)))
+  (let [width  (camera/dist-svg-px->dist-svg-user (.-width (.getBoundingClientRect dom-node)))
+        height (camera/dist-svg-px->dist-svg-user (.-height (.getBoundingClientRect dom-node)))
         radial-offset 40
         new-rx (-> width (/ 2) (+ radial-offset))
         new-ry (-> height (/ 2) (+ radial-offset))]
@@ -90,8 +90,8 @@
         current-text (reagent/atom text)
         dom-node (reagent/atom nil)
 
-        width (reagent/atom (camera/scale-dist (* 2 rx)))
-        height (reagent/atom (camera/scale-dist (* 2 ry)))
+        width  (reagent/atom (camera/dist-svg-px->dist-svg-user (* 2 rx)))
+        height (reagent/atom (camera/dist-svg-px->dist-svg-user (* 2 ry)))
         top-left-x (reagent/atom 0)
         top-left-y (reagent/atom 0)
         ]

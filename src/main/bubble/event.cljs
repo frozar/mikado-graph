@@ -3,8 +3,8 @@
    [bubble.camera-state :as camera-state]
    [bubble.core :as bubble]
    [bubble.constant :refer [ROOT-BUBBLE-ID]]
+   [bubble.gui.state :as gui-state]
    [bubble.simulation-to-bubble :as simulation-to-bubble]
-   [bubble.state-gui :as state-gui]
    [bubble.state-read :as state-read]
    [bubble.state-write :as state-write]
    [cljs.core.async :refer [put! <! go-loop]]
@@ -23,7 +23,7 @@
 
 (defn handle-event []
   (let [keep-listening? (atom true)]
-    (go-loop [[event & args] (<! state-gui/event-queue)]
+    (go-loop [[event & args] (<! gui-state/event-queue)]
       (when print-debug?
         (.debug js/console "event " event)
         (.debug js/console "args " args))
@@ -31,7 +31,7 @@
 
         :create-bubble
         (let [[bubble-id new-cx new-cy] args]
-          (if @state-gui/simulation?
+          (if @gui-state/simulation?
             (do
               (simulation-to-bubble/update-app-state-bubble-position!)
               (let [new-state (state-write/simulation-create-bubble-and-link! bubble-id)]
@@ -40,7 +40,7 @@
 
         :delete-bubble
         (let [[bubble-id] args]
-          (if @state-gui/simulation?
+          (if @gui-state/simulation?
             (do
               (simulation-to-bubble/update-app-state-bubble-position!)
               (let [new-state (state-write/delete-bubble-and-update-link! bubble-id)]
@@ -50,7 +50,7 @@
         :delete-link
         (let [[src-id dst-id] args
               new-state (state-write/delete-link! src-id dst-id)]
-          (when (and @state-gui/simulation?
+          (when (and @gui-state/simulation?
                      (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID src-id)
                      (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID dst-id))
             (simulation.core/launch-simulation! new-state)))
@@ -85,11 +85,11 @@
               is-connected?
               (and (not (nil? (some #{ROOT-BUBBLE-ID} (-> connected-graph :bubbles keys))))
                    (not (nil? (some #{id} (-> connected-graph :bubbles keys)))))]
-          ;; (js/console.log "dragging @state-gui/simulation? " @state-gui/simulation?)
+          ;; (js/console.log "dragging @gui-state/simulation? " @gui-state/simulation?)
           ;; (js/console.log "id cx cy " id cx cy)
           ;; (js/console.log "connected-graph " connected-graph)
           ;; (js/console.log "is-connected? " is-connected?)
-          (if (and @state-gui/simulation?
+          (if (and @gui-state/simulation?
                    ;; (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID id)
                    is-connected?
                    (< 1 nb-nodes))
@@ -106,8 +106,8 @@
         (let [[id] args
               connected-graph (state-read/connected-graph (state-read/get-state) ROOT-BUBBLE-ID)
               nb-nodes (-> connected-graph state-read/get-bubbles count)]
-          ;; (js/console.log "dragging-end @state-gui/simulation? " @state-gui/simulation?)
-          (when (and @state-gui/simulation?
+          ;; (js/console.log "dragging-end @gui-state/simulation? " @gui-state/simulation?)
+          (when (and @gui-state/simulation?
                      (< 1 nb-nodes))
             (simulation.core/simulation-drag-end! id)))
         ;; nil
@@ -125,7 +125,7 @@
         :build-link-end
         (let [[id] args
               new-state (state-write/building-link-end! id)]
-          (when (and @state-gui/simulation?
+          (when (and @gui-state/simulation?
                      (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID id))
             (simulation.core/launch-simulation! new-state))
           (state-write/reset-build-link!)
@@ -170,7 +170,7 @@
       ;; If a :stop-listening message is received, exit.
       ;; Useful in the development mode for the hot reload
       (when @keep-listening?
-        (recur (<! state-gui/event-queue))))))
+        (recur (<! gui-state/event-queue))))))
 
 (defn- window-keydown-evt
   "Configure the press to escape-key to exit interactive edition mode.
@@ -179,7 +179,7 @@
   (condp = (.-key evt)
     "t"
     (when (not= @interaction "edition")
-      (put! state-gui/event-queue [:toggle-rough-layout]))
+      (put! gui-state/event-queue [:toggle-rough-layout]))
 
     "Home"
     (when (not= @interaction "edition")
@@ -187,11 +187,11 @@
 
     "s"
     (when (not= @interaction "edition")
-      (.debug js/console "@state-gui/simulation? " (not @state-gui/simulation?))
-      (swap! state-gui/simulation? not)
-      (if @state-gui/simulation?
-        (put! state-gui/event-queue [:trigger-simulation])
-        (put! state-gui/event-queue [:stop-simulation])))
+      (.debug js/console "@gui-state/simulation? " (not @gui-state/simulation?))
+      (swap! gui-state/simulation? not)
+      (if @gui-state/simulation?
+        (put! gui-state/event-queue [:trigger-simulation])
+        (put! gui-state/event-queue [:stop-simulation])))
 
     nil
     ))

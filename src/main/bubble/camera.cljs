@@ -28,18 +28,36 @@
 (defonce camera
   (reagent/atom (init-camera)))
 
+(defn get-state []
+  @camera)
+
 (defn state-center []
   (select-keys @camera [:cx :cy]))
 
 (defn state-dimension []
   (select-keys @camera [:width :height]))
 
-(defn- camera->viewBox [camera]
+(defn- camera->viewBox
+  "Return the viewBox SVG property. Coord express in SVG user space."
+  [camera]
   (let [width  (/ (:width camera)  (:zoom camera))
         height (/ (:height camera) (:zoom camera))
         min-x (- (:cx camera) (/ width 2.))
         min-y (- (:cy camera) (/ height 2.))]
     {:width width :height height :min-x min-x :min-y min-y}))
+
+(defn camera->view-bbox
+  ([] (camera->view-bbox @camera))
+  ([camera]
+   (let [{width :width height :height
+          view-left :min-x view-top :min-y} (camera->viewBox camera)
+         [view-right view-bottom] (map + [view-left view-top] [width height])
+         view-bbox
+         {:left view-left
+          :right view-right
+          :top view-top
+          :bottom view-bottom}]
+     view-bbox)))
 
 (defn camera->viewBox-str []
   (let [{width :width
@@ -95,12 +113,21 @@
   ([camera hashmap]
    (merge camera hashmap)))
 
-(defn scale-dist
+(defn dist-svg-px->dist-svg-user
+  "Convert distance from SVG pixel space to SVG user space"
   ([dist]
-   (scale-dist @camera dist))
+   (dist-svg-px->dist-svg-user @camera dist))
   ([camera dist]
    (let [zoom (:zoom camera)]
      (/ dist zoom))))
+
+(defn dist-svg-user->dist-svg-px
+  "Convert distance from SVG user space to SVG pixel space"
+  ([dist]
+   (dist-svg-user->dist-svg-px @camera dist))
+  ([camera dist]
+   (let [zoom (:zoom camera)]
+     (* dist zoom))))
 
 (defn area-ratio-min-bubble<->viewBox
   "Return the pourcentage of the smallest bubble over the viewBox area."
@@ -128,14 +155,11 @@
   if the intersection area (between graph and view) represents less than 20% of
   the view bbox area, than return false."
   [camera minimal-intersect-over-graph minimal-intersect-over-view]
-  (let [{width :width height :height
-         view-left :min-x view-top :min-y} (camera->viewBox camera)
-        [view-right view-bottom] (map + [view-left view-top] [width height])
-        view-bbox
-        {:left view-left
-         :right view-right
-         :top view-top
-         :bottom view-bottom}
+  (let [view-bbox (camera->view-bbox camera)
+        {view-left :left
+         view-right :right
+         view-top :top
+         view-bottom :bottom} view-bbox
 
         {graph-left :left graph-right :right
          graph-top :top graph-bottom :bottom} (state-read/graph-bbox)

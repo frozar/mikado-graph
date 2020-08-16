@@ -4,7 +4,7 @@
    [bubble.constant :refer [ROOT-BUBBLE-ID]]
    [bubble.coordinate :as coord]
    [bubble.simulation-to-bubble]
-   [bubble.state-gui :as state-gui]
+   [bubble.gui.state :as gui-state]
    [bubble.state-read :as state-read]
    [cljs.core.async :refer [put!]]
    [goog.events :as events]
@@ -65,8 +65,8 @@
           (reset! init-mouse-x-svg-px mouse-x-svg-px)
           (reset! init-mouse-y-svg-px mouse-y-svg-px)
           )
-        (let [scaled-vec-trans-x (camera/scale-dist (- mouse-x-svg-px @init-mouse-x-svg-px))
-              scaled-vec-trans-y (camera/scale-dist (- mouse-y-svg-px @init-mouse-y-svg-px))]
+        (let [scaled-vec-trans-x (camera/dist-svg-px->dist-svg-user (- mouse-x-svg-px @init-mouse-x-svg-px))
+              scaled-vec-trans-y (camera/dist-svg-px->dist-svg-user (- mouse-y-svg-px @init-mouse-y-svg-px))]
           (put! event-queue
                 [:dragging
                  bubble-id
@@ -86,7 +86,7 @@
   ([event-queue bubble-id on-start on-end]
    ;; (js/console.log "DRAGGING bubble.state-gui/simulation? " @bubble.state-gui/simulation?)
    (let [run-at-least-once? (atom false)
-         drag-move (drag-move-fn event-queue state-gui/simulation? run-at-least-once? bubble-id)
+         drag-move (drag-move-fn event-queue gui-state/simulation? run-at-least-once? bubble-id)
          drag-end-atom (atom nil)
          drag-end (drag-end-fn event-queue run-at-least-once? bubble-id drag-move drag-end-atom on-end)]
      ;; (js/console.log "IN dragging")

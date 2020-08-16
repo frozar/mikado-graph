@@ -1,4 +1,4 @@
-(ns bubble.state-gui
+(ns bubble.gui.state
   (:require
    [cljs.core.async :refer [chan]]))
 

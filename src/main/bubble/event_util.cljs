@@ -1,6 +1,6 @@
 (ns bubble.event-util)
 
-(defn- prevent-default
+(defn prevent-default
   ([] (prevent-default (fn [])))
   ([func]
    (fn [evt]
