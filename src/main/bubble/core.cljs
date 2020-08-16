@@ -6,9 +6,9 @@
    [bubble.gui.background :as background]
    [bubble.gui.rough :as rough]
    [bubble.gui.solid :as solid]
-   [bubble.pan :as pan]
    [bubble.state-read :as state-read]
    [camera.core :as camera]
+   [camera.pan :as pan]
    [reagent.core :as reagent]
    [reagent.dom :as rdom]
    ))
