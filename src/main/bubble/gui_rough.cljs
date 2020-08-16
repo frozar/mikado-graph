@@ -73,7 +73,7 @@
       (fn [_ _]
         [:g])})))
 
-(def rough-cljs-memoized (memoize LocalRough))
+(def memoized-rough-cljs (memoize LocalRough))
 
 (defn- draw-path
   ([src-b dst-b event-property]
@@ -91,14 +91,14 @@
          path-str (str "M 0,0 L " arrow-length ",0")
 
          rough-path
-         [rough-cljs-memoized
+         [memoized-rough-cljs
           :dummy
           [[:path path-str]]]]
      [:g (merge event-property
                 {:key key-str})
       rough-path])))
 
-(def rough-path-memoized (memoize rough/path))
+(def memoized-rough-path (memoize rough/path))
 
 (defn- draw-arrowhead
   [src-b dst-b event-property]
@@ -106,7 +106,7 @@
         (geometry/incidental-border-points-between-bubbles src-b dst-b)
         arrow-length (geometry/dist src-pt-x src-pt-y dst-pt-x dst-pt-y)]
     (->
-     (rough-path-memoized "M -10 -20 L 0 0 L 10 -20 L 0 -5 Z"
+     (memoized-rough-path "M -10 -20 L 0 0 L 10 -20 L 0 -5 Z"
                           {:rough-option {:stroke "black"
                                           :strokeWidth 1}})
      (assoc 1 (merge event-property
@@ -308,12 +308,12 @@
          ]
         ))}))
 
-(def ellipse-memoized (memoize rough/ellipse))
+(def memoized-ellipse (memoize rough/ellipse))
 
 (defn- draw-ellipse
   [{:keys [done? type]} rx ry event-property fill?]
   (->
-   (ellipse-memoized
+   (memoized-ellipse
     0 0 (* 2 rx) (* 2 ry)
     {:rough-option
      {:seed 0

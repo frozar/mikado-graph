@@ -4,6 +4,7 @@
    [bubble.constant :as const]
    [bubble.coordinate :as coord]
    [bubble.event-util :as event-util]
+   [bubble.gui.background :as background]
    [bubble.gui-solid :as gui-solid]
    [bubble.gui-rough :as gui-rough]
    [bubble.pan :as pan]
@@ -107,7 +108,9 @@
            [:feComposite {:in "SourceGraphic" :operator "xor"}]
            ]]
 
-         [draw-graph]
+         [:<>
+          [background/grid]
+          [draw-graph]]
 
          ;; ;; DBG element
          ;; [svg-origin]
