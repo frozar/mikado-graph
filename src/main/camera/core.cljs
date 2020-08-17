@@ -2,8 +2,9 @@
   (:require
    [bubble.coordinate :as coord]
    [bubble.state-read :as state-read]
+   [camera.simulation :as simulation]
    [camera.state :as state]
-   [cljs.core.async :refer [put! <! go-loop]]
+   [cljs.core.async :refer [put!]]
    [clojure.string :as string]
    [goog.events :as events]
    )
@@ -242,102 +243,6 @@
 (defn window-resize-evt-off []
   (events/unlisten js/window EventType.RESIZE window-resize-evt))
 
-(defn- target-dimension->zoom
-  "From a target width and height for the camera, compute the zoom associated"
-  [target-dimension]
-  (let [camera-dimension [(@state/camera :width) (@state/camera :height)]
-        zooms (map / camera-dimension target-dimension)
-        weakest_zoom (apply min zooms)]
-    weakest_zoom))
-
-(defn- motion-solver [m alpha k h [xn xn']]
-  (let [x''
-        (+ (- (* (/ alpha m) xn'))
-           (- (* (/ k m) xn)))
-        xnp1' (+ xn' (* h x''))
-        xnp1 (+ xn (* h xnp1'))]
-    [xnp1 xnp1']))
-
-(defn- move-home-camera
-  [target-camera
-   current-camera current-x'-svg-user]
-  (let [{cx-src-svg-user :cx cy-src-svg-user :cy zoom-src-svg-user :zoom} current-camera
-        {cx-dst-svg-user :cx cy-dst-svg-user :cy zoom-dst-svg-user :zoom} target-camera
-
-        current-x-svg-user
-        (map -
-             [cx-dst-svg-user cy-dst-svg-user zoom-dst-svg-user]
-             [cx-src-svg-user cy-src-svg-user zoom-src-svg-user])
-
-        [next-x-svg-user next-x'-svg-user]
-        (->>
-         (interleave current-x-svg-user current-x'-svg-user)
-         (partition 2)
-         (map (partial motion-solver 0.1 0.8 4 (/ 1 60)))
-         (apply interleave)
-         (partition 3)) ; 3 components: cx cy zoom
-
-        [new-cx new-cy new-zoom]
-        (map -
-             [cx-dst-svg-user cy-dst-svg-user zoom-dst-svg-user]
-             next-x-svg-user)
-
-        new-camera (update-camera current-camera {:cx new-cx :cy new-cy :zoom new-zoom})]
-    [new-camera next-x'-svg-user]))
-
-(defn- current-time []
-  (.now js/Date))
-
-;; BEGIN HOME-EVT ENVIRONMENT
-(def home-camera-velocity (atom [0 0 0]))
-(def home-evt-background-id (atom nil))
-(def home-initial-time (atom nil))
-
-(defn- reset-home-evt-environment! []
-  (reset! home-camera-velocity [0 0 0])
-  (reset! home-initial-time (current-time)))
-
-(defn home-evt-stop-background! []
-  (when @home-evt-background-id
-    (js/clearInterval @home-evt-background-id))
-  (reset! home-evt-background-id nil)
-  (reset-home-evt-environment!))
-
-(defn- square-norm [vector]
-  (apply +
-         (map (fn [v] (* v v)) vector)))
-
-(defn- move-home-camera! [target-camera]
-  (let [elapsed-time (- (current-time) @home-initial-time)]
-    (if (and
-         (< 500 elapsed-time)  ; at least 0.5 second of animation
-         (< (square-norm @home-camera-velocity) 10e-3))
-      (home-evt-stop-background!)
-      (let [[new-camera x'-svg-user]
-            (move-home-camera target-camera
-                              @state/camera @home-camera-velocity)
-            ]
-        (set-camera! new-camera)
-        (reset! home-camera-velocity x'-svg-user)))))
-
-(defn- home-evt-start-background! [target-camera]
-  (reset-home-evt-environment!)
-  (reset! home-evt-background-id
-          (js/setInterval move-home-camera! (/ 1000 60) target-camera))  )
-;; END HOME-EVT ENVIRONMENT
-
-(defn home-evt []
-  (let [[cx cy] (state-read/graph-mid-pt)
-        {:keys [width height]} (state-read/graph-width-height)
-        border-factor 1.2
-        target-dimension [(* border-factor width) (* border-factor height)]
-        weakest_zoom (target-dimension->zoom target-dimension)
-
-        target-camera (update-camera @state/camera {:cx cx :cy cy :zoom weakest_zoom})
-        ]
-    (home-evt-start-background! target-camera)
-    ))
-
 ;; BEGIN CAMERA MOTION
 (defn- move-camera
   [initial-camera initial-mouse-svg-px target-mouse-svg-px
@@ -364,7 +269,7 @@
         (->>
          (interleave current-x-svg-px current-x'-svg-px)
          (partition 2)
-         (map (partial motion-solver 0.1 0.8 4 (/ 1 60)))
+         (map (partial simulation/motion-solver 0.1 0.8 4 (/ 1 60)))
          (apply interleave)
          (partition 2))
 
@@ -483,45 +388,4 @@
   (pan-stop-background!)
   (should-trigger-home-evt?)
   (reset-pan-environment!))
-
-;; (defn handle-event []
-;;   (let [keep-listening? (atom true)
-;;         panning-type :standard]
-;;     (go-loop [[event & args] (<! state/event-queue)]
-;;       (case event
-;;         :pan-start
-;;         (do
-;;           (home-evt-stop-background!)
-;;           (let [[mouse-pos-win-px] args]
-;;             (panning panning-type :start mouse-pos-win-px)
-;;             ))
-
-;;         :pan-move
-;;         (let [[mouse-pos-win-px] args]
-;;           (panning panning-type :move mouse-pos-win-px))
-
-;;         :pan-stop
-;;         (panning panning-type :stop nil)
-
-;;         :mouse-wheel
-;;         (do
-;;           (home-evt-stop-background!)
-;;           (let [[wheel-delta-y win-px-x win-px-y] args]
-;;             (mouse-wheel wheel-delta-y win-px-x win-px-y)))
-
-;;         :home
-;;         (home-evt)
-
-;;         :resize
-;;         (let [[width height] args]
-;;           (window-resize width height))
-
-;;         :stop-listening
-;;         (reset! keep-listening? false)
-;;         )
-
-;;       ;; If a :stop-listening message is received, exit.
-;;       ;; Useful in the development mode for the hot reload
-;;       (when @keep-listening?
-;;         (recur (<! state/event-queue))))))
 ;; END CAMERA EVENT QUEUE
