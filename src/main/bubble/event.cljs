@@ -1,12 +1,12 @@
 (ns bubble.event
   (:require
-   [bubble.camera-state :as camera-state]
    [bubble.core :as bubble]
    [bubble.constant :refer [ROOT-BUBBLE-ID]]
    [bubble.gui.state :as gui-state]
    [bubble.simulation-to-bubble :as simulation-to-bubble]
    [bubble.state-read :as state-read]
    [bubble.state-write :as state-write]
+   [camera.state :as camera-state]
    [cljs.core.async :refer [put! <! go-loop]]
    [goog.events :as events]
    [reagent.dom :as rdom]
@@ -15,9 +15,6 @@
   (:import
    [goog.events EventType]
    ))
-
-;; TODO: try to get ride of this variable
-(def interaction (atom nil))
 
 (def print-debug? false)
 
@@ -114,7 +111,7 @@
 
         :build-link-start
         (let [[id mouse-x mouse-y] args]
-          (reset! interaction "build-link")
+          (reset! gui-state/current-interaction "build-link")
           (state-write/set-link-src! id)
           (state-write/set-mouse-position! mouse-x mouse-y))
 
@@ -129,22 +126,22 @@
                      (state-read/is-connected? (state-read/get-state) ROOT-BUBBLE-ID id))
             (simulation.core/launch-simulation! new-state))
           (state-write/reset-build-link!)
-          (reset! interaction nil))
+          (reset! gui-state/current-interaction nil))
 
         :build-link-exit
         (do
           (state-write/reset-build-link!)
-          (reset! interaction nil))
+          (reset! gui-state/current-interaction nil))
 
         :enable-edition
         (let [[id] args]
-          (reset! interaction "edition")
+          (reset! gui-state/current-interaction "edition")
           (state-write/enable-edition! id))
 
         :disable-edition
         (let [[id] args]
           (state-write/disable-edition! id)
-          (reset! interaction nil))
+          (reset! gui-state/current-interaction nil))
 
         :save-text
         (let [[id text] args]
@@ -178,15 +175,15 @@
   [evt]
   (condp = (.-key evt)
     "t"
-    (when (not= @interaction "edition")
+    (when (not= @gui-state/current-interaction "edition")
       (put! gui-state/event-queue [:toggle-rough-layout]))
 
     "Home"
-    (when (not= @interaction "edition")
+    (when (not= @gui-state/current-interaction "edition")
       (put! camera-state/event-queue [:home]))
 
     "s"
-    (when (not= @interaction "edition")
+    (when (not= @gui-state/current-interaction "edition")
       (.debug js/console "@gui-state/simulation? " (not @gui-state/simulation?))
       (swap! gui-state/simulation? not)
       (if @gui-state/simulation?

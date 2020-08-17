@@ -1,7 +1,7 @@
 (ns bubble.build-link
   (:require
-   [bubble.camera :as camera]
    [bubble.state-read :as state-read]
+   [camera.core :as camera]
    [cljs.core.async :refer [put!]]
    [goog.events :as events]
    )

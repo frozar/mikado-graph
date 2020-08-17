@@ -1,8 +1,8 @@
 (ns bubble.gui.common
   (:require
-   [bubble.camera :as camera]
    [bubble.constant :as const]
    [bubble.gui.state :refer [event-queue]]
+   [camera.core :as camera]
    [cljs.core.async :refer [put!]]
    [clojure.string :as string]
    [reagent.core :as reagent]
