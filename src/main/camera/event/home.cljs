@@ -1,4 +1,4 @@
-(ns camera.home-event
+(ns camera.event.home
   (:require
    [bubble.state-read :as state-read]
    [camera.core :as core]

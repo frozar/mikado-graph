@@ -1,7 +1,8 @@
 (ns camera.event
   (:require
    [camera.core :as core]
-   [camera.home-event :as home-event]
+   [camera.event.home :as home]
+   [camera.event.pan :as pan]
    [camera.state :as state]
    [cljs.core.async :refer [<! go-loop]]
    ))
@@ -13,26 +14,26 @@
       (case event
         :pan-start
         (do
-          (home-event/stop-background!)
+          (home/stop-background!)
           (let [[mouse-pos-win-px] args]
-            (core/panning panning-type :start mouse-pos-win-px)
+            (pan/panning panning-type :start mouse-pos-win-px)
             ))
 
         :pan-move
         (let [[mouse-pos-win-px] args]
-          (core/panning panning-type :move mouse-pos-win-px))
+          (pan/panning panning-type :move mouse-pos-win-px))
 
         :pan-stop
-        (core/panning panning-type :stop nil)
+        (pan/panning panning-type :stop nil)
 
         :mouse-wheel
         (do
-          (home-event/stop-background!)
+          (home/stop-background!)
           (let [[wheel-delta-y win-px-x win-px-y] args]
             (core/mouse-wheel wheel-delta-y win-px-x win-px-y)))
 
         :home
-        (home-event/trigger-evt)
+        (home/trigger-evt)
 
         :resize
         (let [[width height] args]
