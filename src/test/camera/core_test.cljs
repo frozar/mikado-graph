@@ -1,16 +1,11 @@
-(ns bubble.camera-test
+(ns camera.core-test
   (:require
-   [bubble.camera :as c]
+   [camera.core :as c]
+   [camera.state :as s]
    [cljs.test :refer (deftest is)]
    ))
 
-(def initial-camera (c/init-camera 800 600))
-
-(deftest initial-camera_value
-  (is
-   (=
-    initial-camera
-    {:cx 400 :cy 300 :width 800 :height 600 :zoom 1})))
+(def initial-camera (s/init-camera 800 600))
 
 (deftest change-coord-px-user-px_basic
   (let [camera initial-camera
