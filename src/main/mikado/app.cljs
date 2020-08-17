@@ -7,8 +7,8 @@
    [bubble.core :as bubble]
    [bubble.event :as event]
    [bubble.gui.state :as gui-state]
-   [camera.core :as camera-core]
    [camera.event :as camera-event]
+   [camera.event.zoom :as camera-zoom]
    [camera.state :as camera-state]
    [cljs.core.async :refer [put!]]
    [reagent.dom :as rdom]
@@ -21,8 +21,8 @@
   (event/handle-event)
   (event/window-keydown-evt-on)
   (camera-event/handle-event)
-  (camera-core/window-resize-evt-on)
-  (camera-core/mouse-wheel-evt-on)
+  (camera-zoom/window-resize-evt-on)
+  (camera-zoom/mouse-wheel-evt-on)
   [bubble/svg-canvas])
 
 (defn mount-root [component]
@@ -34,8 +34,8 @@
   (event/window-keydown-evt-off)
   ;; Stop the event loop listening for camera modification
   (put! camera-state/event-queue [:stop-listening])
-  (camera-core/window-resize-evt-off)
-  (camera-core/mouse-wheel-evt-off)
+  (camera-zoom/window-resize-evt-off)
+  (camera-zoom/mouse-wheel-evt-off)
   )
 
 (defn ^:dev/after-load reload! []

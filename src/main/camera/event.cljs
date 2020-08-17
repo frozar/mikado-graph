@@ -1,8 +1,8 @@
 (ns camera.event
   (:require
-   [camera.core :as core]
    [camera.event.home :as home]
    [camera.event.pan :as pan]
+   [camera.event.zoom :as zoom]
    [camera.state :as state]
    [cljs.core.async :refer [<! go-loop]]
    ))
@@ -30,14 +30,14 @@
         (do
           (home/stop-background!)
           (let [[wheel-delta-y win-px-x win-px-y] args]
-            (core/mouse-wheel wheel-delta-y win-px-x win-px-y)))
+            (zoom/mouse-wheel wheel-delta-y win-px-x win-px-y)))
 
         :home
         (home/trigger-evt)
 
         :resize
         (let [[width height] args]
-          (core/window-resize width height))
+          (zoom/window-resize width height))
 
         :stop-listening
         (reset! keep-listening? false)
