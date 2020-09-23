@@ -24,8 +24,11 @@
     [rough/draw-building-link
      rough/draw-links
      rough/draw-bubbles]
-    )
-  )
+
+    ;; Default case
+    [solid/draw-building-link
+     solid/draw-links
+     solid/draw-bubbles]))
 
 (defn- draw-graph []
   (let [[draw-building-link draw-links draw-bubbles]
@@ -39,13 +42,13 @@
         (state-read/get-mouse-position)])
 
      ;; Static part
-     (let [couples_bubble
+     (let [couples-bubble
            (map
             (fn [link]
               [(-> link :src state-read/get-bubble)
                (-> link :dst state-read/get-bubble)])
             (state-read/get-links))]
-       [draw-links couples_bubble])
+       [draw-links couples-bubble])
      [draw-bubbles (state-read/get-bubbles)]]))
 
 (defn svg-origin []

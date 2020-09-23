@@ -5,7 +5,7 @@
    [reagent.core :rename {atom ratom}]
    ))
 
-(defn- init-appstate []
+(defn init-appstate []
   {:bubbles {ROOT-BUBBLE-ID bubble/root-bubble}
    :links []
    :link-src nil

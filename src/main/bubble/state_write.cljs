@@ -11,6 +11,20 @@
 
 ;; Read/Write application state
 
+;; START: Reset to blank state
+(defn get-blank-state [appstate]
+  (->> appstate
+       keys
+       (map (fn [elt] (vec [elt nil])))
+       (into {})))
+
+(defn reset-to-empty-state []
+  (reset! appstate (get-blank-state (bubble.state/init-appstate))))
+
+(defn reset-to-new-state []
+  (reset! appstate (bubble.state/init-appstate)))
+;; END: Reset to blank state
+
 ;; START: bubble part
 (defn- add-bubble [appstate bubble-id bubble]
   (update appstate :bubbles conj {bubble-id bubble}))

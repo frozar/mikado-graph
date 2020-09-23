@@ -37,11 +37,11 @@
    ;;                    ;; :static-fns true
    ;;                    ;; :source-map "public/js/cljs-runtime/mikado.app.js.map"
    ;;                    }
-   :modules {:main {:init-fn mikado.app/init!
+   :modules {:main {:init-fn launch/init!
                     ;; :preloads [devtools.preload]
                     }}
    :devtools {:http-root "public"
-              :http-port 8080
+              :http-port 8081
               :autoload true
               :repl-init-ns mikado.app
               :repl-pprint true

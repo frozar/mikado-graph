@@ -44,9 +44,9 @@
         new-camera (apply-zoom @state/camera scale svg-px)]
     (core/set-camera! new-camera)))
 
-(defn- mouse-wheel-evt [evt]
+(defn- mouse-wheel-evt [^js/goog.events.Event evt]
   (put! state/event-queue
-        [:mouse-wheel (..  evt -event_ -wheelDeltaY) (.-clientX evt) (.-clientY evt)]))
+        [:mouse-wheel (->  evt .getBrowserEvent .-wheelDeltaY) (.-clientX evt) (.-clientY evt)]))
 
 (defn mouse-wheel-evt-on []
   (events/listen js/window EventType.WHEEL mouse-wheel-evt))
