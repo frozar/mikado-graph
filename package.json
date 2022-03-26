@@ -6,7 +6,7 @@
     "karma": "^5.1.0",
     "karma-chrome-launcher": "^3.1.0",
     "karma-cljs-test": "^0.1.0",
-    "minimist": "^1.2.5",
+    "minimist": "^1.2.6",
     "shadow-cljs": "2.8.86"
   },
   "dependencies": {
